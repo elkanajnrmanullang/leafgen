@@ -1,0 +1,43 @@
+# --- Global ---
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+.vscode/
+.idea/
+coverage/
+dist/
+build/
+
+# --- Node/React (frontend) ---
+frontend/node_modules/
+frontend/.env*
+frontend/.parcel-cache/
+frontend/.next/
+frontend/.nuxt/
+frontend/.vite/
+frontend/.vercel/
+frontend/coverage/
+frontend/.eslintcache
+
+# --- Laravel/PHP (backend) ---
+backend/vendor/
+backend/node_modules/
+backend/storage/
+backend/public/storage
+backend/.env
+backend/.env.*
+backend/.phpunit.result.cache
+backend/bootstrap/cache/*.php
+backend/storage/*.key
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+backend/storage/logs/*
+
+# --- Python (kalau ada util skrip) ---
+__pycache__/
+*.pyc
+.venv/
+.env
