@@ -1,0 +1,27 @@
+{
+  "name": "leafgen",
+  "version": "1.0.0",
+  "description": "Automasi desain leaflet promosi ritel (monorepo):\r - `frontend/` : React (Editor, Template Library)\r - `backend/`  : Laravel + PostgreSQL (Produk, Template, Render/Export)\r - `docs/`     : Draft skripsi & artefak penelitian (SUS, black-box, dsb.)",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "dev": "concurrently \"cd backend && php artisan serve\" \"npm run dev --prefix frontend\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elkanajnrmanullang/leafgen.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/elkanajnrmanullang/leafgen/issues"
+  },
+  "homepage": "https://github.com/elkanajnrmanullang/leafgen#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
