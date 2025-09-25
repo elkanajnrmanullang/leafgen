@@ -4,7 +4,7 @@ import MainLayout from "./components/MainLayout";
 import DashboardPage from "./pages/DashboardPage";
 import BankGambarPage from "./pages/BankGambarPage";
 import ManajemenAkunPage from "./pages/ManajemenAkunPage";
-import React from "react";
+import React, { useState } from "react";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = !!localStorage.getItem("authToken");
@@ -17,7 +17,14 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    !!localStorage.getItem("authToken")
+  );
   const userRole = localStorage.getItem("userRole");
+
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+  };
 
   return (
     <BrowserRouter>
@@ -26,11 +33,10 @@ function App() {
           path="/login"
           element={
             <PublicRoute>
-              <LoginPage />
+              <LoginPage onLoginSuccess={handleLoginSuccess} />
             </PublicRoute>
           }
         />
-
         <Route
           path="/"
           element={
@@ -46,13 +52,14 @@ function App() {
             element={<div>Halaman Template Desain</div>}
           />
           <Route path="history" element={<div>Halaman History</div>} />
-
           {userRole === "manager" && (
             <Route path="manajemen-akun" element={<ManajemenAkunPage />} />
           )}
         </Route>
-
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route
+          path="*"
+          element={<Navigate to={isAuthenticated ? "/" : "/login"} />}
+        />
       </Routes>
     </BrowserRouter>
   );
