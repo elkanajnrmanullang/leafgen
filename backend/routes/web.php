@@ -20,4 +20,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/api/products', [ProductController::class, 'index']);
     Route::post('/api/products', [ProductController::class, 'store']);
     Route::delete('/api/products/{product}', [ProductController::class, 'destroy']);
+
+    Route::post('/api/debug/reset-data', [App\Http\Controllers\Api\UserController::class, 'resetDataForSimulation']);
 });

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { CheckCircle, AlertTriangle, Info } from "lucide-react";
 
 interface AlertModalProps {
@@ -6,6 +7,7 @@ interface AlertModalProps {
   onConfirm?: () => void;
   title: string;
   message: string;
+  children?: ReactNode;
   type: "success" | "error" | "confirm" | "info";
 }
 
@@ -15,6 +17,7 @@ const AlertModal = ({
   onConfirm,
   title,
   message,
+  children,
   type,
 }: AlertModalProps) => {
   if (!isOpen) return null;
@@ -40,6 +43,7 @@ const AlertModal = ({
               </h3>
               <div className="mt-2">
                 <p className="text-sm text-gray-500">{message}</p>
+                {children && <div className="mt-2 text-sm">{children}</div>}
               </div>
             </div>
           </div>

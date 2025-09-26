@@ -53,4 +53,24 @@ class UserController extends Controller
 
         return response()->json(['message' => 'Akun berhasil dinonaktifkan.']);
     }
+
+    public function resetDataForSimulation(Request $request)
+{
+    if ($request->user()->role !== 'manager') {
+        return response()->json(['message' => 'Unauthorized'], 403);
+    }
+
+    \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
+
+    \App\Models\LeafletItem::truncate();
+    \App\Models\Leaflet::truncate();
+    \App\Models\Product::truncate();
+    \App\Models\BackgroundTemplate::truncate();
+
+    User::whereNotIn('username', ['manager', 'staff'])->delete();
+
+    \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
+
+    return response()->json(['message' => 'Data simulasi (produk, leaflet, template) berhasil dikosongkan.']);
+}
 }
