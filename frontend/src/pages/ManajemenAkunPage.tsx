@@ -4,8 +4,9 @@ import {
   deactivateUser,
   activateUser,
   addUser,
+  resetSimulationData,
 } from "../services/userService";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, RefreshCw } from "lucide-react";
 import AlertModal from "../components/AlertModal";
 
 interface User {
@@ -13,7 +14,7 @@ interface User {
   name: string;
   email: string;
   username: string;
-  status: "Aktif" | "Nonaktif" | string;
+  status: "active" | "inactive" | string;
   role: "manager" | "staff";
 }
 
@@ -67,8 +68,7 @@ const ManajemenAkunPage = () => {
   }, []);
 
   const handleToggleStatusClick = (user: User) => {
-    const action =
-      user.status.toLowerCase() === "aktif" ? "menonaktifkan" : "mengaktifkan";
+    const action = user.status === "active" ? "menonaktifkan" : "mengaktifkan";
     setAlertState({
       isOpen: true,
       title: "Konfirmasi Tindakan",
@@ -79,10 +79,9 @@ const ManajemenAkunPage = () => {
   };
 
   const toggleUserStatus = async (user: User) => {
-    const isActivating = user.status.toLowerCase() !== "aktif";
+    const isActivating = user.status !== "active";
     const action = isActivating ? activateUser : deactivateUser;
     const successMessage = isActivating ? "diaktifkan" : "dinonaktifkan";
-
     try {
       await action(user.id);
       fetchUsers();
@@ -116,6 +115,7 @@ const ManajemenAkunPage = () => {
       setIsModalOpen(false);
       fetchUsers();
       setNewUser({ name: "", email: "", username: "", role: "staff" });
+
       setAlertState({
         isOpen: true,
         title: "Sukses!",
@@ -141,6 +141,38 @@ const ManajemenAkunPage = () => {
     }
   };
 
+  const handleResetDataClick = () => {
+    setAlertState({
+      isOpen: true,
+      title: "Konfirmasi Reset Data",
+      message:
+        "Ini akan menghapus SEMUA data produk, leaflet, dan template. Akun pengguna tidak akan dihapus. Lanjutkan?",
+      type: "confirm",
+      onConfirm: handleResetData,
+    });
+  };
+
+  const handleResetData = async () => {
+    try {
+      const response = await resetSimulationData();
+      setAlertState({
+        isOpen: true,
+        title: "Sukses",
+        message: response.message,
+        type: "success",
+      });
+      fetchUsers();
+      window.dispatchEvent(new CustomEvent("dataChanged"));
+    } catch (error) {
+      setAlertState({
+        isOpen: true,
+        title: "Error",
+        message: "Gagal mereset data.",
+        type: "error",
+      });
+    }
+  };
+
   return (
     <>
       <div>
@@ -153,13 +185,22 @@ const ManajemenAkunPage = () => {
               Kelola akun pengguna (khusus Manager).
             </p>
           </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 font-semibold text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors shadow"
-          >
-            <PlusCircle size={20} />
-            <span>Tambah Akun</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleResetDataClick}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
+            >
+              <RefreshCw size={16} />
+              <span>Reset Data (Dev)</span>
+            </button>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 font-semibold text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors shadow"
+            >
+              <PlusCircle size={20} />
+              <span>Tambah Akun</span>
+            </button>
+          </div>
         </div>
         <div className="bg-white rounded-xl shadow-sm">
           <div className="overflow-x-auto">
@@ -208,24 +249,24 @@ const ManajemenAkunPage = () => {
                       <td className="p-4">
                         <span
                           className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
-                            user.status.toLowerCase() === "aktif"
+                            user.status === "active"
                               ? "text-green-800 bg-green-100"
                               : "text-red-800 bg-red-100"
                           }`}
                         >
-                          {user.status}
+                          {user.status === "active" ? "Aktif" : "Nonaktif"}
                         </span>
                       </td>
                       <td className="p-4">
                         <button
                           onClick={() => handleToggleStatusClick(user)}
                           className={`text-sm font-medium ${
-                            user.status.toLowerCase() === "aktif"
+                            user.status === "active"
                               ? "text-red-600 hover:text-red-800"
                               : "text-green-600 hover:text-green-800"
                           }`}
                         >
-                          {user.status.toLowerCase() === "aktif"
+                          {user.status === "active"
                             ? "Nonaktifkan"
                             : "Aktifkan"}
                         </button>

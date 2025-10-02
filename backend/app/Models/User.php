@@ -30,6 +30,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'password_changed_at' => 'datetime',
     ];
 
     public function leaflets(): HasMany

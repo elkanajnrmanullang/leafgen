@@ -1,14 +1,33 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import LoginPage from "./pages/LoginPage";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import React from "react";
+
 import MainLayout from "./components/MainLayout";
+import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
+import ChangePasswordPage from "./pages/ChangePasswordPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import BankGambarPage from "./pages/BankGambarPage";
 import ManajemenAkunPage from "./pages/ManajemenAkunPage";
-import React, { useState } from "react";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const location = useLocation();
   const isAuthenticated = !!localStorage.getItem("authToken");
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+  const mustChangePassword = !!localStorage.getItem("passwordChangeReason");
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+
+  if (mustChangePassword && location.pathname !== "/ganti-password") {
+    return <Navigate to="/ganti-password" />;
+  }
+
+  if (!mustChangePassword && location.pathname === "/ganti-password") {
+    return <Navigate to="/" />;
+  }
+
+  return <>{children}</>;
 };
 
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
@@ -17,51 +36,55 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    !!localStorage.getItem("authToken")
-  );
-  const userRole = localStorage.getItem("userRole");
-
-  const handleLoginSuccess = () => {
-    setIsAuthenticated(true);
-  };
-
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route
-          path="/login"
-          element={
-            <PublicRoute>
-              <LoginPage onLoginSuccess={handleLoginSuccess} />
-            </PublicRoute>
-          }
-        />
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <MainLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<DashboardPage />} />
-          <Route path="bank-gambar" element={<BankGambarPage />} />
-          <Route
-            path="template-desain"
-            element={<div>Halaman Template Desain</div>}
-          />
-          <Route path="history" element={<div>Halaman History</div>} />
-          {userRole === "manager" && (
-            <Route path="manajemen-akun" element={<ManajemenAkunPage />} />
-          )}
-        </Route>
-        <Route
-          path="*"
-          element={<Navigate to={isAuthenticated ? "/" : "/login"} />}
-        />
-      </Routes>
-    </BrowserRouter>
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          <PublicRoute>
+            <LoginPage />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/lupa-password"
+        element={
+          <PublicRoute>
+            <ForgotPasswordPage />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/reset-password/:token"
+        element={
+          <PublicRoute>
+            <ResetPasswordPage />
+          </PublicRoute>
+        }
+      />
+
+      <Route
+        path="/ganti-password"
+        element={
+          <ProtectedRoute>
+            <ChangePasswordPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/*"
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<DashboardPage />} />
+        <Route path="bank-gambar" element={<BankGambarPage />} />
+        <Route path="manajemen-akun" element={<ManajemenAkunPage />} />
+      </Route>
+    </Routes>
   );
 }
 

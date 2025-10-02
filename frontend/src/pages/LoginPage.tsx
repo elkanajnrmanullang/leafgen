@@ -1,21 +1,20 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { login } from "../services/authService";
 import logoSrc from "../assets/logo.png";
+import { Link } from "react-router-dom";
 
 interface ApiError {
   message: string;
   errors?: { [key: string]: string[] };
 }
 
-interface LoginPageProps {
-  onLoginSuccess: () => void;
-}
-
-const LoginPage = ({ onLoginSuccess }: LoginPageProps) => {
+const LoginPage = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -24,12 +23,20 @@ const LoginPage = ({ onLoginSuccess }: LoginPageProps) => {
 
     try {
       const data = await login(username, password);
-      if (data.access_token) {
+
+      localStorage.setItem("authToken", data.access_token);
+      localStorage.setItem("userRole", data.user.role);
+      localStorage.setItem("userName", data.user.name);
+      localStorage.setItem("userEmail", data.user.email);
+
+      if (data.action_required) {
+        localStorage.setItem("passwordChangeReason", data.action_required); // Simpan alasannya
         localStorage.setItem("authToken", data.access_token);
-        localStorage.setItem("userRole", data.user.role);
-        localStorage.setItem("userName", data.user.name);
-        localStorage.setItem("userEmail", data.user.email);
-        onLoginSuccess();
+        navigate("/ganti-password");
+      } else {
+        localStorage.removeItem("passwordChangeReason"); // Hapus alasannya
+        localStorage.setItem("authToken", data.access_token);
+        navigate("/");
       }
     } catch (err: unknown) {
       const apiError = err as ApiError;
@@ -48,7 +55,7 @@ const LoginPage = ({ onLoginSuccess }: LoginPageProps) => {
       <div className="w-full max-w-md p-8 space-y-6 bg-slate-800 rounded-2xl shadow-lg">
         <div className="text-center">
           <div className="flex flex-col items-center justify-center mb-4">
-            <img src={logoSrc} alt="LeafGenn Logo" className="h-12 mb-2" />
+            <img src={logoSrc} alt="LeafGenn Logo" className="h-16 mb-2" />
           </div>
           <p className="text-slate-300 text-sm">
             Silakan login untuk melanjutkan
@@ -72,12 +79,21 @@ const LoginPage = ({ onLoginSuccess }: LoginPageProps) => {
             />
           </div>
           <div>
-            <label
-              htmlFor="password"
-              className="text-sm font-medium text-slate-300"
-            >
-              Password
-            </label>
+            <div className="flex justify-between items-center">
+              <label
+                htmlFor="password"
+                className="text-sm font-medium text-slate-300"
+              >
+                Password
+              </label>
+              <Link
+                to="/lupa-password"
+                tabIndex={-1}
+                className="text-sm text-blue-400 hover:underline"
+              >
+                Lupa Password?
+              </Link>
+            </div>
             <input
               id="password"
               type="password"

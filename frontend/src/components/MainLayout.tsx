@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import logoSrc from "../assets/logo.png";
 import {
   LayoutDashboard,
@@ -30,6 +30,7 @@ const MainLayout = () => {
   const location = useLocation();
   const userRole = localStorage.getItem("userRole");
   const userEmail = localStorage.getItem("userEmail") || "user@example.com";
+  const navigate = useNavigate();
 
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [newProductName, setNewProductName] = useState("");

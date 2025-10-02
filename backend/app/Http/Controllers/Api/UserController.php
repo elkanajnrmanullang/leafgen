@@ -7,12 +7,14 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\NewUserWelcomeMail;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        if (request()->user()->role !== 'manager') {
+        if ($request->user()->role !== 'manager') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         return User::latest()->get();
@@ -20,7 +22,7 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
-        if (request()->user()->role !== 'manager') {
+        if ($request->user()->role !== 'manager') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -36,15 +38,16 @@ class UserController extends Controller
 
         $user = User::create($validatedData);
 
+        Mail::to($user->email)->send(new NewUserWelcomeMail($user, $password));
+
         return response()->json([
-            'user' => $user,
-            'password' => $password
+            'user' => $user
         ], 201);
     }
 
-    public function deactivate(User $user)
+    public function deactivate(Request $request, User $user)
     {
-        if (request()->user()->role !== 'manager') {
+        if ($request->user()->role !== 'manager') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -54,23 +57,46 @@ class UserController extends Controller
         return response()->json(['message' => 'Akun berhasil dinonaktifkan.']);
     }
 
-    public function resetDataForSimulation(Request $request)
-{
-    if ($request->user()->role !== 'manager') {
-        return response()->json(['message' => 'Unauthorized'], 403);
+    public function activate(Request $request, User $user)
+    {
+        if ($request->user()->role !== 'manager') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $user->status = 'active';
+        $user->save();
+
+        return response()->json(['message' => 'Akun berhasil diaktifkan kembali.']);
     }
 
-    \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
+    public function resetDataForSimulation(Request $request)
+    {
+        if ($request->user()->role !== 'manager') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
 
-    \App\Models\LeafletItem::truncate();
-    \App\Models\Leaflet::truncate();
-    \App\Models\Product::truncate();
-    \App\Models\BackgroundTemplate::truncate();
+        \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
+        \App\Models\LeafletItem::truncate();
+        \App\Models\Leaflet::truncate();
+        \App\Models\Product::truncate();
+        \App\Models\BackgroundTemplate::truncate();
+        User::whereNotIn('username', ['manager', 'staff'])->delete();
+        \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
 
-    User::whereNotIn('username', ['manager', 'staff'])->delete();
+        return response()->json(['message' => 'Data simulasi (produk, leaflet, template) berhasil dikosongkan.']);
+    }
 
-    \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
+    public function updatePassword(Request $request)
+{
+    $validated = $request->validate([
+        'password' => 'required|string|min:8|confirmed',
+    ]);
 
-    return response()->json(['message' => 'Data simulasi (produk, leaflet, template) berhasil dikosongkan.']);
+    $user = $request->user();
+    $user->password = Hash::make($validated['password']);
+    $user->password_changed_at = now();
+    $user->save();
+
+    return response()->json(['message' => 'Password berhasil diperbarui.']);
 }
 }
