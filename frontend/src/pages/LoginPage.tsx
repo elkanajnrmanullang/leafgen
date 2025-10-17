@@ -30,11 +30,11 @@ const LoginPage = () => {
       localStorage.setItem("userEmail", data.user.email);
 
       if (data.action_required) {
-        localStorage.setItem("passwordChangeReason", data.action_required); // Simpan alasannya
+        localStorage.setItem("passwordChangeReason", data.action_required); 
         localStorage.setItem("authToken", data.access_token);
         navigate("/ganti-password");
       } else {
-        localStorage.removeItem("passwordChangeReason"); // Hapus alasannya
+        localStorage.removeItem("passwordChangeReason"); 
         localStorage.setItem("authToken", data.access_token);
         navigate("/");
       }

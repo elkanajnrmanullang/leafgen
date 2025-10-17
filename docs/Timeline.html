@@ -57,29 +57,24 @@
             <section id="project-summary" class="mb-10 prose max-w-none">
                 <h2 class="text-2xl font-semibold text-slate-800 mb-4">📝 Latar Belakang & Alur Kerja Final</h2>
                 <h3>Permasalahan Utama</h3>
-                <p>Proses pembuatan leaflet promosi saat ini menghadapi beberapa tantangan signifikan yang menyebabkan
-                    inefisiensi. Proses manual oleh 9 staf desain untuk berbagai daerah memakan waktu minimal <strong>8
-                        jam per leaflet</strong>, dengan tambahan <strong>4 jam untuk revisi</strong> akibat *human
-                    error* (salah ketik harga, salah gambar, dll.). Kolaborasi menjadi sulit ketika staf absen, karena
-                    mengharuskan penggunaan laptop fisik milik staf tersebut. Tujuan utama sistem ini adalah memangkas
-                    total waktu kerja tersebut hingga <strong>kurang dari 1 jam</strong>, atau mencapai efisiensi lebih
-                    dari 90%.</p>
+                <p>Proses pembuatan leaflet promosi saat ini memakan waktu minimal <strong>8 jam per leaflet</strong>, dengan tambahan <strong>4 jam untuk revisi</strong> akibat *human error*. Kolaborasi menjadi sulit ketika staf absen, karena mengharuskan penggunaan laptop fisik milik staf tersebut. Tujuan utama sistem ini adalah memangkas total waktu kerja tersebut hingga <strong>kurang dari 1 jam</strong>, atau mencapai efisiensi lebih dari 90%.</p>
+                
                 <h3>Alur Kerja Sistem</h3>
                 <ul class="text-slate-600">
-                    <li><strong>Buat Leaflet dari CSV:</strong> Staf mengunggah file CSV. Sistem membaca data produk
-                        dengan mencocokkan <strong>Kode PLU Unit</strong> ke <strong>Bank Gambar</strong>, lalu
-                        menampilkan pilihan daerah dari CSV. Setelah daerah dipilih, sistem secara otomatis menghasilkan
-                        pratinjau layout grid cerdas yang dapat diedit di editor visual "Canva-like" sebelum diunduh
-                        sebagai PNG dan disimpan ke History.</li>
-                    <li><strong>Buat Leaflet dari Template:</strong> Staf memilih desain latar dari menu
-                        <strong>Template Desain</strong>. Sistem kemudian menampilkan galeri layout yang sudah ada dari
-                        <strong>History</strong>. Staf memilih salah satu layout untuk digabungkan dengan latar baru,
-                        lalu dapat melakukan penyesuaian akhir di editor visual. Hasilnya juga disimpan ke History
-                        dengan kode unik.</li>
-                    <li><strong>Manajemen Data:</strong> Staf dapat menambah produk baru ke <strong>Bank
-                            Gambar</strong>. Manajer (Admin) dapat mengelola akun pengguna, termasuk menambah pengguna
-                        baru (password dikirim via email) dan <strong>menonaktifkan</strong> akun (bukan menghapus)
-                        untuk menjaga integritas data history.</li>
+                    <li><strong>Buat Leaflet dari CSV:</strong> Staf mengunggah file CSV. Sistem menampilkan pratinjau layout awal sesuai urutan data. Di dalam editor visual, staf dapat menekan tombol <strong>"Grid Cerdas"</strong> untuk menyusun ulang produk secara otomatis berdasarkan pola historis dari leaflet sebelumnya. Staf tetap memiliki kontrol penuh untuk penyesuaian akhir sebelum mengunduh sebagai PNG.</li>
+                    <li><strong>Buat Leaflet dari Template:</strong> Staf memilih desain latar dari menu <strong>Template Desain</strong>. Sistem kemudian menampilkan galeri layout dari <strong>History</strong> untuk digabungkan dengan latar baru, lalu dapat melakukan penyesuaian akhir di editor visual.</li>
+                    <li><strong>Pembelajaran Mandiri (Self-Learning):</strong> Setiap leaflet yang disimpan ke <strong>History</strong> menjadi data baru bagi model <em>machine learning</em>, membuatnya semakin pintar dalam memberikan rekomendasi tata letak di masa depan.</li>
+                    <li><strong>Manajemen Data:</strong> Staf dapat menambah produk ke <strong>Bank Gambar</strong>. Manajer (Admin) dapat mengelola akun pengguna, termasuk menambah pengguna baru dan <strong>menonaktifkan</strong> akun untuk menjaga integritas data history.</li>
+                </ul>
+            </section>
+
+            <section id="ml-concept" class="mb-10 prose max-w-none">
+                <h2 class="text-2xl font-semibold text-slate-800 mb-4">🧠 Konsep Machine Learning: Grid Cerdas</h2>
+                <p>Fitur "Grid Cerdas" merupakan inovasi utama dalam proyek ini yang membedakannya dari sistem otomatisasi biasa. Fitur ini dirancang untuk meniru intuisi desainer dalam mengelompokkan produk-produk yang relevan.</p>
+                <ul class="text-slate-600">
+                    <li><strong>Model yang Digunakan:</strong> Sistem menggunakan teknik <em>machine learning</em> <strong>Association Rule Mining</strong> dengan algoritma <strong>Apriori</strong>. Tujuannya adalah untuk menemukan "aturan asosiasi" atau pola produk yang sering muncul bersamaan dalam satu leaflet.</li>
+                    <li><strong>Sumber Dataset:</strong> Dataset untuk model ini tidak diinput manual, melainkan dibangun secara otomatis dari <strong>seluruh data di menu History</strong>. Setiap leaflet yang disimpan dianggap sebagai satu "transaksi" data.</li>
+                    <li><strong>Mekanisme "Cold Start":</strong> Untuk menjamin kualitas rekomendasi, fitur "Grid Cerdas" dirancang untuk mengatasi <em>cold start problem</em>. Tombol fitur ini <strong>baru akan muncul dan aktif setelah sistem memiliki minimal 5 data leaflet</strong> di dalam History untuk dipelajari.</li>
                 </ul>
             </section>
 
@@ -88,25 +83,19 @@
                 <div class="grid md:grid-cols-2 gap-6">
                     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                         <h3 class="font-bold text-blue-800 mb-1">Tujuan Kuantitatif</h3>
-                        <p class="text-sm text-blue-700">Mengurangi waktu pengerjaan leaflet dari <strong>8+
-                                jam</strong> menjadi <strong>kurang dari 1 jam</strong>, mencapai peningkatan efisiensi
-                            lebih dari 90%.</p>
+                        <p class="text-sm text-blue-700">Mengurangi waktu pengerjaan leaflet dari <strong>8+ jam</strong> menjadi <strong>kurang dari 1 jam</strong>, mencapai peningkatan efisiensi lebih dari 90%.</p>
                     </div>
                     <div class="bg-green-50 border border-green-200 rounded-lg p-4">
                         <h3 class="font-bold text-green-800 mb-1">Ruang Lingkup Penuh</h3>
-                        <p class="text-sm text-green-700">Proyek ini akan mencakup <strong>semua fitur</strong> yang
-                            telah didiskusikan, termasuk editor visual "Canva-like", dua alur kerja, dan manajemen akun
-                            tingkat lanjut.</p>
+                        <p class="text-sm text-green-700">Proyek ini akan mencakup semua fitur yang telah didiskusikan, termasuk fitur "Grid Cerdas" berbasis *machine learning*.</p>
                     </div>
                     <div class="bg-red-50 border border-red-200 rounded-lg p-4">
                         <h3 class="font-bold text-red-800 mb-1">Deadline Mutlak</h3>
-                        <p class="text-sm text-red-700">Aplikasi harus selesai, diuji, dan di-<em>deploy</em> di server
-                            paling lambat pada <strong>17 November 2025</strong>.</p>
+                        <p class="text-sm text-red-700">Aplikasi harus selesai, diuji, dan di-<em>deploy</em> di server paling lambat pada <strong>17 November 2025</strong>.</p>
                     </div>
                     <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
                         <h3 class="font-bold text-amber-800 mb-1">Komitmen Waktu</h3>
-                        <p class="text-sm text-amber-700">Timeline ini didasarkan pada komitmen pengerjaan <strong>8 jam
-                                per hari, 7 hari per minggu</strong>.</p>
+                        <p class="text-sm text-amber-700">Timeline ini didasarkan pada komitmen pengerjaan <strong>8 jam per hari, 7 hari per minggu</strong>.</p>
                     </div>
                 </div>
             </section>
@@ -115,35 +104,17 @@
                 <div>
                     <h2 class="text-2xl font-semibold text-slate-800 mb-3">🚀 Tumpukan Teknologi (Tech Stack)</h2>
                     <ul class="space-y-3 text-slate-600">
-                        <li><strong class="text-slate-700">Backend: Laravel</strong>
-                            <p class="text-sm text-slate-500 pl-4">- Membangun REST API sebagai "otak" dari seluruh
-                                logika aplikasi.</p>
-                        </li>
-                        <li><strong class="text-slate-700">Frontend: React (Vite + TypeScript)</strong>
-                            <p class="text-sm text-slate-500 pl-4">- Membangun antarmuka pengguna yang interaktif dan
-                                modern.</p>
-                        </li>
-                        <li><strong class="text-slate-700">Database: PostgreSQL</strong>
-                            <p class="text-sm text-slate-500 pl-4">- Menyimpan semua data secara persisten dan andal.
-                            </p>
-                        </li>
-                        <li><strong class="text-slate-700">Styling: Tailwind CSS</strong>
-                            <p class="text-sm text-slate-500 pl-4">- Kerangka kerja CSS untuk desain yang cepat dan
-                                konsisten.</p>
-                        </li>
-                        <li><strong class="text-slate-700">Server & Deployment: VPS Ubuntu, Nginx, Supervisor</strong>
-                            <p class="text-sm text-slate-500 pl-4">- Infrastruktur untuk menjalankan aplikasi secara
-                                online.</p>
-                        </li>
+                        <li><strong class="text-slate-700">Backend: Laravel</strong><p class="text-sm text-slate-500 pl-4">- Membangun REST API dan logika *machine learning*.</p></li>
+                        <li><strong class="text-slate-700">Frontend: React (Vite + TypeScript)</strong><p class="text-sm text-slate-500 pl-4">- Membangun antarmuka pengguna yang interaktif.</p></li>
+                        <li><strong class="text-slate-700">Database: PostgreSQL</strong><p class="text-sm text-slate-500 pl-4">- Menyimpan semua data, termasuk dataset untuk ML.</p></li>
+                        <li><strong class="text-slate-700">Styling: Tailwind CSS</strong><p class="text-sm text-slate-500 pl-4">- Kerangka kerja CSS untuk desain yang cepat.</p></li>
+                        <li><strong class="text-slate-700">Server & Deployment: VPS Ubuntu, Nginx, Supervisor</strong><p class="text-sm text-slate-500 pl-4">- Infrastruktur untuk menjalankan aplikasi secara online.</p></li>
                     </ul>
                 </div>
                 <div>
                     <h2 class="text-2xl font-semibold text-slate-800 mb-3">🚧 Status Proyek</h2>
-                    <div class="bg-blue-100 text-blue-800 font-semibold px-4 py-2 rounded-lg inline-block">Dalam Tahap
-                        Pengembangan (In Development)</div>
-                    <p class="mt-3 text-slate-600">Proyek ini sedang dalam pengembangan aktif sesuai dengan timeline di
-                        bawah ini.<br><strong>Fase saat ini:</strong> Fase 2 (Sprint 1): Fondasi Backend & Manajemen
-                        Data</p>
+                    <div class="bg-green-100 text-green-800 font-semibold px-4 py-2 rounded-lg inline-block">Fase 2 (Sprint 1) Selesai</div>
+                    <p class="mt-3 text-slate-600">Proyek ini sedang dalam pengembangan aktif.<br><strong>Fase saat ini:</strong> Memulai <strong>Fase 2 (Sprint 2)</strong>: Alur CSV & Editor Visual Inti.</p>
                 </div>
             </section>
 
@@ -153,114 +124,42 @@
                     <table class="w-full text-left border-collapse">
                         <thead class="bg-slate-100">
                             <tr>
-                                <th class="p-3 border border-slate-200 font-semibold text-slate-600">Aktivitas Utama
-                                </th>
+                                <th class="p-3 border border-slate-200 font-semibold text-slate-600">Aktivitas Utama</th>
                                 <th class="p-3 border border-slate-200 font-semibold text-slate-600">Tujuan</th>
-                                <th class="p-3 border border-slate-200 font-semibold text-slate-600">Output dan Fitur
-                                    yang Dibangun</th>
+                                <th class="p-3 border border-slate-200 font-semibold text-slate-600">Output dan Fitur yang Dibangun</th>
                                 <th class="p-3 border border-slate-200 font-semibold text-slate-600">Timeline</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr class="bg-white">
-                                <td class="p-3 border border-slate-200 align-top font-medium">Fase 1: Perencanaan &
-                                    Fiksasi Desain</td>
-                                <td class="p-3 border border-slate-200 align-top text-sm text-slate-600">Mengunci ruang
-                                    lingkup, alur kerja, dan desain teknis proyek secara final sebelum memulai proses
-                                    coding.</td>
-                                <td class="p-3 border border-slate-200 align-top text-sm">
-                                    <ul class="list-disc list-inside space-y-1">
-                                        <li>Dokumen Konsep Final yang Disetujui.</li>
-                                        <li>Desain Skema Database Final.</li>
-                                        <li>Mockup UI/UX detail untuk editor visual.</li>
-                                        <li>Project Board (Trello/Notion) dengan semua tugas.</li>
-                                    </ul>
-                                </td>
-                                <td class="p-3 border border-slate-200 align-top font-semibold whitespace-nowrap">16 Sep
-                                    - 22 Sep 2025</td>
+                                <td class="p-3 border border-slate-200 align-top font-medium">Fase 1: Perencanaan & Fiksasi Desain</td>
+                                <td class="p-3 border border-slate-200 align-top text-sm text-slate-600">Mengunci ruang lingkup, alur kerja, dan desain teknis proyek.</td>
+                                <td class="p-3 border border-slate-200 align-top text-sm"><ul class="list-disc list-inside space-y-1"><li>Dokumen Konsep Final.</li><li>Desain Skema Database.</li><li>Mockup UI/UX.</li></ul></td>
+                                <td class="p-3 border border-slate-200 align-top font-semibold whitespace-nowrap">16 Sep - 22 Sep 2025</td>
                             </tr>
                             <tr class="bg-slate-50/50">
-                                <td class="p-3 border border-slate-200 align-top font-medium">Fase 2 (Sprint 1): Fondasi
-                                    Backend & Manajemen Data</td>
-                                <td class="p-3 border border-slate-200 align-top text-sm text-slate-600">Membangun
-                                    kerangka dasar aplikasi yang solid dan fungsionalitas inti untuk pengelolaan data
-                                    utama (User & Produk).</td>
-                                <td class="p-3 border border-slate-200 align-top text-sm"><strong>Backend:</strong>
-                                    <ul class="list-disc list-inside space-y-1 mt-1">
-                                        <li>API Autentikasi (Login) & RBAC.</li>
-                                        <li>API CRUD Manajemen Akun.</li>
-                                        <li>API CRUD Bank Gambar.</li>
-                                        <li>Skema pengiriman email untuk password.</li>
-                                    </ul><br><strong>Frontend:</strong>
-                                    <ul class="list-disc list-inside space-y-1 mt-1">
-                                        <li>Halaman Login fungsional.</li>
-                                        <li>Halaman Manajemen Akun (khusus Admin).</li>
-                                        <li>Halaman Bank Gambar.</li>
-                                    </ul>
-                                </td>
-                                <td class="p-3 border border-slate-200 align-top font-semibold whitespace-nowrap">23 Sep
-                                    - 6 Okt 2025</td>
+                                <td class="p-3 border border-slate-200 align-top font-medium">Fase 2 (Sprint 1): Fondasi & Manajemen Data</td>
+                                <td class="p-3 border border-slate-200 align-top text-sm text-slate-600">Membangun kerangka dasar aplikasi dan fungsionalitas pengelolaan data utama.</td>
+                                <td class="p-3 border border-slate-200 align-top text-sm"><strong>Backend:</strong><ul class="list-disc list-inside space-y-1 mt-1"><li>API Autentikasi (termasuk Ganti Password Wajib).</li><li>API CRUD Manajemen Akun & Bank Gambar.</li></ul><br><strong>Frontend:</strong><ul class="list-disc list-inside space-y-1 mt-1"><li>Halaman Login & Ganti Password.</li><li>Halaman Manajemen Akun & Bank Gambar.</li></ul></td>
+                                <td class="p-3 border border-slate-200 align-top font-semibold whitespace-nowrap">23 Sep - 6 Okt 2025</td>
                             </tr>
                             <tr class="bg-white">
-                                <td class="p-3 border border-slate-200 align-top font-medium">Fase 2 (Sprint 2): Alur
-                                    CSV & Editor Visual Inti</td>
-                                <td class="p-3 border border-slate-200 align-top text-sm text-slate-600">
-                                    Mengimplementasikan alur kerja utama untuk memulai pembuatan leaflet dan membangun
-                                    komponen frontend yang paling kompleks.</td>
-                                <td class="p-3 border border-slate-200 align-top text-sm"><strong>Backend:</strong>
-                                    <ul class="list-disc list-inside space-y-1 mt-1">
-                                        <li>Logika & API untuk parsing file CSV.</li>
-                                        <li>Algoritma & API untuk "Grid Cerdas".</li>
-                                        <li>API untuk menyimpan state dari editor visual.</li>
-                                    </ul><br><strong>Frontend:</strong>
-                                    <ul class="list-disc list-inside space-y-1 mt-1">
-                                        <li>Fungsionalitas upload file CSV.</li>
-                                        <li>Dropdown pemilihan wilayah.</li>
-                                        <li>Komponen dasar Editor Visual "Canva-like" (drag-and-drop).</li>
-                                    </ul>
-                                </td>
-                                <td class="p-3 border border-slate-200 align-top font-semibold whitespace-nowrap">7 Okt
-                                    - 20 Okt 2025</td>
+                                <td class="p-3 border border-slate-200 align-top font-medium">Fase 2 (Sprint 2): Alur CSV & Editor Visual Inti</td>
+                                <td class="p-3 border border-slate-200 align-top text-sm text-slate-600">Mengimplementasikan alur kerja utama dan membangun komponen frontend yang paling kompleks.</td>
+                                <td class="p-3 border border-slate-200 align-top text-sm"><strong>Backend:</strong><ul class="list-disc list-inside space-y-1 mt-1"><li>API untuk parsing file CSV.</li><li>API untuk status "Grid Cerdas" (pengecekan > 5 leaflet).</li></ul><br><strong>Frontend:</strong><ul class="list-disc list-inside space-y-1 mt-1"><li>Fungsionalitas upload CSV.</li><li>Editor visual dasar.</li><li>Tombol "Grid Cerdas" (tampil kondisional).</li></ul></td>
+                                <td class="p-3 border border-slate-200 align-top font-semibold whitespace-nowrap">7 Okt - 20 Okt 2025</td>
                             </tr>
                             <tr class="bg-slate-50/50">
-                                <td class="p-3 border border-slate-200 align-top font-medium">Fase 2 (Sprint 3):
-                                    Finalisasi Fitur & Integrasi</td>
-                                <td class="p-3 border border-slate-200 align-top text-sm text-slate-600">Menyelesaikan
-                                    semua fitur yang tersisa dan mengintegrasikan seluruh komponen menjadi satu alur
-                                    kerja yang utuh.</td>
-                                <td class="p-3 border border-slate-200 align-top text-sm"><strong>Backend:</strong>
-                                    <ul class="list-disc list-inside space-y-1 mt-1">
-                                        <li>Logika & API untuk Ekspor ke PNG.</li>
-                                        <li>API untuk alur kedua (dari Template Desain).</li>
-                                        <li>API untuk menu History.</li>
-                                        <li>Sistem <em>cron job</em> untuk reset password bulanan.</li>
-                                    </ul><br><strong>Frontend:</strong>
-                                    <ul class="list-disc list-inside space-y-1 mt-1">
-                                        <li>Menyelesaikan tools di Editor Visual.</li>
-                                        <li>Alur "Buat dari Template Desain".</li>
-                                        <li>Halaman History dengan fungsi Lihat, Download, dan <strong>Edit</strong>.
-                                        </li>
-                                    </ul>
-                                </td>
-                                <td class="p-3 border border-slate-200 align-top font-semibold whitespace-nowrap">21 Okt
-                                    - 3 Nov 2025</td>
+                                <td class="p-3 border border-slate-200 align-top font-medium">Fase 2 (Sprint 3): Finalisasi Fitur & Integrasi ML</td>
+                                <td class="p-3 border border-slate-200 align-top text-sm text-slate-600">Menyelesaikan semua fitur dan mengintegrasikan logika <em>machine learning</em>.</td>
+                                <td class="p-3 border border-slate-200 align-top text-sm"><strong>Backend:</strong><ul class="list-disc list-inside space-y-1 mt-1"><li><strong>Implementasi model ML (Apriori)</strong> untuk "Grid Cerdas".</li><li>API untuk alur "Buat dari Template" dan History.</li><li>API untuk Ekspor ke PNG.</li></ul><br><strong>Frontend:</strong><ul class="list-disc list-inside space-y-1 mt-1"><li>Integrasi fungsi tombol "Grid Cerdas".</li><li>Alur "Buat dari Template Desain".</li><li>Halaman History (Lihat, Download, Edit).</li></ul></td>
+                                <td class="p-3 border border-slate-200 align-top font-semibold whitespace-nowrap">21 Okt - 3 Nov 2025</td>
                             </tr>
                             <tr class="bg-white">
-                                <td class="p-3 border border-slate-200 align-top font-medium">Fase 3: Pengujian,
-                                    Deployment, & Serah Terima</td>
-                                <td class="p-3 border border-slate-200 align-top text-sm text-slate-600">Memastikan
-                                    aplikasi stabil, bebas dari bug kritis, berjalan lancar di server produksi, dan
-                                    diserahkan kepada klien.</td>
-                                <td class="p-3 border border-slate-200 align-top text-sm">
-                                    <ul class="list-disc list-inside space-y-1">
-                                        <li>Laporan hasil pengujian End-to-End.</li>
-                                        <li>Aplikasi yang live dan dapat diakses online.</li>
-                                        <li>Dokumen panduan pengguna singkat.</li>
-                                        <li>Sesi demo final dan pelatihan.</li>
-                                    </ul>
-                                </td>
-                                <td class="p-3 border border-slate-200 align-top font-semibold whitespace-nowrap">4 Nov
-                                    - 17 Nov 2025</td>
+                                <td class="p-3 border border-slate-200 align-top font-medium">Fase 3: Pengujian, Deployment, & Serah Terima</td>
+                                <td class="p-3 border border-slate-200 align-top text-sm text-slate-600">Memastikan aplikasi stabil, bebas dari bug kritis, dan berjalan lancar di server produksi.</td>
+                                <td class="p-3 border border-slate-200 align-top text-sm"><ul class="list-disc list-inside space-y-1"><li>Laporan pengujian End-to-End.</li><li>Aplikasi live.</li><li>Dokumen panduan pengguna.</li></ul></td>
+                                <td class="p-3 border border-slate-200 align-top font-semibold whitespace-nowrap">4 Nov - 17 Nov 2025</td>
                             </tr>
                         </tbody>
                     </table>
@@ -274,64 +173,17 @@
                         <h3 class="text-lg font-semibold text-slate-700 mb-2">1. Tabel `users`</h3>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
-                                <thead class="bg-slate-100">
-                                    <tr>
-                                        <th class="p-2 border border-slate-200 text-sm">Nama Kolom</th>
-                                        <th class="p-2 border border-slate-200 text-sm">Tipe Data</th>
-                                        <th class="p-2 border border-slate-200 text-sm">Keterangan</th>
-                                    </tr>
-                                </thead>
+                                <thead class="bg-slate-100"><tr><th class="p-2 border border-slate-200 text-sm">Nama Kolom</th><th class="p-2 border border-slate-200 text-sm">Tipe Data</th><th class="p-2 border border-slate-200 text-sm">Keterangan</th></tr></thead>
                                 <tbody>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">id</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">BIGINT</td>
-                                        <td class="p-2 border border-slate-200 text-sm"><strong>Primary Key</strong>
-                                        </td>
-                                    </tr>
-                                    <tr class="bg-slate-50/50">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">name</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Nama lengkap pengguna</td>
-                                    </tr>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">email</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Alamat email (unik)</td>
-                                    </tr>
-                                    <tr class="bg-slate-50/50">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">username</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Username (unik)</td>
-                                    </tr>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">password</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Password (hashed)</td>
-                                    </tr>
-                                    <tr class="bg-slate-50/50">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">role</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">ENUM('manager',
-                                            'staff')</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Peran pengguna</td>
-                                    </tr>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">status</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">ENUM('active',
-                                            'inactive')</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Status akun</td>
-                                    </tr>
-                                    <tr class="bg-slate-50/50">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">password_changed_at
-                                        </td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">TIMESTAMP</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Waktu password diubah</td>
-                                    </tr>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">created_at, updated_at
-                                        </td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">TIMESTAMP</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Otomatis oleh Laravel</td>
-                                    </tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">id</td><td class="p-2 border border-slate-200 text-sm font-mono">BIGINT</td><td class="p-2 border border-slate-200 text-sm"><strong>Primary Key</strong></td></tr>
+                                    <tr class="bg-slate-50/50"><td class="p-2 border border-slate-200 text-sm font-mono">name</td><td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td><td class="p-2 border border-slate-200 text-sm">Nama lengkap pengguna</td></tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">email</td><td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td><td class="p-2 border border-slate-200 text-sm">Alamat email (unik)</td></tr>
+                                    <tr class="bg-slate-50/50"><td class="p-2 border border-slate-200 text-sm font-mono">username</td><td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td><td class="p-2 border border-slate-200 text-sm">Username (unik)</td></tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">password</td><td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td><td class="p-2 border border-slate-200 text-sm">Password (hashed)</td></tr>
+                                    <tr class="bg-slate-50/50"><td class="p-2 border border-slate-200 text-sm font-mono">role</td><td class="p-2 border border-slate-200 text-sm font-mono">ENUM('manager','staff')</td><td class="p-2 border border-slate-200 text-sm">Peran pengguna</td></tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">status</td><td class="p-2 border border-slate-200 text-sm font-mono">ENUM('active','inactive')</td><td class="p-2 border border-slate-200 text-sm">Status akun</td></tr>
+                                    <tr class="bg-slate-50/50"><td class="p-2 border border-slate-200 text-sm font-mono">password_changed_at</td><td class="p-2 border border-slate-200 text-sm font-mono">TIMESTAMP</td><td class="p-2 border border-slate-200 text-sm">Waktu password diubah</td></tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">created_at, updated_at</td><td class="p-2 border border-slate-200 text-sm font-mono">TIMESTAMP</td><td class="p-2 border border-slate-200 text-sm">Otomatis oleh Laravel</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -339,42 +191,14 @@
                     <div>
                         <h3 class="text-lg font-semibold text-slate-700 mb-2">2. Tabel `products` (Bank Gambar)</h3>
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead class="bg-slate-100">
-                                    <tr>
-                                        <th class="p-2 border border-slate-200 text-sm">Nama Kolom</th>
-                                        <th class="p-2 border border-slate-200 text-sm">Tipe Data</th>
-                                        <th class="p-2 border border-slate-200 text-sm">Keterangan</th>
-                                    </tr>
-                                </thead>
+                             <table class="w-full text-left border-collapse">
+                                <thead class="bg-slate-100"><tr><th class="p-2 border border-slate-200 text-sm">Nama Kolom</th><th class="p-2 border border-slate-200 text-sm">Tipe Data</th><th class="p-2 border border-slate-200 text-sm">Keterangan</th></tr></thead>
                                 <tbody>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">id</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">BIGINT</td>
-                                        <td class="p-2 border border-slate-200 text-sm"><strong>Primary Key</strong>
-                                        </td>
-                                    </tr>
-                                    <tr class="bg-slate-50/50">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">plu_code</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Kode PLU Unit (unik)</td>
-                                    </tr>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">name</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Nama produk</td>
-                                    </tr>
-                                    <tr class="bg-slate-50/50">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">image_path</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Lokasi file gambar</td>
-                                    </tr>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">created_at, updated_at
-                                        </td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">TIMESTAMP</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Otomatis oleh Laravel</td>
-                                    </tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">id</td><td class="p-2 border border-slate-200 text-sm font-mono">BIGINT</td><td class="p-2 border border-slate-200 text-sm"><strong>Primary Key</strong></td></tr>
+                                    <tr class="bg-slate-50/50"><td class="p-2 border border-slate-200 text-sm font-mono">plu_code</td><td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td><td class="p-2 border border-slate-200 text-sm">Kode PLU Unit (unik)</td></tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">name</td><td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td><td class="p-2 border border-slate-200 text-sm">Nama produk</td></tr>
+                                    <tr class="bg-slate-50/50"><td class="p-2 border border-slate-200 text-sm font-mono">image_path</td><td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td><td class="p-2 border border-slate-200 text-sm">Lokasi file gambar</td></tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">created_at, updated_at</td><td class="p-2 border border-slate-200 text-sm font-mono">TIMESTAMP</td><td class="p-2 border border-slate-200 text-sm">Otomatis oleh Laravel</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -383,42 +207,13 @@
                         <h3 class="text-lg font-semibold text-slate-700 mb-2">3. Tabel `background_templates`</h3>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
-                                <thead class="bg-slate-100">
-                                    <tr>
-                                        <th class="p-2 border border-slate-200 text-sm">Nama Kolom</th>
-                                        <th class="p-2 border border-slate-200 text-sm">Tipe Data</th>
-                                        <th class="p-2 border border-slate-200 text-sm">Keterangan</th>
-                                    </tr>
-                                </thead>
+                                <thead class="bg-slate-100"><tr><th class="p-2 border border-slate-200 text-sm">Nama Kolom</th><th class="p-2 border border-slate-200 text-sm">Tipe Data</th><th class="p-2 border border-slate-200 text-sm">Keterangan</th></tr></thead>
                                 <tbody>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">id</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">BIGINT</td>
-                                        <td class="p-2 border border-slate-200 text-sm"><strong>Primary Key</strong>
-                                        </td>
-                                    </tr>
-                                    <tr class="bg-slate-50/50">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">title</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Judul template</td>
-                                    </tr>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">image_path</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Lokasi file gambar latar</td>
-                                    </tr>
-                                    <tr class="bg-slate-50/50">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">user_id</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">BIGINT</td>
-                                        <td class="p-2 border border-slate-200 text-sm"><strong>Foreign Key</strong> ke
-                                            `users.id`</td>
-                                    </tr>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">created_at, updated_at
-                                        </td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">TIMESTAMP</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Otomatis oleh Laravel</td>
-                                    </tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">id</td><td class="p-2 border border-slate-200 text-sm font-mono">BIGINT</td><td class="p-2 border border-slate-200 text-sm"><strong>Primary Key</strong></td></tr>
+                                    <tr class="bg-slate-50/50"><td class="p-2 border border-slate-200 text-sm font-mono">title</td><td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td><td class="p-2 border border-slate-200 text-sm">Judul template</td></tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">image_path</td><td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td><td class="p-2 border border-slate-200 text-sm">Lokasi file gambar latar</td></tr>
+                                    <tr class="bg-slate-50/50"><td class="p-2 border border-slate-200 text-sm font-mono">user_id</td><td class="p-2 border border-slate-200 text-sm font-mono">BIGINT</td><td class="p-2 border border-slate-200 text-sm"><strong>Foreign Key</strong> ke `users.id`</td></tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">created_at, updated_at</td><td class="p-2 border border-slate-200 text-sm font-mono">TIMESTAMP</td><td class="p-2 border border-slate-200 text-sm">Otomatis oleh Laravel</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -427,60 +222,16 @@
                         <h3 class="text-lg font-semibold text-slate-700 mb-2">4. Tabel `leaflets` (History)</h3>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
-                                <thead class="bg-slate-100">
-                                    <tr>
-                                        <th class="p-2 border border-slate-200 text-sm">Nama Kolom</th>
-                                        <th class="p-2 border border-slate-200 text-sm">Tipe Data</th>
-                                        <th class="p-2 border border-slate-200 text-sm">Keterangan</th>
-                                    </tr>
-                                </thead>
+                                <thead class="bg-slate-100"><tr><th class="p-2 border border-slate-200 text-sm">Nama Kolom</th><th class="p-2 border border-slate-200 text-sm">Tipe Data</th><th class="p-2 border border-slate-200 text-sm">Keterangan</th></tr></thead>
                                 <tbody>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">id</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">BIGINT</td>
-                                        <td class="p-2 border border-slate-200 text-sm"><strong>Primary Key</strong>
-                                        </td>
-                                    </tr>
-                                    <tr class="bg-slate-50/50">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">code</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Kode unik (LFG-XXX / TDLG-XXX)
-                                        </td>
-                                    </tr>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">region</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Wilayah leaflet</td>
-                                    </tr>
-                                    <tr class="bg-slate-50/50">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">promotion_start_date
-                                        </td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">DATE</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Tanggal mulai promosi</td>
-                                    </tr>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">promotion_end_date
-                                        </td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">DATE</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Tanggal selesai promosi</td>
-                                    </tr>
-                                    <tr class="bg-slate-50/50">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">final_image_path</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Lokasi file PNG final</td>
-                                    </tr>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">user_id</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">BIGINT</td>
-                                        <td class="p-2 border border-slate-200 text-sm"><strong>Foreign Key</strong> ke
-                                            `users.id`</td>
-                                    </tr>
-                                    <tr class="bg-slate-50/50">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">created_at, updated_at
-                                        </td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">TIMESTAMP</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Otomatis oleh Laravel</td>
-                                    </tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">id</td><td class="p-2 border border-slate-200 text-sm font-mono">BIGINT</td><td class="p-2 border border-slate-200 text-sm"><strong>Primary Key</strong></td></tr>
+                                    <tr class="bg-slate-50/50"><td class="p-2 border border-slate-200 text-sm font-mono">code</td><td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td><td class="p-2 border border-slate-200 text-sm">Kode unik (LFG-XXX / TDLG-XXX)</td></tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">region</td><td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td><td class="p-2 border border-slate-200 text-sm">Wilayah leaflet</td></tr>
+                                    <tr class="bg-slate-50/50"><td class="p-2 border border-slate-200 text-sm font-mono">promotion_start_date</td><td class="p-2 border border-slate-200 text-sm font-mono">DATE</td><td class="p-2 border border-slate-200 text-sm">Tanggal mulai promosi</td></tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">promotion_end_date</td><td class="p-2 border border-slate-200 text-sm font-mono">DATE</td><td class="p-2 border border-slate-200 text-sm">Tanggal selesai promosi</td></tr>
+                                    <tr class="bg-slate-50/50"><td class="p-2 border border-slate-200 text-sm font-mono">final_image_path</td><td class="p-2 border border-slate-200 text-sm font-mono">VARCHAR</td><td class="p-2 border border-slate-200 text-sm">Lokasi file PNG final</td></tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">user_id</td><td class="p-2 border border-slate-200 text-sm font-mono">BIGINT</td><td class="p-2 border border-slate-200 text-sm"><strong>Foreign Key</strong> ke `users.id`</td></tr>
+                                    <tr class="bg-slate-50/50"><td class="p-2 border border-slate-200 text-sm font-mono">created_at, updated_at</td><td class="p-2 border border-slate-200 text-sm font-mono">TIMESTAMP</td><td class="p-2 border border-slate-200 text-sm">Otomatis oleh Laravel</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -489,59 +240,16 @@
                         <h3 class="text-lg font-semibold text-slate-700 mb-2">5. Tabel `leaflet_items`</h3>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
-                                <thead class="bg-slate-100">
-                                    <tr>
-                                        <th class="p-2 border border-slate-200 text-sm">Nama Kolom</th>
-                                        <th class="p-2 border border-slate-200 text-sm">Tipe Data</th>
-                                        <th class="p-2 border border-slate-200 text-sm">Keterangan</th>
-                                    </tr>
-                                </thead>
+                                <thead class="bg-slate-100"><tr><th class="p-2 border border-slate-200 text-sm">Nama Kolom</th><th class="p-2 border border-slate-200 text-sm">Tipe Data</th><th class="p-2 border border-slate-200 text-sm">Keterangan</th></tr></thead>
                                 <tbody>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">id</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">BIGINT</td>
-                                        <td class="p-2 border border-slate-200 text-sm"><strong>Primary Key</strong>
-                                        </td>
-                                    </tr>
-                                    <tr class="bg-slate-50/50">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">leaflet_id</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">BIGINT</td>
-                                        <td class="p-2 border border-slate-200 text-sm"><strong>Foreign Key</strong> ke
-                                            `leaflets.id`</td>
-                                    </tr>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">product_id</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">BIGINT</td>
-                                        <td class="p-2 border border-slate-200 text-sm"><strong>Foreign Key</strong> ke
-                                            `products.id`</td>
-                                    </tr>
-                                    <tr class="bg-slate-50/50">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">display_price</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">DECIMAL</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Harga promosi</td>
-                                    </tr>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">strikethrough_price
-                                        </td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">DECIMAL</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Harga coret (opsional)</td>
-                                    </tr>
-                                    <tr class="bg-slate-50/50">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">position_x</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">INTEGER</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Koordinat posisi X</td>
-                                    </tr>
-                                    <tr class="bg-white">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">position_y</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">INTEGER</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Koordinat posisi Y</td>
-                                    </tr>
-                                    <tr class="bg-slate-50/50">
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">custom_styles</td>
-                                        <td class="p-2 border border-slate-200 text-sm font-mono">JSON</td>
-                                        <td class="p-2 border border-slate-200 text-sm">Menyimpan data kustomisasi
-                                            (font, dll)</td>
-                                    </tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">id</td><td class="p-2 border border-slate-200 text-sm font-mono">BIGINT</td><td class="p-2 border border-slate-200 text-sm"><strong>Primary Key</strong></td></tr>
+                                    <tr class="bg-slate-50/50"><td class="p-2 border border-slate-200 text-sm font-mono">leaflet_id</td><td class="p-2 border border-slate-200 text-sm font-mono">BIGINT</td><td class="p-2 border border-slate-200 text-sm"><strong>Foreign Key</strong> ke `leaflets.id`</td></tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">product_id</td><td class="p-2 border border-slate-200 text-sm font-mono">BIGINT</td><td class="p-2 border border-slate-200 text-sm"><strong>Foreign Key</strong> ke `products.id`</td></tr>
+                                    <tr class="bg-slate-50/50"><td class="p-2 border border-slate-200 text-sm font-mono">display_price</td><td class="p-2 border border-slate-200 text-sm font-mono">DECIMAL</td><td class="p-2 border border-slate-200 text-sm">Harga promosi</td></tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">strikethrough_price</td><td class="p-2 border border-slate-200 text-sm font-mono">DECIMAL</td><td class="p-2 border border-slate-200 text-sm">Harga coret (opsional)</td></tr>
+                                    <tr class="bg-slate-50/50"><td class="p-2 border border-slate-200 text-sm font-mono">position_x</td><td class="p-2 border border-slate-200 text-sm font-mono">INTEGER</td><td class="p-2 border border-slate-200 text-sm">Koordinat posisi X</td></tr>
+                                    <tr class="bg-white"><td class="p-2 border border-slate-200 text-sm font-mono">position_y</td><td class="p-2 border border-slate-200 text-sm font-mono">INTEGER</td><td class="p-2 border border-slate-200 text-sm">Koordinat posisi Y</td></tr>
+                                    <tr class="bg-slate-50/50"><td class="p-2 border border-slate-200 text-sm font-mono">custom_styles</td><td class="p-2 border border-slate-200 text-sm font-mono">JSON</td><td class="p-2 border border-slate-200 text-sm">Menyimpan data kustomisasi (font, dll)</td></tr>
                                 </tbody>
                             </table>
                         </div>
