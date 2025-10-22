@@ -1,6 +1,5 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import React from "react";
-
 import MainLayout from "./components/MainLayout";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -16,15 +15,15 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const mustChangePassword = !!localStorage.getItem("passwordChangeReason");
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   if (mustChangePassword && location.pathname !== "/ganti-password") {
-    return <Navigate to="/ganti-password" />;
+    return <Navigate to="/ganti-password" replace />;
   }
 
   if (!mustChangePassword && location.pathname === "/ganti-password") {
-    return <Navigate to="/" />;
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -32,7 +31,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = !!localStorage.getItem("authToken");
-  return !isAuthenticated ? <>{children}</> : <Navigate to="/" />;
+  return !isAuthenticated ? <>{children}</> : <Navigate to="/" replace />;
 };
 
 function App() {
@@ -80,10 +79,13 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<DashboardPage />} />
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route path="dashboard" element={<DashboardPage />} />
         <Route path="bank-gambar" element={<BankGambarPage />} />
         <Route path="manajemen-akun" element={<ManajemenAkunPage />} />
       </Route>
+
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }

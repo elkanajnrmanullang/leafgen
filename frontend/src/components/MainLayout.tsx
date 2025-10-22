@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import logoSrc from "../assets/logo.png";
 import {
@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { addProduct } from "../services/productService";
 import AlertModal from "./AlertModal";
+import { useInactivityTimeout } from "../hooks/useInactivityTimeout";
+import InactivityModal from "./InactivityModal";
 
 type AlertType = "success" | "error" | "confirm" | "info";
 
@@ -43,9 +45,19 @@ const MainLayout = () => {
     type: "info",
   });
 
+  const handleActualLogout = useCallback(() => {
+    localStorage.clear();
+  }, []);
+
+  const {
+    showModal: showInactivityModal,
+    handleContinue: handleInactivityContinue,
+    handleLogout: handleInactivityLogout,
+  } = useInactivityTimeout(handleActualLogout);
+
   const navLinks = useMemo(
     () => [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard },
+      { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { to: "/buat-leaflet", label: "Buat Leaflet", icon: FilePlus2 },
       { to: "/bank-gambar", label: "Bank Gambar", icon: Archive },
       {
@@ -65,16 +77,17 @@ const MainLayout = () => {
   );
 
   useEffect(() => {
-    const currentLink = navLinks.find((link) => link.to === location.pathname);
+    const currentPath =
+      location.pathname === "/" ? "/dashboard" : location.pathname;
+    const currentLink = navLinks.find((link) =>
+      currentPath.startsWith(link.to)
+    );
     if (currentLink) {
       setPageTitle(currentLink.label);
+    } else {
+      setPageTitle("LeafGenn");
     }
   }, [location, navLinks]);
-
-  const handleLogout = () => {
-    localStorage.clear();
-    window.location.href = "/login";
-  };
 
   const handleAddProduct = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -123,28 +136,32 @@ const MainLayout = () => {
             !isSidebarOpen && "-translate-x-full"
           } md:translate-x-0 transition-transform duration-300 ease-in-out z-30 flex flex-col`}
         >
-          <div className="h-16 flex items-center justify-center flex-shrink-0 px-4 border-b border-white/20">
+          <div className="h-20 flex items-center justify-center flex-shrink-0 px-4 border-b border-white/20">
             <img src={logoSrc} alt="LeafGenn Logo" className="h-12" />
           </div>
-          <nav className="flex-1 px-4 py-2 space-y-1">
+          <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto">
             {navLinks.map((link) => {
               if (link.role && link.role !== userRole) return null;
-              const isActive = location.pathname === link.to;
+              const isActive =
+                location.pathname === "/"
+                  ? link.to === "/dashboard"
+                  : location.pathname.startsWith(link.to);
               const Icon = link.icon;
               return (
                 <Link
                   key={link.to}
                   to={link.to}
+                  onClick={() => setSidebarOpen(false)} // Close sidebar on mobile nav click
                   className={`flex items-center px-3 py-2.5 font-medium rounded-lg transition-colors ${
                     isActive
                       ? "bg-slate-700 text-white"
                       : "hover:bg-slate-700/50 hover:text-white"
                   }`}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span className="ml-3 flex-1">{link.label}</span>
+                  <Icon className="h-5 w-5 flex-shrink-0" />
+                  <span className="ml-3 flex-1 truncate">{link.label}</span>
                   {link.label === "Manajemen Akun" && (
-                    <span className="text-xs bg-yellow-300 text-slate-800 font-bold px-2 py-0.5 rounded-full">
+                    <span className="text-xs bg-yellow-300 text-slate-800 font-bold px-2 py-0.5 rounded-full ml-auto">
                       Manager
                     </span>
                   )}
@@ -154,20 +171,31 @@ const MainLayout = () => {
           </nav>
           <div className="p-4 border-t border-slate-700">
             <button
-              onClick={handleLogout}
-              className="w-full flex items-center px-3 py-2.5 font-medium hover:bg-red-500/20 hover:text-red-300 rounded-lg transition-colors"
+              onClick={() => {
+                handleActualLogout();
+                navigate("/login", { replace: true });
+              }}
+              className="w-full flex items-center px-3 py-2.5 font-medium text-slate-300 hover:bg-red-500/20 hover:text-red-300 rounded-lg transition-colors"
             >
               <LogOut className="h-5 w-5" />
               <span className="ml-3">Logout</span>
             </button>
           </div>
         </aside>
+
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          ></div>
+        )}
+
         <div className="flex-1 flex flex-col md:ml-64">
-          <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-6 flex-shrink-0">
+          <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-6 flex-shrink-0 sticky top-0 z-10">
             <div className="flex items-center">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="md:hidden mr-4 text-slate-600"
+                className="md:hidden mr-4 text-slate-600 focus:outline-none"
               >
                 <Menu className="h-6 w-6" />
               </button>
@@ -197,7 +225,9 @@ const MainLayout = () => {
             className="bg-white rounded-xl shadow-2xl w-full max-w-md"
           >
             <div className="p-6 border-b">
-              <h3 className="text-lg font-semibold">Tambah Produk Baru</h3>
+              <h3 className="text-lg font-semibold text-slate-800">
+                Tambah Produk Baru
+              </h3>
             </div>
             <div className="p-6 space-y-4">
               <input
@@ -205,14 +235,14 @@ const MainLayout = () => {
                 onChange={(e) => setNewProductName(e.target.value)}
                 required
                 placeholder="Nama Barang"
-                className="w-full p-2 border rounded-md"
+                className="w-full p-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <input
                 value={newProductPlu}
                 onChange={(e) => setNewProductPlu(e.target.value)}
                 required
                 placeholder="Kode PLU Unit"
-                className="w-full p-2 border rounded-md"
+                className="w-full p-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <input
                 onChange={(e) =>
@@ -221,20 +251,25 @@ const MainLayout = () => {
                 required
                 type="file"
                 accept="image/jpeg, image/png"
-                className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-pastel-blue-dark hover:file:bg-blue-100"
+                className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-indigo-700 hover:file:bg-blue-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
               />
+              {newProductImage && (
+                <p className="text-xs text-slate-500 mt-1">
+                  File dipilih: {newProductImage.name}
+                </p>
+              )}
             </div>
             <div className="p-6 bg-slate-50 rounded-b-xl flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setIsProductModalOpen(false)}
-                className="px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 font-semibold text-slate-700"
+                className="px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 font-semibold text-slate-700 transition-colors"
               >
                 Batal
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 rounded-lg bg-pastel-blue hover:bg-pastel-blue-dark text-slate-800 font-semibold"
+                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors"
               >
                 Simpan
               </button>
@@ -250,6 +285,12 @@ const MainLayout = () => {
         title={alertState.title}
         message={alertState.message}
         type={alertState.type}
+      />
+
+      <InactivityModal
+        isOpen={showInactivityModal}
+        onContinue={handleInactivityContinue}
+        onLogout={handleInactivityLogout}
       />
     </>
   );
