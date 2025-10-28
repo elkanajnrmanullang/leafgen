@@ -22,6 +22,10 @@ class LeafletItem extends Model
 
     protected $casts = [
         'custom_styles' => 'array',
+        'display_price' => 'float',
+        'strikethrough_price' => 'float',
+        'position_x' => 'integer',
+        'position_y' => 'integer',
     ];
 
     public function leaflet(): BelongsTo

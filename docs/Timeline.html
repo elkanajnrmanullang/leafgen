@@ -144,7 +144,7 @@
                     sistem ini adalah memangkas total waktu kerja tersebut hingga <strong>kurang dari 1 jam</strong>,
                     atau mencapai efisiensi lebih dari 90%.</p>
 
-                <h3>Alur Kerja Sistem</h3>
+                <h3>Alur Kerja Sistem (Versi Awal)</h3>
                 <ul class="text-slate-600">
                     <li><strong>Buat Leaflet dari CSV (Alur Utama):</strong>
                         <ul>
@@ -157,7 +157,8 @@
                                 tombol <strong>"Grid Cerdas"</strong> (jika aktif) untuk optimasi layout berdasarkan
                                 history.</li>
                             <li>Staff mengunduh hasil final sebagai <strong>PNG</strong>. Hasil otomatis tersimpan ke
-                                <strong>History</strong>.</li>
+                                <strong>History</strong>.
+                            </li>
                         </ul>
                     </li>
                     <li><strong>Buat Leaflet dari Template:</strong>
@@ -170,7 +171,8 @@
                     </li>
                     <li><strong>Pembelajaran Mandiri (Self-Learning):</strong> Setiap leaflet yang disimpan ke
                         <strong>History</strong> menjadi data latih baru bagi model <em>machine learning</em> ("Grid
-                        Cerdas"), membuatnya semakin akurat seiring waktu.</li>
+                        Cerdas"), membuatnya semakin akurat seiring waktu.
+                    </li>
                     <li><strong>Manajemen Data:</strong>
                         <ul>
                             <li>Staff dapat menambah/melihat produk di <strong>Bank Gambar</strong> (Kode PLU, Nama,
@@ -185,6 +187,60 @@
                 </ul>
             </section>
 
+            <section id="recent-revisions"
+                class="mb-10 prose max-w-none bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h2 class="text-2xl font-semibold text-blue-800 mb-4">🔄 Revisi Baru (Sesuai Klien - 29 Okt 2025)</h2>
+                <p class="text-sm text-blue-700">Berdasarkan masukan terakhir dari klien, beberapa perubahan signifikan
+                    pada alur kerja dan fitur telah disepakati:</p>
+                <ul class="text-slate-600 text-base">
+                    <li>
+                        <strong>Alur Input & Generate Multi-Halaman:</strong>
+                        <ul>
+                            <li>Input utama adalah file <strong>Excel (.xlsx)</strong>.</li>
+                            <li>Setelah unggah Excel, pengguna <strong>memilih template latar belakang</strong> (dengan
+                                default terpilih).</li>
+                            <li>Sistem <strong>tidak lagi menampilkan pilihan Store</strong>. Sebaliknya, sistem
+                                otomatis membaca kolom 'Store' dan 'Nasional'.</li>
+                            <li>Sistem langsung <strong>menghasilkan SEMUA draft leaflet</strong> (satu per Store unik +
+                                item 'Nasional' di semua) dalam <strong>satu Editor Visual multi-halaman</strong> (mirip
+                                Canva pages).</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Editor Visual & Download:</strong>
+                        <ul>
+                            <li>Pengguna dapat mengedit semua halaman leaflet dalam satu editor.</li>
+                            <li>Kemampuan edit termasuk <strong>mengganti template latar belakang</strong> per halaman
+                                jika diperlukan.</li>
+                            <li>Format download diperluas menjadi <strong>.png, .pdf, dan .jpg</strong>.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Keamanan & RBAC:</strong>
+                        <ul>
+                            <li>Fitur wajib ganti password setiap 30 hari <strong>dihapus</strong>.</li>
+                            <li>Pengguna (Staf/Manajer) dapat <strong>mereset password jika lupa</strong> secara
+                                langsung di sistem (tanpa konfirmasi email).</li>
+                            <li>Peran tetap "Staf Desain" (Designer) dan "Manajer" (Admin).</li>
+                            <li>Admin memiliki menu "Manajemen Akun" untuk CRUD pengguna dan <strong>memilih
+                                    peran</strong> saat membuat akun baru.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Fungsi History:</strong>
+                        <ul>
+                            <li>Menu "History" <strong>hanya berfungsi untuk REVISI</strong>. Memilih item dari History
+                                akan membuka kembali leaflet tersebut di Editor Visual multi-halaman untuk diedit ulang.
+                            </li>
+                            <li>Fungsi menggunakan layout History sebagai *template* desain baru
+                                <strong>dihapus</strong>.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Bank Gambar:</strong> Tetap dapat diakses CRUD oleh kedua peran (Designer & Admin).</li>
+                    <li><strong>Template Desain:</strong> Menu ini tetap ada untuk menyimpan dan memilih template latar
+                        belakang.</li>
+                </ul>
+            </section>
             <section id="ml-concept" class="mb-10 prose max-w-none">
                 <h2 class="text-2xl font-semibold text-slate-800 mb-4">🧠 Konsep Machine Learning: Grid Cerdas</h2>
                 <p>Fitur "Grid Cerdas" merupakan fitur pendukung opsional di dalam editor visual, dirancang untuk meniru
@@ -193,14 +249,16 @@
                     <li><strong>Model yang Digunakan:</strong> Sistem menggunakan teknik <em>machine learning</em>
                         <strong>Association Rule Mining</strong> dengan algoritma <strong>Apriori</strong>. Tujuannya
                         adalah untuk menemukan "aturan asosiasi" (pola produk X sering muncul bersama produk Y) dari
-                        data history.</li>
+                        data history.
+                    </li>
                     <li><strong>Sumber Dataset:</strong> Dataset dibangun secara otomatis dari <strong>seluruh data di
                             menu History</strong>. Setiap leaflet (`leaflets`) beserta item-item di dalamnya
                         (`leaflet_items`) dianggap sebagai satu "transaksi" data.</li>
                     <li><strong>Mekanisme "Cold Start":</strong> Untuk menjamin kualitas rekomendasi, tombol fitur "Grid
                         Cerdas" di editor visual <strong>baru akan muncul dan aktif setelah sistem memiliki minimal 5
                             data leaflet</strong> di dalam History.</li>
-                    <li><strong>Fungsi:</strong> Saat tombol diklik, sistem menganalisis data History, menemukan
+                    <li><strong>Fungsi:</strong> Saat tombol diklik (pada halaman leaflet yang aktif), sistem
+                        menganalisis data History, menemukan
                         asosiasi produk, dan menyusun ulang layout grid di editor untuk menempatkan produk-produk
                         berasosiasi kuat agar saling berdekatan.</li>
                 </ul>
@@ -216,10 +274,11 @@
                             lebih dari 90%.</p>
                     </div>
                     <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <h3 class="font-bold text-green-800 mb-1">Ruang Lingkup Penuh</h3>
-                        <p class="text-sm text-green-700">Proyek ini mencakup semua fitur yang telah didiskusikan,
-                            termasuk alur CSV, alur Template, editor visual, fitur "Grid Cerdas", History, Bank Gambar,
-                            Manajemen Akun, RBAC, dan fitur keamanan Ganti Password Wajib & Password Bulanan.</p>
+                        <h3 class="font-bold text-green-800 mb-1">Ruang Lingkup Penuh (Direvisi)</h3>
+                        <p class="text-sm text-green-700">Proyek mencakup semua fitur sesuai revisi klien terbaru: alur
+                            Excel multi-halaman, editor visual multi-halaman, Grid Cerdas, History (revisi), Bank
+                            Gambar, Manajemen Akun (termasuk pemilihan peran), RBAC, Lupa Password mandiri, dan download
+                            PNG/PDF/JPG.</p>
                     </div>
                     <div class="bg-red-50 border border-red-200 rounded-lg p-4">
                         <h3 class="font-bold text-red-800 mb-1">Deadline Mutlak</h3>
@@ -243,7 +302,8 @@
                             </p>
                         </li>
                         <li><strong class="text-slate-700">Frontend: React (Vite + TypeScript)</strong>
-                            <p class="text-sm text-slate-500 pl-4">- Membangun antarmuka pengguna yang interaktif.</p>
+                            <p class="text-sm text-slate-500 pl-4">- Membangun antarmuka pengguna yang interaktif
+                                (termasuk editor multi-halaman).</p>
                         </li>
                         <li><strong class="text-slate-700">Database: PostgreSQL</strong>
                             <p class="text-sm text-slate-500 pl-4">- Menyimpan semua data, termasuk dataset untuk ML.
@@ -259,7 +319,7 @@
                     </ul>
                 </div>
                 <div>
-                    <h2 class="text-2xl font-semibold text-slate-800 mb-3">🚧 Status Proyek (Per 23 Okt 2025)</h2>
+                    <h2 class="text-2xl font-semibold text-slate-800 mb-3">🚧 Status Proyek (Per 29 Okt 2025)</h2>
                     <div class="space-y-2">
                         <p class="bg-green-100 text-green-800 font-semibold px-4 py-2 rounded-lg inline-block">✅ Fase 2
                             (Sprint 1) Selesai</p>
@@ -267,91 +327,97 @@
                             2 (Sprint 2) Sedang Berjalan</p>
                     </div>
                     <p class="mt-3 text-slate-600">Proyek ini sedang dalam pengembangan aktif.<br><strong>Fase saat
-                            ini:</strong> Mengerjakan <strong>Fase 2 (Sprint 2)</strong>: Alur CSV & Editor Visual Inti.
+                            ini:</strong> Mengerjakan <strong>Fase 2 (Sprint 2)</strong>: Alur Excel Multi-Halaman &
+                        Editor Visual Inti (sesuai revisi).
                     </p>
-                    <p class="text-sm text-slate-500 mt-1">Target Sprint 2: 29 Oktober 2025.</p>
+                    <p class="text-sm text-slate-500 mt-1">Target Sprint 2: 7 November 2025 (Diperbarui karena perubahan
+                        lingkup).</p>
                 </div>
             </section>
 
             <section id="timeline" class="mb-10">
-                <h2 class="text-2xl font-semibold text-slate-800 mb-4">🗓️ Timeline & Peta Jalan Proyek (Revisi)</h2>
+                <h2 class="text-2xl font-semibold text-slate-800 mb-4">🗓️ Timeline & Peta Jalan Proyek (Revisi -
+                    Disesuaikan dengan Perubahan)</h2>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr>
                                 <th>Aktivitas Utama</th>
                                 <th>Tujuan</th>
-                                <th>Output dan Fitur yang Dibangun</th>
-                                <th>Timeline (Revisi)</th>
-                                <th>Durasi</th>
+                                <th>Output dan Fitur yang Dibangun (Direvisi)</th>
+                                <th>Timeline (Revisi Baru)</th>
+                                <th>Durasi (Hari)</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
                                 <td class="font-medium">Fase 1: Perencanaan & Fiksasi Desain</td>
                                 <td class="text-sm text-slate-600">Mengunci ruang lingkup, alur kerja, dan desain teknis
-                                    proyek.</td>
+                                    proyek (termasuk revisi klien).</td>
                                 <td class="text-sm">
                                     <ul class="list-disc list-inside space-y-1">
-                                        <li>Dokumen Konsep Final.</li>
-                                        <li>Desain Skema Database.</li>
-                                        <li>Mockup UI/UX.</li>
-                                    </ul>
-                                </td>
-                                <td class="font-semibold whitespace-nowrap">16 Sep - 22 Sep 2025</td>
-                                <td class="font-semibold whitespace-nowrap">7 hari</td>
-                            </tr>
-                            <tr>
-                                <td class="font-medium">Fase 2 (Sprint 1): Fondasi & Manajemen Data</td>
-                                <td class="text-sm text-slate-600">Membangun kerangka dasar aplikasi dan fungsionalitas
-                                    pengelolaan data utama.</td>
-                                <td class="text-sm"><strong>Backend:</strong>
-                                    <ul class="list-disc list-inside space-y-1 mt-1">
-                                        <li>API Autentikasi (termasuk Ganti Password Wajib).</li>
-                                        <li>API CRUD Manajemen Akun & Bank Gambar.</li>
-                                    </ul><br><strong>Frontend:</strong>
-                                    <ul class="list-disc list-inside space-y-1 mt-1">
-                                        <li>Halaman Login & Ganti Password.</li>
-                                        <li>Halaman Manajemen Akun & Bank Gambar.</li>
+                                        <li>Dokumen Konsep Final (Direvisi).</li>
+                                        <li>Desain Skema Database (Direvisi).</li>
+                                        <li>Mockup UI/UX (Direvisi).</li>
                                     </ul>
                                 </td>
                                 <td class="font-semibold whitespace-nowrap">23 Sep - 6 Okt 2025</td>
                                 <td class="font-semibold whitespace-nowrap">14 hari</td>
                             </tr>
                             <tr>
-                                <td class="font-medium">Fase 2 (Sprint 2): Alur CSV & Editor Visual Inti</td>
-                                <td class="text-sm text-slate-600">Mengimplementasikan alur kerja utama dan komponen
-                                    frontend.</td>
+                                <td class="font-medium">Fase 2 (Sprint 1): Fondasi & Manajemen Data (Selesai)</td>
+                                <td class="text-sm text-slate-600">Membangun kerangka dasar aplikasi dan fungsionalitas
+                                    pengelolaan data utama.</td>
                                 <td class="text-sm"><strong>Backend:</strong>
                                     <ul class="list-disc list-inside space-y-1 mt-1">
-                                        <li>API parsing CSV & API status "Grid Cerdas".</li>
+                                        <li>API Autentikasi (termasuk Lupa Password Mandiri).</li>
+                                        <li>API CRUD Manajemen Akun (termasuk Role) & Bank Gambar.</li>
                                     </ul><br><strong>Frontend:</strong>
                                     <ul class="list-disc list-inside space-y-1 mt-1">
-                                        <li>Upload CSV & Editor visual dasar.</li>
+                                        <li>Halaman Login & Lupa Password.</li>
+                                        <li>Halaman Manajemen Akun & Bank Gambar.</li>
+                                    </ul>
+                                </td>
+                                <td class="font-semibold whitespace-nowrap">7 Okt - 20 Okt 2025</td>
+                                <td class="font-semibold whitespace-nowrap">14 hari</td>
+                            </tr>
+                            <tr>
+                                <td class="font-medium">Fase 2 (Sprint 2): Alur Excel Multi-Halaman & Editor Inti</td>
+                                <td class="text-sm text-slate-600">Mengimplementasikan alur kerja utama (Excel) dan
+                                    komponen editor multi-halaman.</td>
+                                <td class="text-sm"><strong>Backend:</strong>
+                                    <ul class="list-disc list-inside space-y-1 mt-1">
+                                        <li>API parsing Excel & Generate Multi-Draft.</li>
+                                        <li>API untuk Template Latar & API status "Grid Cerdas".</li>
+                                    </ul><br><strong>Frontend:</strong>
+                                    <ul class="list-disc list-inside space-y-1 mt-1">
+                                        <li>Upload Excel & Pilih Latar.</li>
+                                        <li>Editor visual multi-halaman dasar.</li>
                                         <li>Tombol "Grid Cerdas" (tampil kondisional).</li>
                                     </ul>
                                 </td>
-                                <td class="font-semibold whitespace-nowrap"><strong>21 Okt – 29 Okt 2025</strong></td>
-                                <td class="font-semibold whitespace-nowrap"><strong>9 hari</strong></td>
+                                <td class="font-semibold whitespace-nowrap"><strong>21 Okt – 7 Nov 2025</strong></td>
+                                <td class="font-semibold whitespace-nowrap"><strong>18 hari</strong></td>
                             </tr>
                             <tr>
                                 <td class="font-medium">Fase 2 (Sprint 3): Finalisasi Fitur & Integrasi ML</td>
-                                <td class="text-sm text-slate-600">Menyelesaikan semua fitur dan mengintegrasikan logika
-                                    ML.</td>
+                                <td class="text-sm text-slate-600">Menyelesaikan semua fitur, mengintegrasikan logika
+                                    ML, dan menambahkan format download.</td>
                                 <td class="text-sm"><strong>Backend:</strong>
                                     <ul class="list-disc list-inside space-y-1 mt-1">
                                         <li>Implementasi Model ML (Apriori).</li>
-                                        <li>API Template & History.</li>
-                                        <li>API Ekspor PNG.</li>
+                                        <li>API CRUD History (untuk Revisi).</li>
+                                        <li>API Ekspor PNG, PDF, JPG.</li>
                                     </ul><br><strong>Frontend:</strong>
                                     <ul class="list-disc list-inside space-y-1 mt-1">
                                         <li>Integrasi "Grid Cerdas".</li>
-                                        <li>Alur Template.</li>
+                                        <li>Alur Revisi dari History.</li>
                                         <li>Halaman History.</li>
+                                        <li>Opsi Download Multi-Format.</li>
                                     </ul>
                                 </td>
-                                <td class="font-semibold whitespace-nowrap"><strong>30 Okt – 7 Nov 2025</strong></td>
-                                <td class="font-semibold whitespace-nowrap"><strong>9 hari</strong></td>
+                                <td class="font-semibold whitespace-nowrap"><strong>8 Nov – 17 Nov 2025</strong></td>
+                                <td class="font-semibold whitespace-nowrap"><strong>10 hari</strong></td>
                             </tr>
                             <tr>
                                 <td class="font-medium">Fase 3: Pengujian, Deployment, & Serah Terima</td>
@@ -364,19 +430,24 @@
                                         <li>Dokumen panduan pengguna.</li>
                                     </ul>
                                 </td>
-                                <td class="font-semibold whitespace-nowrap"><strong>8 Nov – 17 Nov 2025</strong></td>
+                                <td class="font-semibold whitespace-nowrap"><strong>18 Nov – 27 Nov 2025</strong></td>
                                 <td class="font-semibold whitespace-nowrap"><strong>10 hari</strong></td>
                             </tr>
                         </tbody>
                     </table>
+                    <p class="text-xs text-slate-500 mt-2">*Catatan: Total durasi pengembangan (Fase 1 & 2) menjadi 56
+                        hari kerja (mendekati 2 bulan) setelah penyesuaian lingkup revisi.</p>
                 </div>
             </section>
 
             <section id="database-design">
-                <h2 class="text-2xl font-semibold text-slate-800 mb-4">💾 Desain Database</h2>
+                <h2 class="text-2xl font-semibold text-slate-800 mb-4">💾 Desain Database (Perlu Penyesuaian)</h2>
+                <p class="text-sm text-red-600 mb-4"><strong>Penting:</strong> Desain database di bawah ini belum
+                    sepenuhnya mencerminkan revisi klien (misal: struktur untuk multi-halaman, format download). Perlu
+                    diperbarui.</p>
                 <div class="space-y-8">
                     <div>
-                        <h3 class="text-lg font-semibold text-slate-700 mb-2">1. Tabel `users`</h3>
+                        <h3 class="text-lg font-semibold text-slate-700 mb-2">1. Tabel `users` (Direvisi)</h3>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
                                 <thead>
@@ -400,7 +471,7 @@
                                     <tr>
                                         <td class="font-mono">email</td>
                                         <td class="font-mono">VARCHAR</td>
-                                        <td>Alamat email (unik)</td>
+                                        <td>Alamat email (unik, opsional?)</td>
                                     </tr>
                                     <tr>
                                         <td class="font-mono">username</td>
@@ -414,18 +485,13 @@
                                     </tr>
                                     <tr>
                                         <td class="font-mono">role</td>
-                                        <td class="font-mono">ENUM('manager','staff')</td>
-                                        <td>Peran pengguna</td>
+                                        <td class="font-mono">ENUM('admin','designer')</td>
+                                        <td>Peran pengguna (Direvisi)</td>
                                     </tr>
                                     <tr>
                                         <td class="font-mono">status</td>
                                         <td class="font-mono">ENUM('active','inactive')</td>
                                         <td>Status akun</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="font-mono">password_changed_at</td>
-                                        <td class="font-mono">TIMESTAMP</td>
-                                        <td>Waktu password terakhir diubah</td>
                                     </tr>
                                     <tr>
                                         <td class="font-mono">created_at, updated_at</td>
@@ -510,9 +576,14 @@
                                         <td>Lokasi file gambar latar</td>
                                     </tr>
                                     <tr>
+                                        <td class="font-mono">is_default</td>
+                                        <td class="font-mono">BOOLEAN</td>
+                                        <td>Tandai jika template default (Baru)</td>
+                                    </tr>
+                                    <tr>
                                         <td class="font-mono">user_id</td>
                                         <td class="font-mono">BIGINT</td>
-                                        <td><strong>Foreign Key</strong> ke `users.id` (pembuat)</td>
+                                        <td><strong>Foreign Key</strong> ke `users.id` (pengunggah)</td>
                                     </tr>
                                     <tr>
                                         <td class="font-mono">created_at, updated_at</td>
@@ -524,7 +595,8 @@
                         </div>
                     </div>
                     <div>
-                        <h3 class="text-lg font-semibold text-slate-700 mb-2">4. Tabel `leaflets` (History)</h3>
+                        <h3 class="text-lg font-semibold text-slate-700 mb-2">4. Tabel `leaflets` (History - Perlu
+                            Direvisi Struktur Multi-Halaman)</h3>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
                                 <thead>
@@ -543,12 +615,12 @@
                                     <tr>
                                         <td class="font-mono">code</td>
                                         <td class="font-mono">VARCHAR</td>
-                                        <td>Kode unik (misal: LFG-YYYYMMDD-XXX)</td>
+                                        <td>Kode unik leaflet (misal: LFG-YYYYMMDD-XXX)</td>
                                     </tr>
                                     <tr>
-                                        <td class="font-mono">region</td>
+                                        <td class="font-mono">name</td>
                                         <td class="font-mono">VARCHAR</td>
-                                        <td>Wilayah leaflet</td>
+                                        <td>Nama/Judul Leaflet (Baru)</td>
                                     </tr>
                                     <tr>
                                         <td class="font-mono">promotion_start_date</td>
@@ -559,11 +631,6 @@
                                         <td class="font-mono">promotion_end_date</td>
                                         <td class="font-mono">DATE</td>
                                         <td>Tanggal selesai promosi</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="font-mono">final_image_path</td>
-                                        <td class="font-mono">VARCHAR</td>
-                                        <td>Lokasi file PNG final</td>
                                     </tr>
                                     <tr>
                                         <td class="font-mono">user_id</td>
@@ -580,7 +647,8 @@
                         </div>
                     </div>
                     <div>
-                        <h3 class="text-lg font-semibold text-slate-700 mb-2">5. Tabel `leaflet_items`</h3>
+                        <h3 class="text-lg font-semibold text-slate-700 mb-2">5. Tabel `leaflet_pages` (Baru - Untuk
+                            Multi-Halaman)</h3>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
                                 <thead>
@@ -600,6 +668,58 @@
                                         <td class="font-mono">leaflet_id</td>
                                         <td class="font-mono">BIGINT</td>
                                         <td><strong>Foreign Key</strong> ke `leaflets.id`</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-mono">page_number</td>
+                                        <td class="font-mono">INTEGER</td>
+                                        <td>Nomor urut halaman</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-mono">region</td>
+                                        <td class="font-mono">VARCHAR</td>
+                                        <td>Wilayah/Store untuk halaman ini</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-mono">background_template_id</td>
+                                        <td class="font-mono">BIGINT</td>
+                                        <td><strong>FK</strong> ke `background_templates.id`</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-mono">final_image_path</td>
+                                        <td class="font-mono">VARCHAR</td>
+                                        <td>Lokasi file PNG/JPG halaman ini (jika disimpan terpisah)</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-mono">final_pdf_path</td>
+                                        <td class="font-mono">VARCHAR</td>
+                                        <td>Lokasi file PDF halaman ini (jika disimpan terpisah)</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-slate-700 mb-2">6. Tabel `leaflet_items` (Perlu FK ke
+                            `leaflet_pages`)</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr>
+                                        <th>Nama Kolom</th>
+                                        <th>Tipe Data</th>
+                                        <th>Keterangan</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="font-mono">id</td>
+                                        <td class="font-mono">BIGINT</td>
+                                        <td><strong>Primary Key</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-mono">leaflet_page_id</td>
+                                        <td class="font-mono">BIGINT</td>
+                                        <td><strong>Foreign Key</strong> ke `leaflet_pages.id` (Baru)</td>
                                     </tr>
                                     <tr>
                                         <td class="font-mono">product_id</td>
@@ -625,6 +745,16 @@
                                         <td class="font-mono">position_y</td>
                                         <td class="font-mono">INTEGER</td>
                                         <td>Koordinat posisi Y (setelah diedit)</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-mono">width</td>
+                                        <td class="font-mono">INTEGER</td>
+                                        <td>Lebar elemen (Baru)</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-mono">height</td>
+                                        <td class="font-mono">INTEGER</td>
+                                        <td>Tinggi elemen (Baru)</td>
                                     </tr>
                                     <tr>
                                         <td class="font-mono">custom_styles</td>
