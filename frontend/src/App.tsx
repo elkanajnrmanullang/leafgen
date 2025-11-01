@@ -1,5 +1,4 @@
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
-import React from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./components/MainLayout";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -8,31 +7,12 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import BankGambarPage from "./pages/BankGambarPage";
 import ManajemenAkunPage from "./pages/ManajemenAkunPage";
+import BuatLeafletPage from "./pages/BuatLeafletPage";
+import PilihTemplatePage from "./pages/PilihTemplatePage";
+import EditorPage from "./pages/EditorPage";
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const location = useLocation();
-  const isAuthenticated = !!localStorage.getItem("authToken");
-  const mustChangePassword = !!localStorage.getItem("passwordChangeReason");
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  if (mustChangePassword && location.pathname !== "/ganti-password") {
-    return <Navigate to="/ganti-password" replace />;
-  }
-
-  if (!mustChangePassword && location.pathname === "/ganti-password") {
-    return <Navigate to="/" replace />;
-  }
-
-  return <>{children}</>;
-};
-
-const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  const isAuthenticated = !!localStorage.getItem("authToken");
-  return !isAuthenticated ? <>{children}</> : <Navigate to="/" replace />;
-};
+import ProtectedRoute from "./components/ProtectedRoute";
+import PublicRoute from "./components/PublicRoute";
 
 function App() {
   return (
@@ -83,6 +63,9 @@ function App() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="bank-gambar" element={<BankGambarPage />} />
         <Route path="manajemen-akun" element={<ManajemenAkunPage />} />
+        <Route path="buat-leaflet" element={<BuatLeafletPage />} />
+        <Route path="pilih-template" element={<PilihTemplatePage />} />
+        <Route path="editor/:id" element={<EditorPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />

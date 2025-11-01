@@ -87,16 +87,33 @@ class UserController extends Controller
     }
 
     public function updatePassword(Request $request)
-{
-    $validated = $request->validate([
-        'password' => 'required|string|min:8|confirmed',
-    ]);
+    {
+        $validated = $request->validate([
+            'password' => 'required|string|min:8|confirmed',
+        ]);
 
-    $user = $request->user();
-    $user->password = Hash::make($validated['password']);
-    $user->password_changed_at = now();
-    $user->save();
+        $user = $request->user();
+        $user->password = Hash::make($validated['password']);
+        $user->password_changed_at = now();
+        $user->save();
 
-    return response()->json(['message' => 'Password berhasil diperbarui.']);
-}
+        return response()->json(['message' => 'Password berhasil diperbarui.']);
+    }
+
+    public function adminResetPassword(Request $request, User $user)
+    {
+        if ($request->user()->role !== 'manager') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $request->validate([
+            'password' => 'required|string|min:8',
+        ]);
+
+        $user->password = Hash::make($request->password);
+        $user->password_changed_at = now();
+        $user->save();
+
+        return response()->json(['message' => 'Password berhasil direset oleh admin.']);
+    }
 }

@@ -1,22 +1,16 @@
 import { useState, useEffect } from "react";
+import type { User } from "../services/userService";
 import {
   getUsers,
   deactivateUser,
   activateUser,
   addUser,
   resetSimulationData,
+  adminResetUserPassword,
 } from "../services/userService";
-import { PlusCircle, RefreshCw } from "lucide-react";
+import { PlusCircle, RefreshCw, Pencil } from "lucide-react";
 import AlertModal from "../components/AlertModal";
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  username: string;
-  status: "active" | "inactive" | string;
-  role: "manager" | "staff";
-}
+import AdminResetPasswordModal from "../components/AdminResetPasswordModal";
 
 type AlertType = "success" | "error" | "confirm" | "info";
 
@@ -33,6 +27,8 @@ const ManajemenAkunPage = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [newUser, setNewUser] = useState({
     name: "",
     email: "",
@@ -51,7 +47,7 @@ const ManajemenAkunPage = () => {
     try {
       const data = await getUsers();
       setUsers(data);
-    } catch (error) {
+    } catch {
       setAlertState({
         isOpen: true,
         title: "Error",
@@ -91,7 +87,7 @@ const ManajemenAkunPage = () => {
         message: `Akun berhasil ${successMessage}.`,
         type: "success",
       });
-    } catch (error) {
+    } catch {
       setAlertState({
         isOpen: true,
         title: "Error",
@@ -131,7 +127,7 @@ const ManajemenAkunPage = () => {
         ),
         type: "success",
       });
-    } catch (error) {
+    } catch {
       setAlertState({
         isOpen: true,
         title: "Error",
@@ -163,13 +159,46 @@ const ManajemenAkunPage = () => {
       });
       fetchUsers();
       window.dispatchEvent(new CustomEvent("dataChanged"));
-    } catch (error) {
+    } catch {
       setAlertState({
         isOpen: true,
         title: "Error",
         message: "Gagal mereset data.",
         type: "error",
       });
+    }
+  };
+
+  const handleOpenResetModal = (user: User) => {
+    setSelectedUser(user);
+    setIsResetModalOpen(true);
+  };
+
+  const handleCloseResetModal = () => {
+    setSelectedUser(null);
+    setIsResetModalOpen(false);
+  };
+
+  const handlePasswordReset = async (password: string) => {
+    if (!selectedUser) return;
+
+    try {
+      await adminResetUserPassword(selectedUser.id, password);
+      handleCloseResetModal();
+      setAlertState({
+        isOpen: true,
+        title: "Sukses",
+        message: `Password untuk ${selectedUser.name} berhasil direset.`,
+        type: "success",
+      });
+    } catch {
+      setAlertState({
+        isOpen: true,
+        title: "Error",
+        message: "Gagal mereset password.",
+        type: "error",
+      });
+      throw new Error("Gagal mereset password");
     }
   };
 
@@ -257,7 +286,7 @@ const ManajemenAkunPage = () => {
                           {user.status === "active" ? "Aktif" : "Nonaktif"}
                         </span>
                       </td>
-                      <td className="p-4">
+                      <td className="p-4 flex items-center space-x-4">
                         <button
                           onClick={() => handleToggleStatusClick(user)}
                           className={`text-sm font-medium ${
@@ -269,6 +298,13 @@ const ManajemenAkunPage = () => {
                           {user.status === "active"
                             ? "Nonaktifkan"
                             : "Aktifkan"}
+                        </button>
+                        <button
+                          onClick={() => handleOpenResetModal(user)}
+                          className="text-blue-600 hover:text-blue-800"
+                          title="Reset Password"
+                        >
+                          <Pencil className="h-4 w-4" />
                         </button>
                       </td>
                     </tr>
@@ -312,6 +348,7 @@ const ManajemenAkunPage = () => {
                 type="email"
                 placeholder="Email"
                 className="w-full p-2 border rounded-md"
+                Next
               />
               <input
                 name="username"
@@ -365,6 +402,13 @@ const ManajemenAkunPage = () => {
       >
         {alertState.children}
       </AlertModal>
+
+      <AdminResetPasswordModal
+        isOpen={isResetModalOpen}
+        onClose={handleCloseResetModal}
+        onSubmit={handlePasswordReset}
+        userName={selectedUser?.name || ""}
+      />
     </>
   );
 };

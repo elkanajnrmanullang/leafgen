@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { Outlet, Link, useLocation } from "react-router-dom";
 import logoSrc from "../assets/logo.png";
 import {
   LayoutDashboard,
@@ -15,6 +15,7 @@ import { addProduct } from "../services/productService";
 import AlertModal from "./AlertModal";
 import { useInactivityTimeout } from "../hooks/useInactivityTimeout";
 import InactivityModal from "./InactivityModal";
+import { useAuth } from "../context/AuthContext";
 
 type AlertType = "success" | "error" | "confirm" | "info";
 
@@ -30,9 +31,9 @@ const MainLayout = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [pageTitle, setPageTitle] = useState("Dashboard");
   const location = useLocation();
+  const { logoutAction } = useAuth();
   const userRole = localStorage.getItem("userRole");
   const userEmail = localStorage.getItem("userEmail") || "user@example.com";
-  const navigate = useNavigate();
 
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [newProductName, setNewProductName] = useState("");
@@ -45,15 +46,11 @@ const MainLayout = () => {
     type: "info",
   });
 
-  const handleActualLogout = useCallback(() => {
-    localStorage.clear();
-  }, []);
-
   const {
     showModal: showInactivityModal,
     handleContinue: handleInactivityContinue,
     handleLogout: handleInactivityLogout,
-  } = useInactivityTimeout(handleActualLogout);
+  } = useInactivityTimeout(logoutAction);
 
   const navLinks = useMemo(
     () => [
@@ -118,7 +115,7 @@ const MainLayout = () => {
         type: "success",
       });
       window.dispatchEvent(new CustomEvent("productAdded"));
-    } catch (addError) {
+    } catch {
       setAlertState({
         isOpen: true,
         title: "Error",
@@ -151,7 +148,7 @@ const MainLayout = () => {
                 <Link
                   key={link.to}
                   to={link.to}
-                  onClick={() => setSidebarOpen(false)} // Close sidebar on mobile nav click
+                  onClick={() => setSidebarOpen(false)}
                   className={`flex items-center px-3 py-2.5 font-medium rounded-lg transition-colors ${
                     isActive
                       ? "bg-slate-700 text-white"
@@ -171,10 +168,7 @@ const MainLayout = () => {
           </nav>
           <div className="p-4 border-t border-slate-700">
             <button
-              onClick={() => {
-                handleActualLogout();
-                navigate("/login", { replace: true });
-              }}
+              onClick={logoutAction}
               className="w-full flex items-center px-3 py-2.5 font-medium text-slate-300 hover:bg-red-500/20 hover:text-red-300 rounded-lg transition-colors"
             >
               <LogOut className="h-5 w-5" />

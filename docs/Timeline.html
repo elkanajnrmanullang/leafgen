@@ -138,60 +138,34 @@
             <section id="project-summary" class="mb-10 prose max-w-none">
                 <h2 class="text-2xl font-semibold text-slate-800 mb-4">📝 Latar Belakang & Alur Kerja Final</h2>
                 <h3>Permasalahan Utama</h3>
-                <p>Proses pembuatan leaflet promosi saat ini memakan waktu minimal <strong>8 jam per leaflet</strong>,
-                    dengan tambahan <strong>4 jam untuk revisi</strong> akibat *human error*. Kolaborasi menjadi sulit
-                    ketika staf absen, karena mengharuskan penggunaan laptop fisik milik staf tersebut. Tujuan utama
-                    sistem ini adalah memangkas total waktu kerja tersebut hingga <strong>kurang dari 1 jam</strong>,
-                    atau mencapai efisiensi lebih dari 90%.</p>
-
-                <h3>Alur Kerja Sistem (Versi Awal)</h3>
-                <ul class="text-slate-600">
-                    <li><strong>Buat Leaflet dari CSV (Alur Utama):</strong>
-                        <ul>
-                            <li>Staff mengunggah file <code>.csv</code> atau <code>.xlsx</code>.</li>
-                            <li>Sistem menampilkan dropdown daerah dari file, Staff memilih daerah dan input periode
-                                tanggal.</li>
-                            <li>Sistem memfilter data, mencocokkan Kode PLU dengan Bank Gambar, dan menampilkan
-                                pratinjau layout grid otomatis (ukuran grid adaptif).</li>
-                            <li>Masuk ke Editor Visual: Staff dapat menggeser grid, mengedit teks, dan menggunakan
-                                tombol <strong>"Grid Cerdas"</strong> (jika aktif) untuk optimasi layout berdasarkan
-                                history.</li>
-                            <li>Staff mengunduh hasil final sebagai <strong>PNG</strong>. Hasil otomatis tersimpan ke
-                                <strong>History</strong>.
-                            </li>
-                        </ul>
-                    </li>
-                    <li><strong>Buat Leaflet dari Template:</strong>
-                        <ul>
-                            <li>Staff memilih desain latar dari menu <strong>Template Desain</strong>.</li>
-                            <li>Sistem menampilkan galeri layout grid dari <strong>History</strong>.</li>
-                            <li>Staff memilih layout grid, sistem menggabungkan keduanya di Editor Visual untuk
-                                penyesuaian akhir sebelum diunduh (PNG) dan disimpan ke History.</li>
-                        </ul>
-                    </li>
-                    <li><strong>Pembelajaran Mandiri (Self-Learning):</strong> Setiap leaflet yang disimpan ke
-                        <strong>History</strong> menjadi data latih baru bagi model <em>machine learning</em> ("Grid
-                        Cerdas"), membuatnya semakin akurat seiring waktu.
-                    </li>
-                    <li><strong>Manajemen Data:</strong>
-                        <ul>
-                            <li>Staff dapat menambah/melihat produk di <strong>Bank Gambar</strong> (Kode PLU, Nama,
-                                Deskripsi, Gambar).</li>
-                            <li>Manager (Admin) dapat mengelola akun pengguna di menu <strong>Manajemen Akun</strong>:
-                                menambah pengguna baru (password dikirim ke email) dan <strong>menonaktifkan</strong>
-                                akun staf yang tidak aktif (data history tetap ada, tapi user tidak bisa login).</li>
-                        </ul>
-                    </li>
-                    <li><strong>Keamanan Tambahan:</strong> Password pengguna akan <strong>kedaluwarsa setiap 1
-                            bulan</strong> dan wajib diganti.</li>
-                </ul>
+                <p>Proses manual pembuatan leaflet promosi di perusahaan ritel studi kasus sangat tidak efisien.
+                    Dibutuhkan tim yang terdiri dari sembilan staf desain, di mana setiap staf mengerjakan desain
+                    leaflet untuk daerah geografis yang berbeda-beda. Pemisahan ini diperlukan karena adanya variasi
+                    harga produk di setiap gerai. </p>
+                <p>Berdasarkan wawancara, alur kerja pengerjaan leaflet sangat memakan waktu. Data promosi diterima
+                    staf desain pada H-14 (14 hari sebelum tanggal periode promosi dimulai). Staf memiliki batas
+                    waktu hingga H-7 (7 hari sebelum promosi) untuk mengirimkan desain final ke kepala cabang gerai.
+                    Proses pengerjaan draf awal ini memakan waktu minimal <strong>satu hari kerja penuh (8
+                        jam)</strong> per staf. Setelah draf selesai, draf tersebut harus direviu oleh manajer. Jika
+                    terdapat *human error*—seperti salah ketik harga (*typo*), kesalahan gambar produk, atau
+                    inkonsistensi tata letak—proses revisi ini rata-rata membutuhkan <strong>tambahan 4 jam
+                        (setengah hari kerja)</strong>. Hal ini membuat total waktu pengerjaan menjadi minimal 12 jam,
+                    dan berisiko molor lebih lama.</p>
+                <p>Masalah diperburuk oleh *bottleneck* kolaborasi yang serius. Seluruh pekerjaan desain terikat
+                    pada laptop fisik masing-masing staf. Jika seorang staf berhalangan hadir, staf lain yang
+                    ingin membantu <strong>harus mengakses dan menggunakan laptop fisik staf yang absen
+                        tersebut</strong>. Alur kerja ini sangat tidak efisien dan berisiko tinggi (misalnya, laptop
+                    rusak, dibawa pulang oleh staf, atau masalah akses lainnya), yang secara langsung menghambat
+                    produktivitas tim.</p>
+                <p>Tujuan utama sistem <strong>LeafGenn</strong> adalah merombak total alur kerja ini,
+                    memangkas total waktu pengerjaan dari 12 jam menjadi <strong>kurang dari 1 jam</strong>,
+                    sekaligus menyediakan platform terpusat berbasis akun untuk mengatasi masalah kolaborasi.</p>
             </section>
 
             <section id="recent-revisions"
                 class="mb-10 prose max-w-none bg-blue-50 border border-blue-200 rounded-lg p-6">
-                <h2 class="text-2xl font-semibold text-blue-800 mb-4">🔄 Revisi Baru (Sesuai Klien - 29 Okt 2025)</h2>
-                <p class="text-sm text-blue-700">Berdasarkan masukan terakhir dari klien, beberapa perubahan signifikan
-                    pada alur kerja dan fitur telah disepakati:</p>
+                <h2 class="text-2xl font-semibold text-blue-800 mb-4">🔄 Alur Kerja Final (Sesuai Revisi Klien - 1 Nov
+                    2025)</h2>
                 <ul class="text-slate-600 text-base">
                     <li>
                         <strong>Alur Input & Generate Multi-Halaman:</strong>
@@ -200,19 +174,44 @@
                             <li>Setelah unggah Excel, pengguna <strong>memilih template latar belakang</strong> (dengan
                                 default terpilih).</li>
                             <li>Sistem <strong>tidak lagi menampilkan pilihan Store</strong>. Sebaliknya, sistem
-                                otomatis membaca kolom 'Store' dan 'Nasional'.</li>
+                                otomatis membaca kolom 'Store' dan 'Nasional' dari file.</li>
                             <li>Sistem langsung <strong>menghasilkan SEMUA draft leaflet</strong> (satu per Store unik +
-                                item 'Nasional' di semua) dalam <strong>satu Editor Visual multi-halaman</strong> (mirip
-                                Canva pages).</li>
+                                item 'Nasional' di semua) dalam <strong>satu Editor Visual multi-halaman</strong>.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Editor Visual & Bank Gambar (Alur Direvisi):</strong>
+                        <ul>
+                            <li>Pengguna dapat menambahkan elemen dekoratif (bentuk, garis, gambar non-produk) secara
+                                bebas di editor.</li>
+                            <li><strong>Gambar Produk (Grid):</strong> Sistem akan mencocokkan "Kode PLU Unit" dari
+                                Excel dengan "Bank Gambar".</li>
+                            <li>Jika gambar produk tidak ada di Bank Gambar, pengguna dapat mengunggahnya
+                                <strong>langsung di editor</strong>. Gambar baru ini akan <strong>otomatis
+                                    tersimpan ke Bank Gambar</strong> (beserta Kode PLU & nama) untuk penggunaan di
+                                masa depan.
+                            </li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Fungsi History (Fungsi Ganda - Direvisi):</strong>
+                        <ul>
+                            <li><strong>Fungsi 1: Revisi.</strong> Desain yang disimpan akan masuk ke History.
+                                Pengguna dapat mengklik ikon "edit" untuk membuka kembali pekerjaan tersebut di editor
+                                visual untuk revisi.</li>
+                            <li><strong>Fungsi 2: Dataset ML.</strong> Seluruh data di History (khususnya data produk
+                                yang muncul bersamaan) akan menjadi <strong>dataset transaksional</strong> untuk
+                                melatih fitur "Grid Cerdas" (Algoritma Apriori).</li>
                         </ul>
                     </li>
                     <li>
                         <strong>Editor Visual & Download:</strong>
                         <ul>
-                            <li>Pengguna dapat mengedit semua halaman leaflet dalam satu editor.</li>
+                            <li>Pengguna dapat mengedit semua halaman leaflet (dengan ukuran canvas <strong>HVS
+                                    A4</strong>) dalam satu editor.</li>
                             <li>Kemampuan edit termasuk <strong>mengganti template latar belakang</strong> per halaman
                                 jika diperlukan.</li>
-                            <li>Format download diperluas menjadi <strong>.png, .pdf, dan .jpg</strong>.</li>
+                            <li>Format download diperluas menjadi <strong>.png, .pdf (Utama), dan .jpg</strong>.</li>
                         </ul>
                     </li>
                     <li>
@@ -220,27 +219,15 @@
                         <ul>
                             <li>Fitur wajib ganti password setiap 30 hari <strong>dihapus</strong>.</li>
                             <li>Pengguna (Staf/Manajer) dapat <strong>mereset password jika lupa</strong> secara
-                                langsung di sistem (tanpa konfirmasi email).</li>
+                                mandiri di sistem (tanpa konfirmasi email).</li>
                             <li>Peran tetap "Staf Desain" (Designer) dan "Manajer" (Admin).</li>
                             <li>Admin memiliki menu "Manajemen Akun" untuk CRUD pengguna dan <strong>memilih
                                     peran</strong> saat membuat akun baru.</li>
                         </ul>
                     </li>
-                    <li>
-                        <strong>Fungsi History:</strong>
-                        <ul>
-                            <li>Menu "History" <strong>hanya berfungsi untuk REVISI</strong>. Memilih item dari History
-                                akan membuka kembali leaflet tersebut di Editor Visual multi-halaman untuk diedit ulang.
-                            </li>
-                            <li>Fungsi menggunakan layout History sebagai *template* desain baru
-                                <strong>dihapus</strong>.</li>
-                        </ul>
-                    </li>
-                    <li><strong>Bank Gambar:</strong> Tetap dapat diakses CRUD oleh kedua peran (Designer & Admin).</li>
-                    <li><strong>Template Desain:</strong> Menu ini tetap ada untuk menyimpan dan memilih template latar
-                        belakang.</li>
                 </ul>
             </section>
+
             <section id="ml-concept" class="mb-10 prose max-w-none">
                 <h2 class="text-2xl font-semibold text-slate-800 mb-4">🧠 Konsep Machine Learning: Grid Cerdas</h2>
                 <p>Fitur "Grid Cerdas" merupakan fitur pendukung opsional di dalam editor visual, dirancang untuk meniru
@@ -251,9 +238,11 @@
                         adalah untuk menemukan "aturan asosiasi" (pola produk X sering muncul bersama produk Y) dari
                         data history.
                     </li>
-                    <li><strong>Sumber Dataset:</strong> Dataset dibangun secara otomatis dari <strong>seluruh data di
+                    <li><strong>Sumber Dataset (Direvisi):</strong> Dataset dibangun secara otomatis dari
+                        <strong>seluruh data di
                             menu History</strong>. Setiap leaflet (`leaflets`) beserta item-item di dalamnya
-                        (`leaflet_items`) dianggap sebagai satu "transaksi" data.</li>
+                        (`leaflet_items`) dianggap sebagai satu "transaksi" data.
+                    </li>
                     <li><strong>Mekanisme "Cold Start":</strong> Untuk menjamin kualitas rekomendasi, tombol fitur "Grid
                         Cerdas" di editor visual <strong>baru akan muncul dan aktif setelah sistem memiliki minimal 5
                             data leaflet</strong> di dalam History.</li>
@@ -276,9 +265,10 @@
                     <div class="bg-green-50 border border-green-200 rounded-lg p-4">
                         <h3 class="font-bold text-green-800 mb-1">Ruang Lingkup Penuh (Direvisi)</h3>
                         <p class="text-sm text-green-700">Proyek mencakup semua fitur sesuai revisi klien terbaru: alur
-                            Excel multi-halaman, editor visual multi-halaman, Grid Cerdas, History (revisi), Bank
-                            Gambar, Manajemen Akun (termasuk pemilihan peran), RBAC, Lupa Password mandiri, dan download
-                            PNG/PDF/JPG.</p>
+                            Excel multi-halaman, editor visual multi-halaman (ukuran canvas <strong>HVS A4</strong>),
+                            Grid
+                            Cerdas, History (revisi & dataset ML), Bank Gambar terintegrasi, Manajemen Akun (termasuk
+                            pemilihan peran), RBAC, Lupa Password mandiri, dan download PNG/PDF/JPG.</p>
                     </div>
                     <div class="bg-red-50 border border-red-200 rounded-lg p-4">
                         <h3 class="font-bold text-red-800 mb-1">Deadline Mutlak</h3>
@@ -319,7 +309,7 @@
                     </ul>
                 </div>
                 <div>
-                    <h2 class="text-2xl font-semibold text-slate-800 mb-3">🚧 Status Proyek (Per 29 Okt 2025)</h2>
+                    <h2 class="text-2xl font-semibold text-slate-800 mb-3">🚧 Status Proyek (Per 1 Nov 2025)</h2>
                     <div class="space-y-2">
                         <p class="bg-green-100 text-green-800 font-semibold px-4 py-2 rounded-lg inline-block">✅ Fase 2
                             (Sprint 1) Selesai</p>
@@ -392,7 +382,7 @@
                                     </ul><br><strong>Frontend:</strong>
                                     <ul class="list-disc list-inside space-y-1 mt-1">
                                         <li>Upload Excel & Pilih Latar.</li>
-                                        <li>Editor visual multi-halaman dasar.</li>
+                                        <li>Editor visual multi-halaman dasar (Canvas A4).</li>
                                         <li>Tombol "Grid Cerdas" (tampil kondisional).</li>
                                     </ul>
                                 </td>
@@ -441,10 +431,9 @@
             </section>
 
             <section id="database-design">
-                <h2 class="text-2xl font-semibold text-slate-800 mb-4">💾 Desain Database (Perlu Penyesuaian)</h2>
-                <p class="text-sm text-red-600 mb-4"><strong>Penting:</strong> Desain database di bawah ini belum
-                    sepenuhnya mencerminkan revisi klien (misal: struktur untuk multi-halaman, format download). Perlu
-                    diperbarui.</p>
+                <h2 class="text-2xl font-semibold text-slate-800 mb-4">💾 Desain Database (Telah Direvisi)</h2>
+                <p class="text-sm text-slate-600 mb-4">Struktur database ini telah disesuaikan untuk mendukung alur
+                    kerja baru, termasuk editor multi-halaman dan penyimpanan data *history* untuk revisi/ML.</p>
                 <div class="space-y-8">
                     <div>
                         <h3 class="text-lg font-semibold text-slate-700 mb-2">1. Tabel `users` (Direvisi)</h3>
@@ -471,12 +460,7 @@
                                     <tr>
                                         <td class="font-mono">email</td>
                                         <td class="font-mono">VARCHAR</td>
-                                        <td>Alamat email (unik, opsional?)</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="font-mono">username</td>
-                                        <td class="font-mono">VARCHAR</td>
-                                        <td>Username (unik)</td>
+                                        <td>Alamat email (unik, untuk login)</td>
                                     </tr>
                                     <tr>
                                         <td class="font-mono">password</td>
@@ -522,17 +506,12 @@
                                     <tr>
                                         <td class="font-mono">plu_code</td>
                                         <td class="font-mono">VARCHAR</td>
-                                        <td>Kode PLU Unit (unik)</td>
+                                        <td>Kode PLU Unit (unik, kunci pencocokan)</td>
                                     </tr>
                                     <tr>
                                         <td class="font-mono">name</td>
                                         <td class="font-mono">VARCHAR</td>
                                         <td>Nama produk</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="font-mono">description</td>
-                                        <td class="font-mono">TEXT</td>
-                                        <td>Deskripsi produk (opsional)</td>
                                     </tr>
                                     <tr>
                                         <td class="font-mono">image_path</td>
@@ -580,23 +559,12 @@
                                         <td class="font-mono">BOOLEAN</td>
                                         <td>Tandai jika template default (Baru)</td>
                                     </tr>
-                                    <tr>
-                                        <td class="font-mono">user_id</td>
-                                        <td class="font-mono">BIGINT</td>
-                                        <td><strong>Foreign Key</strong> ke `users.id` (pengunggah)</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="font-mono">created_at, updated_at</td>
-                                        <td class="font-mono">TIMESTAMP</td>
-                                        <td>Otomatis oleh Laravel</td>
-                                    </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                     <div>
-                        <h3 class="text-lg font-semibold text-slate-700 mb-2">4. Tabel `leaflets` (History - Perlu
-                            Direvisi Struktur Multi-Halaman)</h3>
+                        <h3 class="text-lg font-semibold text-slate-700 mb-2">4. Tabel `leaflets` (Induk History)</h3>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
                                 <thead>
@@ -613,14 +581,9 @@
                                         <td><strong>Primary Key</strong></td>
                                     </tr>
                                     <tr>
-                                        <td class="font-mono">code</td>
-                                        <td class="font-mono">VARCHAR</td>
-                                        <td>Kode unik leaflet (misal: LFG-YYYYMMDD-XXX)</td>
-                                    </tr>
-                                    <tr>
                                         <td class="font-mono">name</td>
                                         <td class="font-mono">VARCHAR</td>
-                                        <td>Nama/Judul Leaflet (Baru)</td>
+                                        <td>Nama/Judul Leaflet</td>
                                     </tr>
                                     <tr>
                                         <td class="font-mono">promotion_start_date</td>
@@ -637,18 +600,13 @@
                                         <td class="font-mono">BIGINT</td>
                                         <td><strong>Foreign Key</strong> ke `users.id` (pembuat)</td>
                                     </tr>
-                                    <tr>
-                                        <td class="font-mono">created_at, updated_at</td>
-                                        <td class="font-mono">TIMESTAMP</td>
-                                        <td>Otomatis oleh Laravel</td>
-                                    </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                     <div>
-                        <h3 class="text-lg font-semibold text-slate-700 mb-2">5. Tabel `leaflet_pages` (Baru - Untuk
-                            Multi-Halaman)</h3>
+                        <h3 class="text-lg font-semibold text-slate-700 mb-2">5. Tabel `leaflet_pages` (Multi-Halaman)
+                        </h3>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
                                 <thead>
@@ -675,7 +633,7 @@
                                         <td>Nomor urut halaman</td>
                                     </tr>
                                     <tr>
-                                        <td class="font-mono">region</td>
+                                        <td class="font-mono">store_name</td>
                                         <td class="font-mono">VARCHAR</td>
                                         <td>Wilayah/Store untuk halaman ini</td>
                                     </tr>
@@ -684,23 +642,13 @@
                                         <td class="font-mono">BIGINT</td>
                                         <td><strong>FK</strong> ke `background_templates.id`</td>
                                     </tr>
-                                    <tr>
-                                        <td class="font-mono">final_image_path</td>
-                                        <td class="font-mono">VARCHAR</td>
-                                        <td>Lokasi file PNG/JPG halaman ini (jika disimpan terpisah)</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="font-mono">final_pdf_path</td>
-                                        <td class="font-mono">VARCHAR</td>
-                                        <td>Lokasi file PDF halaman ini (jika disimpan terpisah)</td>
-                                    </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                     <div>
-                        <h3 class="text-lg font-semibold text-slate-700 mb-2">6. Tabel `leaflet_items` (Perlu FK ke
-                            `leaflet_pages`)</h3>
+                        <h3 class="text-lg font-semibold text-slate-700 mb-2">6. Tabel `leaflet_items` (Item di Canvas)
+                        </h3>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
                                 <thead>
@@ -719,22 +667,22 @@
                                     <tr>
                                         <td class="font-mono">leaflet_page_id</td>
                                         <td class="font-mono">BIGINT</td>
-                                        <td><strong>Foreign Key</strong> ke `leaflet_pages.id` (Baru)</td>
+                                        <td><strong>Foreign Key</strong> ke `leaflet_pages.id`</td>
                                     </tr>
                                     <tr>
                                         <td class="font-mono">product_id</td>
                                         <td class="font-mono">BIGINT</td>
-                                        <td><strong>Foreign Key</strong> ke `products.id`</td>
+                                        <td><strong>FK</strong> ke `products.id` (NULL jika bukan produk)</td>
                                     </tr>
                                     <tr>
-                                        <td class="font-mono">display_price</td>
-                                        <td class="font-mono">DECIMAL</td>
-                                        <td>Harga promosi</td>
+                                        <td class="font-mono">item_type</td>
+                                        <td class="font-mono">VARCHAR</td>
+                                        <td>Tipe elemen (misal: 'product', 'text', 'shape')</td>
                                     </tr>
                                     <tr>
-                                        <td class="font-mono">strikethrough_price</td>
-                                        <td class="font-mono">DECIMAL</td>
-                                        <td>Harga coret (opsional)</td>
+                                        <td class="font-mono">content</td>
+                                        <td class="font-mono">JSON/TEXT</td>
+                                        <td>Menyimpan data (teks, harga, path gambar kustom)</td>
                                     </tr>
                                     <tr>
                                         <td class="font-mono">position_x</td>
@@ -749,12 +697,12 @@
                                     <tr>
                                         <td class="font-mono">width</td>
                                         <td class="font-mono">INTEGER</td>
-                                        <td>Lebar elemen (Baru)</td>
+                                        <td>Lebar elemen</td>
                                     </tr>
                                     <tr>
                                         <td class="font-mono">height</td>
                                         <td class="font-mono">INTEGER</td>
-                                        <td>Tinggi elemen (Baru)</td>
+                                        <td>Tinggi elemen</td>
                                     </tr>
                                     <tr>
                                         <td class="font-mono">custom_styles</td>

@@ -1,49 +1,50 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { login } from "../services/authService";
+import { useState, useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import logoSrc from "../assets/logo.png";
-import { Link } from "react-router-dom";
-
-interface ApiError {
-  message: string;
-  errors?: { [key: string]: string[] };
-}
+import { isAxiosError } from "axios";
 
 const LoginPage = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
+  const { loginAction } = useAuth();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.message) {
+      const message = location.state.message as string;
+      const type = location.state.type as "success" | "error";
+
+      if (type === "success") {
+        setSuccessMessage(message);
+      } else {
+        setError(message);
+      }
+    }
+  }, [location.state]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
+    setSuccessMessage("");
     setIsLoading(true);
 
     try {
-      const data = await login(username, password);
-
-      localStorage.setItem("authToken", data.access_token);
-      localStorage.setItem("userRole", data.user.role);
-      localStorage.setItem("userName", data.user.name);
-      localStorage.setItem("userEmail", data.user.email);
-
-      if (data.action_required) {
-        localStorage.setItem("passwordChangeReason", data.action_required); 
-        localStorage.setItem("authToken", data.access_token);
-        navigate("/ganti-password");
-      } else {
-        localStorage.removeItem("passwordChangeReason"); 
-        localStorage.setItem("authToken", data.access_token);
-        navigate("/");
-      }
+      await loginAction(username, password);
     } catch (err: unknown) {
-      const apiError = err as ApiError;
-      if (apiError && apiError.message) {
-        setError(apiError.message);
+      if (isAxiosError(err)) {
+        if (err.response && err.response.data && err.response.data.message) {
+          setError(err.response.data.message);
+        } else {
+          setError(
+            "Login gagal. Periksa kembali koneksi atau kredensial Anda."
+          );
+        }
       } else {
-        setError("Login gagal. Periksa kembali koneksi atau kredensial Anda.");
+        setError("Terjadi kesalahan yang tidak terduga.");
       }
     } finally {
       setIsLoading(false);
@@ -105,6 +106,11 @@ const LoginPage = () => {
           </div>
           {error && (
             <p className="text-sm text-center text-red-400 pt-2">{error}</p>
+          )}
+          {successMessage && (
+            <p className="text-sm text-center text-green-400 pt-2">
+              {successMessage}
+            </p>
           )}
           <div className="pt-2">
             <button

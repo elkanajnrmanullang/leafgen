@@ -2,6 +2,15 @@ import axios from "axios";
 
 const API_URL = "http://127.0.0.1:8000/api";
 
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  username: string;
+  status: "active" | "inactive" | string;
+  role: "manager" | "staff";
+}
+
 const getAuthHeaders = () => {
   const token = localStorage.getItem("authToken");
   return {
@@ -12,7 +21,7 @@ const getAuthHeaders = () => {
   };
 };
 
-export const getUsers = async () => {
+export const getUsers = async (): Promise<User[]> => {
   const response = await axios.get(`${API_URL}/users`, getAuthHeaders());
   return response.data;
 };
@@ -44,6 +53,18 @@ export const activateUser = async (userId: number) => {
   const response = await axios.put(
     `${API_URL}/users/${userId}/activate`,
     {},
+    getAuthHeaders()
+  );
+  return response.data;
+};
+
+export const adminResetUserPassword = async (
+  userId: number,
+  password: string
+) => {
+  const response = await axios.put(
+    `${API_URL}/users/${userId}/reset-password`,
+    { password },
     getAuthHeaders()
   );
   return response.data;
