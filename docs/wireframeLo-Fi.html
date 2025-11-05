@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wireframe Lo-Fi - LeafGenn</title>
+    <style>
+        /* --- Global Lo-Fi Styles --- */
+        body { 
+            font-family: 'Arial', sans-serif; 
+            background-color: #ffffff; 
+            color: #000000; 
+            margin: 0; 
+            padding: 0;
+        }
+        .page-title {
+            padding: 10px 20px;
+            font-size: 24px;
+            font-weight: bold;
+            background-color: #f0f0f0;
+            border-bottom: 2px solid #000;
+            margin-top: 20px;
+        }
+        .lofi-box { 
+            border: 1px solid #333; 
+            background-color: #f9f9f9; 
+            padding: 15px; 
+            margin: 10px;
+        }
+        .lofi-button { 
+            border: 1px solid #000; 
+            background-color: #e0e0e0; 
+            padding: 8px 12px; 
+            text-decoration: none; 
+            display: inline-block; 
+            cursor: default; 
+            font-weight: bold;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .lofi-button-small {
+            width: auto;
+            padding: 5px 10px;
+            font-weight: normal;
+        }
+        .lofi-input, .lofi-select { 
+            border: 1px solid #000; 
+            padding: 8px; 
+            width: 100%;
+            box-sizing: border-box;
+            background-color: #fff;
+        }
+        .lofi-label { 
+            display: block; 
+            margin-bottom: 4px; 
+            font-weight: bold;
+        }
+        .lofi-image-placeholder { 
+            border: 2px dashed #666; 
+            background-color: #f0f0f0; 
+            display: flex; 
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center; 
+            font-style: italic; 
+            color: #666;
+            box-sizing: border-box;
+        }
+        .lofi-image-placeholder::before { 
+            content: 'X'; 
+            font-size: 40px; 
+            color: #999; 
+        }
+        .lofi-icon { 
+            display: inline-block; 
+            width: 16px; 
+            height: 16px; 
+            border: 1px solid #333; 
+            background-color: #ccc; 
+            margin-right: 8px;
+            line-height: 16px;
+            text-align: center;
+            font-size: 10px;
+        }
+        .lofi-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 10px;
+        }
+        .lofi-table th, .lofi-table td { 
+            border: 1px solid #000; 
+            padding: 8px; 
+            text-align: left; 
+        }
+        .lofi-table th { 
+            background-color: #e0e0e0; 
+        }
+        .lofi-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .lofi-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
+        .lofi-grid-2-col { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+        
+        /* --- App Layout --- */
+        .lofi-app-layout { 
+            display: flex; 
+            border: 2px solid #000; 
+            margin: 20px;
+            min-height: 80vh;
+        }
+        .lofi-sidebar { 
+            width: 220px; 
+            background-color: #f0f0f0; 
+            border-right: 2px solid #000; 
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+        .lofi-sidebar-nav { flex-grow: 1; }
+        .lofi-sidebar-nav-link {
+            display: block;
+            padding: 10px;
+            border: 1px solid transparent;
+            text-decoration: none;
+            color: #000;
+        }
+        .lofi-sidebar-nav-link.active {
+            border: 1px solid #000;
+            background-color: #e0e0e0;
+            font-weight: bold;
+        }
+        .lofi-sidebar-logo {
+            height: 50px;
+            width: 100%;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .lofi-sidebar-footer { border-top: 1px solid #999; padding-top: 10px; }
+
+        .lofi-main-wrapper { 
+            flex: 1; 
+            background-color: #ffffff; 
+            display: flex;
+            flex-direction: column;
+        }
+        .lofi-main-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 2px solid #000; 
+            padding: 10px 15px; 
+        }
+        .lofi-main-content { 
+            padding: 15px; 
+            flex-grow: 1;
+        }
+        
+        /* --- Modal Styles --- */
+        .lofi-modal-overlay { 
+            border: 2px dashed #333; 
+            background: rgba(0,0,0,0.05); 
+            padding: 40px; 
+            margin: 20px;
+        }
+        .lofi-modal-content { 
+            background: #ffffff; 
+            border: 2px solid #000; 
+            padding: 0;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .lofi-modal-header { 
+            border-bottom: 2px solid #000; 
+            padding: 10px 15px; 
+            font-size: 18px; 
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .lofi-modal-body { 
+            padding: 15px; 
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        .lofi-modal-footer { 
+            border-top: 1px solid #ccc; 
+            background-color: #f0f0f0; 
+            padding: 10px 15px; 
+            text-align: right;
+        }
+        .lofi-modal-footer .lofi-button-small { margin-left: 10px; }
+        
+        /* --- Specifics --- */
+        .lofi-upload-box {
+            border: 2px dashed #000;
+            padding: 40px;
+            text-align: center;
+            background-color: #f9f9f9;
+        }
+        .lofi-progress-bar {
+            border: 1px solid #000;
+            background-color: #fff;
+            padding: 2px;
+            height: 20px;
+        }
+        .lofi-progress-bar-inner {
+            background-color: #ccc;
+            width: 40%; /* Example progress */
+            height: 100%;
+        }
+        .lofi-canvas { 
+            border: 2px solid #333; 
+            height: 450px; 
+            background-color: #f9f9f9; 
+            position: relative;
+        }
+        .lofi-canvas-item { 
+            border: 1px solid #333; 
+            background: #fff; 
+            position: absolute; 
+            padding: 5px;
+            width: 150px;
+            text-align: center;
+        }
+        .lofi-canvas-item .lofi-image-placeholder { height: 80px; }
+    </style>
+</head>
+<body>
+
+    <h2 class="page-title">Halaman: Login (US-01)</h2>
+    <div style="background-color: #e0e0e0; padding: 40px 0;">
+        <div class="lofi-box" style="width: 350px; margin: 0 auto; background-color: #f0f0f0; border-color: #000; border-width: 2px;">
+            <div class="lofi-image-placeholder" style="height: 50px; width: 50px; margin: 0 auto 15px auto;">
+                <span style="font-size: 12px; margin-top: 5px;">Logo</span>
+            </div>
+            <p style="text-align: center; margin-bottom: 20px;">Silakan login untuk melanjutkan</p>
+            
+            <div style="margin-bottom: 15px;">
+                <label class="lofi-label" for="lofi-username">Username</label>
+                <input class="lofi-input" id="lofi-username" type="text" value="manager">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label class="lofi-label" for="lofi-password">Password</label>
+                <input class="lofi-input" id="lofi-password" type="password" value="manager123">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <button class="lofi-button">Login</button>
+            </div>
+
+            <div style="text-align: center; font-size: 12px; color: #666;">
+                <p>LeafGenn @2025</p>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="page-title">Halaman: Aplikasi Utama (Dashboard)</h2>
+    
+    <div class="lofi-app-layout">
+        <aside class="lofi-sidebar">
+            <div class="lofi-image-placeholder lofi-sidebar-logo">
+                <span style="font-size: 12px; margin-top: 5px;">Logo LeafGenn</span>
+            </div>
+            <nav class="lofi-sidebar-nav">
+                <a href="#" class="lofi-sidebar-nav-link active"><span class="lofi-icon">[i]</span>Dashboard</a>
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Buat Leaflet</a>
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Bank Gambar</a>
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Template Desain</a>
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>History</a>
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Manajemen Akun (Manager)</a>
+            </nav>
+            <div class="lofi-sidebar-footer">
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Logout</a>
+            </div>
+        </aside>
+
+        <div class="lofi-main-wrapper">
+            <header class="lofi-main-header">
+                <div>
+                    <span class="lofi-button-small" style="width: auto; padding: 5px; margin-right: 10px;">[Menu]</span>
+                    <span style="font-size: 18px; font-weight: bold;">Dashboard</span>
+                </div>
+                <div style="text-align: right;">
+                    <p style="font-weight: bold;">Manager</p>
+                    <p style="font-size: 12px; color: #666;">manager@perusahaanx.com</p>
+                </div>
+            </header>
+
+            <main class="lofi-main-content">
+
+                <div id="lofi-dashboard-content">
+                    <div class="lofi-grid-2-col">
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <div class="lofi-grid-3">
+                                <div class="lofi-box">
+                                    <span class="lofi-icon">[i]</span>
+                                    <h3 style="font-size: 12px; color: #666;">Total Leaflet</h3>
+                                    <p style="font-size: 24px; font-weight: bold;">2</p>
+                                </div>
+                                <div class="lofi-box">
+                                    <span class="lofi-icon">[i]</span>
+                                    <h3 style="font-size: 12px; color: #666;">Produk di Bank</h3>
+                                    <p style="font-size: 24px; font-weight: bold;">2</p>
+                                </div>
+                                <div class="lofi-box">
+                                    <span class="lofi-icon">[i]</span>
+                                    <h3 style="font-size: 12px; color: #666;">Template Desain</h3>
+                                    <p style="font-size: 24px; font-weight: bold;">2</p>
+                                </div>
+                            </div>
+                            <div class="lofi-box" style="flex-grow: 1;">
+                                <b>Aktivitas Terakhir</b>
+                                <ul style="margin-top: 10px; padding-left: 20px; font-size: 14px;">
+                                    <li>Leaflet baru <strong>LFG-002</strong> dibuat.</li>
+                                    <li>Produk baru <strong>Air Mineral</strong> ditambahkan.</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="lofi-box">
+                            <b>Jalan Pintas</b>
+                            <div style="margin-top: 10px;">
+                                <button class="lofi-button lofi-button-small" style="width: 100%; text-align: left; margin-bottom: 10px;">
+                                    <span class="lofi-icon">[i]</span>
+                                    <b>Buat dari CSV</b><br>
+                                    <span style="font-size: 12px; font-weight: normal; color: #666;">Mulai alur kerja utama</span>
+                                </button>
+                                <button class="lofi-button lofi-button-small" style="width: 100%; text-align: left;">
+                                    <span class="lofi-icon">[i]</span>
+                                    <b>Tambah Produk</b><br>
+                                    <span style="font-size: 12px; font-weight: normal; color: #666;">Isi data ke Bank Gambar</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="lofi-buat-leaflet-content" style="display: none;">
+                    <div class="lofi-box">
+                        <b>Alur 1: Buat Leaflet dari CSV</b>
+                        <p style="font-size: 14px; color: #666;">Mulai dengan mengunggah file CSV...</p>
+                        
+                        <div class="lofi-upload-box" style="margin-top: 15px;">
+                            <span class="lofi-icon" style="width: 40px; height: 40px; line-height: 40px; font-size: 24px;">[i]</span>
+                            <p style="margin-top: 10px;"><u>Upload sebuah file</u> atau tarik dan lepas</p>
+                            <p style="font-size: 12px; color: #666;">CSV hingga 10MB</p>
+                        </div>
+                        
+                        <div style="margin-top: 15px;">
+                            <p style="font-size: 14px;"><b>namafile.csv</b> <span style="float: right;">40%</span></p>
+                            <div class="lofi-progress-bar">
+                                <div class="lofi-progress-bar-inner"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="lofi-box" style="margin-top: 20px;">
+                        <b>Langkah 2: Tentukan Wilayah & Periode</b>
+                        <p style="font-size: 14px; color: #666;">Pilih wilayah yang datanya akan diproses...</p>
+                        <div style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label class="lofi-label" for="lofi-wilayah">Pilih Wilayah</label>
+                                <select id="lofi-wilayah" class="lofi-select">
+                                    <option>Lampung</option>
+                                    <option>Jakarta</option>
+                                    <option>Bandung</option>
+                                </select>
+                            </div>
+                             <div>
+                                <label class="lofi-label">Periode Promosi</label>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+                                    <input type="text" class="lofi-input" placeholder="Tgl Mulai">
+                                    <input type="text" class="lofi-input" placeholder="Tgl Selesai">
+                                </div>
+                            </div>
+                        </div>
+                        <button class="lofi-button" style="margin-top: 20px;">Generate & Buka Editor</button>
+                    </div>
+                </div>
+
+                <div id="lofi-bank-gambar-content" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <div>
+                            <b>Bank Gambar</b>
+                            <p style="font-size: 14px; color: #666;">Database terpusat untuk semua aset gambar produk.</p>
+                        </div>
+                        <button class="lofi-button lofi-button-small" style="width: auto;">
+                            <span class="lofi-icon">[i]</span> Tambah Produk
+                        </button>
+                    </div>
+                    <div class="lofi-box" style="margin: 0;">
+                        <table class="lofi-table">
+                            <thead>
+                                <tr>
+                                    <th>Kode PLU Unit</th>
+                                    <th>Gambar</th>
+                                    <th>Nama Produk</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>10293A</td>
+                                    <td><div class="lofi-image-placeholder" style="width: 40px; height: 40px;"><span style="font-size: 10px;">Gbr</span></div></td>
+                                    <td>Mie Instan</td>
+                                    <td><button class="lofi-button-small">[Hapus]</button></td>
+                                </tr>
+                                <tr>
+                                    <td>482B71</td>
+                                    <td><div class="lofi-image-placeholder" style="width: 40px; height: 40px;"><span style="font-size: 10px;">Gbr</span></div></td>
+                                    <td>Air Mineral</td>
+                                    <td><button class="lofi-button-small">[Hapus]</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="lofi-template-desain-content" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <div>
+                            <b>Template Desain Latar</b>
+                            <p style="font-size: 14px; color: #666;">Gunakan latar belakang yang sudah jadi...</p>
+                        </div>
+                        <button class="lofi-button lofi-button-small" style="width: auto;">
+                            <span class="lofi-icon">[i]</span> Tambah Template
+                        </button>
+                    </div>
+                    <div class="lofi-grid-4">
+                        <div class="lofi-box" style="margin: 0; padding: 0;">
+                            <div class="lofi-image-placeholder" style="height: 120px; width: 100%;"><span style="font-size: 10px;">Latar</span></div>
+                            <p style="padding: 10px; font-weight: bold;">Tema Natal</p>
+                        </div>
+                        <div class="lofi-box" style="margin: 0; padding: 0;">
+                            <div class="lofi-image-placeholder" style="height: 120px; width: 100%;"><span style="font-size: 10px;">Latar</span></div>
+                            <p style="padding: 10px; font-weight: bold;">Tema Lebaran</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="lofi-history-content" style="display: none;">
+                    <b>History</b>
+                    <p style="font-size: 14px; color: #666; margin-bottom: 10px;">Arsip dari semua leaflet yang telah dibuat.</p>
+                    <div class="lofi-box" style="margin: 0;">
+                        <table class="lofi-table">
+                            <thead>
+                                <tr>
+                                    <th>Gambar Layout</th>
+                                    <th>Kode Layout</th>
+                                    <th>Tanggal</th>
+                                    <th>Daerah</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><div class="lofi-image-placeholder" style="width: 50px; height: 50px;"><span style="font-size: 10px;">Gbr</span></div></td>
+                                    <td>LFG-001</td>
+                                    <td>2025-09-15</td>
+                                    <td>Lampung</td>
+                                    <td>[Lihat] [Unduh] [Edit] [Hapus]</td>
+                                </tr>
+                                <tr>
+                                    <td><div class="lofi-image-placeholder" style="width: 50px; height: 50px;"><span style="font-size: 10px;">Gbr</span></div></td>
+                                    <td>LFG-002</td>
+                                    <td>2025-09-14</td>
+                                    <td>Jakarta</td>
+                                    <td>[Lihat] [Unduh] [Edit] [Hapus]</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="lofi-akun-content" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <div>
+                            <b>Manajemen Akun</b>
+                            <p style="font-size: 14px; color: #666;">Kelola akun pengguna (khusus Manager).</p>
+                        </div>
+                        <button class="lofi-button lofi-button-small" style="width: auto;">
+                            <span class="lofi-icon">[i]</span> Tambah Akun
+                        </button>
+                    </div>
+                    <div class="lofi-box" style="margin: 0;">
+                        <table class="lofi-table">
+                            <thead>
+                                <tr>
+                                    <th>Nama Staff</th>
+                                    <th>Email</th>
+                                    <th>Username</th>
+                                    <th>Status</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Budi Santoso</td>
+                                    <td>budi.s@perusahaanx.com</td>
+                                    <td>budi.s</td>
+                                    <td>Aktif</td>
+                                    <td><u>Nonaktifkan</u></td>
+                                </tr>
+                                <tr>
+                                    <td>Citra Lestari</td>
+                                    <td>citra.l@perusahaanx.com</td>
+                                    <td>citra.l</td>
+                                    <td>Aktif</td>
+                                    <td><u>Nonaktifkan</u></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <h2 class="page-title">Modal: Konfirmasi (Hapus/Nonaktifkan)</h2>
+    <div class="lofi-modal-overlay">
+        <div class="lofi-modal-content" style="max-width: 400px; text-align: center;">
+            <div class="lofi-modal-body">
+                <span class="lofi-icon" style="width: 40px; height: 40px; line-height: 40px; font-size: 24px;">[!]</span>
+                <h3 style="font-size: 18px; font-weight: bold; margin-top: 10px;">Konfirmasi Tindakan</h3>
+                <p style="font-size: 14px; color: #666; margin-top: 5px;">Apakah Anda yakin?</p>
+            </div>
+            <div class="lofi-modal-footer" style="text-align: center;">
+                <button class="lofi-button-small" style="background-color: #e0e0e0;">Batal</button>
+                <button class="lofi-button-small" style="background-color: #ccc;">Ya, Lanjutkan</button>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="page-title">Modal: Editor Visual (Canva-like) (US-07, US-08, US-09, US-10)</h2>
+    
+    <div class="lofi-modal-overlay">
+        <div class="lofi-modal-content" style="display: flex; height: 500px;">
+            <div style="flex-grow: 1; padding: 10px;">
+                <div class="lofi-canvas">
+                    <div class="lofi-canvas-item" style="top: 40px; left: 40px;">
+                        <div class="lofi-image-placeholder" style="height: 80px;"><span style="font-size: 10px;">Gbr</span></div>
+                        <p style="font-size: 12px; margin-top: 5px;">Mie Instan</p>
+                    </div>
+                    <div class="lofi-canvas-item" style="top: 40px; left: 210px;">
+                        <div class="lofi-image-placeholder" style="height: 80px;"><span style="font-size: 10px;">Gbr</span></div>
+                        <p style="font-size: 12px; margin-top: 5px;">Air Mineral</p>
+                    </div>
+                </div>
+            </div>
+            <div class="lofi-sidebar" style="width: 200px;">
+                <h3 style="font-weight: bold; border-bottom: 1px solid #999; padding-bottom: 5px;">Editing Tools</h3>
+                <div style="margin-top: 15px; flex-grow: 1;">
+                    <div style="margin-bottom: 15px;">
+                        <label class="lofi-label">Jenis Font</label>
+                        <select class="lofi-select">
+                            <option>Inter</option>
+                            <option>Poppins</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="lofi-label">Warna Harga</label>
+                        <input type="text" class="lofi-input" value="#e67373">
+                    </div>
+                </div>
+                <div class="lofi-sidebar-footer">
+                    <button class="lofi-button lofi-button-small" style="margin-bottom: 5px;"><span class="lofi-icon">[i]</span>Download PNG</button>
+                    <button class="lofi-button lofi-button-small" style="background-color: #e0e0e0;">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="page-title">Modal: Tambah Produk (Bank Gambar) (US-03)</h2>
+    <div class="lofi-modal-overlay">
+        <form class="lofi-modal-content" style="max-width: 450px;">
+            <div class="lofi-modal-header"><span>Tambah Produk Baru</span> <span>[X]</span></div>
+            <div class="lofi-modal-body" style="display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                    <label class="lofi-label">Nama Barang</label>
+                    <input type="text" class="lofi-input" placeholder="Nama Barang">
+                </div>
+                <div>
+                    <label class="lofi-label">Kode PLU Unit</label>
+                    <input type="text" class="lofi-input" placeholder="Kode PLU Unit">
+                </div>
+                <div>
+                    <label class="lofi-label">File Gambar</label>
+                    <div class="lofi-button" style="background-color: #f0f0f0; text-align: left; font-weight: normal;">Pilih file...</div>
+                </div>
+            </div>
+            <div class="lofi-modal-footer">
+                <button type="button" class="lofi-button-small">Batal</button>
+                <button type="submit" class="lofi-button-small" style="background-color: #ccc;">Simpan</button>
+            </div>
+        </form>
+    </div>
+
+    <h2 class="page-title">Modal: Tambah Template (US-05)</h2>
+    <div class="lofi-modal-overlay">
+        <form class="lofi-modal-content" style="max-width: 450px;">
+            <div class="lofi-modal-header"><span>Tambah Template Latar</span> <span>[X]</span></div>
+            <div class="lofi-modal-body" style="display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                    <label class="lofi-label">Judul Desain</label>
+                    <input type="text" class="lofi-input" placeholder="Judul Desain">
+                </div>
+                <div>
+                    <label class="lofi-label">File Gambar Latar</label>
+                    <div class="lofi-button" style="background-color: #f0f0f0; text-align: left; font-weight: normal;">Pilih file...</div>
+                </div>
+            </div>
+            <div class="lofi-modal-footer">
+                <button type="button" class="lofi-button-small">Batal</button>
+                <button type="submit" class="lofi-button-small" style="background-color: #ccc;">Simpan</button>
+            </div>
+        </form>
+    </div>
+
+    <h2 class="page-title">Modal: Tambah Akun (US-02)</h2>
+    <div class="lofi-modal-overlay">
+        <form class="lofi-modal-content" style="max-width: 450px;">
+            <div class="lofi-modal-header"><span>Tambah Akun Baru</span> <span>[X]</span></div>
+            <div class="lofi-modal-body" style="display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                    <label class="lofi-label">Nama Lengkap</label>
+                    <input type="text" class="lofi-input" placeholder="Nama Lengkap">
+                </div>
+                <div>
+                    <label class="lofi-label">Email</label>
+                    <input type="text" class="lofi-input" placeholder="Email">
+                </div>
+                <div>
+                    <label class="lofi-label">Username</label>
+                    <input type="text" class="lofi-input" placeholder="Username">
+                </div>
+                <div>
+                    <label class="lofi-label">Role</label>
+                    <select class="lofi-select">
+                        <option>Pilih Role</option>
+                        <option>Manager</option>
+                        <option>Staff</option>
+                    </select>
+                </div>
+                 <p style="font-size: 12px; color: #666;">Informasi akun lengkap (termasuk password) akan di-generate...</p>
+            </div>
+            <div class="lofi-modal-footer">
+                <button type="button" class="lofi-button-small">Batal</button>
+                <button type="submit" class="lofi-button-small" style="background-color: #ccc;">Tambah Akun</button>
+            </div>
+        </form>
+    </div>
+
+    <h2 class="page-title">Modal: Pratinjau History (US-10)</h2>
+    <div class="lofi-modal-overlay">
+        <div class="lofi-modal-content" style="max-width: 600px;">
+            <div class="lofi-modal-header"><span>Pratinjau Leaflet</span> <span>[X]</span></div>
+            <div class="lofi-modal-body">
+                <div class="lofi-image-placeholder" style="height: 300px; width: 100%;">
+                    <span style="font-size: 14px;">Pratinjau Leaflet</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <h2 class="page-title">Modal: Pilih Layout dari History (US-08)</h2>
+    <div class="lofi-modal-overlay">
+        <div class="lofi-modal-content" style="max-width: 700px;">
+            <div class="lofi-modal-header"><span>Alur 2: Pilih Layout Grid dari History</span> <span>[X]</span></div>
+            <div class="lofi-modal-body">
+                <div class="lofi-grid-4">
+                    <div class="lofi-box" style="margin: 0; padding: 5px; border-width: 2px;">
+                        <div class="lofi-image-placeholder" style="height: 80px;"><span style="font-size: 10px;">Latar</span></div>
+                        <p style="padding: 5px 0; font-weight: bold; font-size: 14px;">LFG-001</p>
+                        <p style="font-size: 12px; color: #666;">Lampung</p>
+                    </div>
+                    <div class="lofi-box" style="margin: 0; padding: 5px;">
+                        <div class="lofi-image-placeholder" style="height: 80px;"><span style="font-size: 10px;">Latar</span></div>
+                        <p style="padding: 5px 0; font-weight: bold; font-size: 14px;">LFG-002</p>
+                        <p style="font-size: 12px; color: #666;">Jakarta</p>
+                    </div>
+                </div>
+            </div>
+            <div class="lofi-modal-footer">
+                <button type="button" class="lofi-button-small">Batal</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

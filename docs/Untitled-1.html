@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wireframe Lo-Fi - LeafGenn (Set 2)</title>
+    <style>
+        /* --- Global Lo-Fi Styles --- */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #ffffff;
+            color: #000000;
+            margin: 0;
+            padding: 0;
+        }
+
+        .page-title {
+            padding: 10px 20px;
+            font-size: 24px;
+            font-weight: bold;
+            background-color: #f0f0f0;
+            border-bottom: 2px solid #000;
+            margin-top: 20px;
+        }
+
+        .lofi-box {
+            border: 1px solid #333;
+            background-color: #f9f9f9;
+            padding: 15px;
+            margin: 10px;
+        }
+
+        .lofi-button {
+            border: 1px solid #000;
+            background-color: #e0e0e0;
+            padding: 8px 12px;
+            text-decoration: none;
+            display: inline-block;
+            cursor: default;
+            font-weight: bold;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        .lofi-button-small {
+            width: auto;
+            padding: 5px 10px;
+            font-weight: normal;
+        }
+
+        .lofi-input,
+        .lofi-select {
+            border: 1px solid #000;
+            padding: 8px;
+            width: 100%;
+            box-sizing: border-box;
+            background-color: #fff;
+        }
+
+        .lofi-label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: bold;
+        }
+
+        .lofi-image-placeholder {
+            border: 2px dashed #666;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-style: italic;
+            color: #666;
+            box-sizing: border-box;
+        }
+
+        .lofi-image-placeholder::before {
+            content: 'X';
+            font-size: 24px;
+            color: #999;
+        }
+
+        .lofi-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 1px solid #333;
+            background-color: #ccc;
+            margin-right: 8px;
+            line-height: 16px;
+            text-align: center;
+            font-size: 10px;
+        }
+
+        .lofi-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .lofi-table th,
+        .lofi-table td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .lofi-table th {
+            background-color: #e0e0e0;
+        }
+
+        /* --- App Layout --- */
+        .lofi-app-layout {
+            display: flex;
+            border: 2px solid #000;
+            margin: 20px;
+            min-height: 50vh;
+            /* Adjusted height for snippet */
+        }
+
+        .lofi-sidebar {
+            width: 220px;
+            background-color: #f0f0f0;
+            border-right: 2px solid #000;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .lofi-sidebar-nav {
+            flex-grow: 1;
+        }
+
+        .lofi-sidebar-nav-link {
+            display: block;
+            padding: 10px;
+            border: 1px solid transparent;
+            text-decoration: none;
+            color: #000;
+        }
+
+        .lofi-sidebar-nav-link.active {
+            border: 1px solid #000;
+            background-color: #e0e0e0;
+            font-weight: bold;
+        }
+
+        .lofi-sidebar-logo {
+            height: 50px;
+            width: 100%;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .lofi-sidebar-footer {
+            border-top: 1px solid #999;
+            padding-top: 10px;
+        }
+
+        .lofi-main-wrapper {
+            flex: 1;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .lofi-main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #000;
+            padding: 10px 15px;
+        }
+
+        .lofi-main-content {
+            padding: 15px;
+            flex-grow: 1;
+        }
+
+        /* --- Modal Styles --- */
+        .lofi-modal-overlay {
+            border: 2px dashed #333;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 40px;
+            margin: 20px;
+        }
+
+        .lofi-modal-content {
+            background: #ffffff;
+            border: 2px solid #000;
+            padding: 0;
+            max-width: 450px;
+            margin: 0 auto;
+        }
+
+        .lofi-modal-header {
+            border-bottom: 2px solid #000;
+            padding: 10px 15px;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .lofi-modal-body {
+            padding: 15px;
+        }
+
+        .lofi-modal-footer {
+            border-top: 1px solid #ccc;
+            background-color: #f0f0f0;
+            padding: 10px 15px;
+            text-align: right;
+        }
+
+        .lofi-modal-footer .lofi-button-small {
+            margin-left: 10px;
+        }
+
+        /* --- Login Page Form Style --- */
+        .lofi-page-container {
+            background-color: #e0e0e0;
+            padding: 40px 0;
+        }
+
+        .lofi-form-box {
+            width: 350px;
+            margin: 0 auto;
+            background-color: #f0f0f0;
+            border: 2px solid #000;
+            padding: 15px;
+        }
+
+        .lofi-form-logo {
+            height: 50px;
+            width: 50px;
+            margin: 0 auto 15px auto;
+        }
+
+        .lofi-form-logo .lofi-image-placeholder {
+            width: 100%;
+            height: 100%;
+        }
+
+        .lofi-form-footer {
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+
+        /* --- Specifics --- */
+        .lofi-upload-box {
+            border: 2px dashed #000;
+            padding: 40px;
+            text-align: center;
+            background-color: #f9f9f9;
+            height: 250px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lofi-table .lofi-button-small {
+            margin-right: 5px;
+            padding: 3px 6px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2 class="page-title">Halaman: Login Page</h2>
+    <div class="lofi-page-container">
+        <div class="lofi-form-box">
+            <div class="lofi-form-logo">
+                <div class="lofi-image-placeholder">
+                    <span style="font-size: 12px; margin-top: 5px;">Logo</span>
+                </div>
+            </div>
+            <p style="text-align: center; margin-bottom: 20px;">Silakan login untuk melanjutkan</p>
+
+            <div style="margin-bottom: 15px;">
+                <label class="lofi-label" for="lofi-username">Username</label>
+                <input class="lofi-input" id="lofi-username" type="text" placeholder="Masukkan username">
+            </div>
+
+            <div style="margin-bottom: 10px;">
+                <label class="lofi-label" for="lofi-password">Password</label>
+                <input class="lofi-input" id="lofi-password" type="password" placeholder="Masukkan password">
+            </div>
+
+            <div style="text-align: right; font-size: 12px; margin-bottom: 15px;">
+                <a href="#" style="text-decoration: underline; color: #333;">Lupa Password?</a>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <button class="lofi-button">Login</button>
+            </div>
+
+            <div class="lofi-form-footer">
+                <p>LeafGenn @2025</p>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="page-title">Halaman: Lupa Password Page</h2>
+    <div class="lofi-page-container">
+        <div class="lofi-form-box">
+            <div class="lofi-form-logo">
+                <div class="lofi-image-placeholder">
+                    <span style="font-size: 12px; margin-top: 5px;">Logo</span>
+                </div>
+            </div>
+            <h3 style="text-align: center; font-size: 20px; margin-bottom: 10px;">Lupa Password</h3>
+            <p style="text-align: center; font-size: 14px; margin-bottom: 20px; color: #666;">Masukkan email Anda untuk
+                melanjutkan proses reset password.</p>
+
+            <div style="margin-bottom: 15px;">
+                <label class="lofi-label" for="lofi-reset-email">Email</label>
+                <input class="lofi-input" id="lofi-reset-email" type="text" placeholder="Masukkan email terdaftar">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <button class="lofi-button">Lanjutkan</button>
+            </div>
+
+            <div style="text-align: center; font-size: 14px; margin-bottom: 20px;">
+                <a href="#" style="text-decoration: underline; color: #333;">Kembali ke Login</a>
+            </div>
+
+            <div class="lofi-form-footer">
+                <p>LeafGenn @2025</p>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="page-title">Halaman: Reset Password</h2>
+    <div class="lofi-page-container">
+        <div class="lofi-form-box">
+            <div class="lofi-form-logo">
+                <div class="lofi-image-placeholder">
+                    <span style="font-size: 12px; margin-top: 5px;">Logo</span>
+                </div>
+            </div>
+            <h3 style="text-align: center; font-size: 20px; margin-bottom: 10px;">Reset Password</h3>
+            <p style="text-align: center; font-size: 14px; margin-bottom: 20px; color: #666;">Masukkan password baru
+                Anda.</p>
+
+            <div style="margin-bottom: 15px;">
+                <label class="lofi-label" for="lofi-reset-pass1">Password Baru</label>
+                <input type="password" class="lofi-input" id="lofi-reset-pass1" placeholder="Masukkan password baru">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label class="lofi-label" for="lofi-reset-pass2">Konfirmasi Password Baru</label>
+                <input type="password" class="lofi-input" id="lofi-reset-pass2" placeholder="Konfirmasi password baru">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <button class="lofi-button">Reset Password</button>
+            </div>
+
+            <div class="lofi-form-footer">
+                <p>LeafGenn @2025</p>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="page-title">Halaman: Unggah File Data</h2>
+    <div class="lofi-app-layout">
+        <aside class="lofi-sidebar">
+            <div class="lofi-image-placeholder lofi-sidebar-logo">
+                <span style="font-size: 12px; margin-top: 5px;">Logo LeafGenn</span>
+            </div>
+            <nav class="lofi-sidebar-nav">
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Dashboard</a>
+                <a href="#" class="lofi-sidebar-nav-link active"><span class="lofi-icon">[i]</span>Buat Leaflet</a>
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Bank Gambar</a>
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Template Desain</a>
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>History</a>
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Manajemen Akun (Manager)</a>
+            </nav>
+            <div class="lofi-sidebar-footer">
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Logout</a>
+            </div>
+        </aside>
+
+        <div class="lofi-main-wrapper">
+            <header class="lofi-main-header">
+                <div>
+                    <span style="font-size: 18px; font-weight: bold;">Buat Leaflet</span>
+                </div>
+                <div style="text-align: right;">
+                    <p style="font-weight: bold;">Manager</p>
+                    <p style="font-size: 12px; color: #666;">manager@leafgen.app</p>
+                </div>
+            </header>
+            <main class="lofi-main-content">
+                <div class="lofi-box" style="margin: 0;">
+                    <b>Langkah 1: Unggah File Excel</b>
+                    <div class="lofi-upload-box" style="margin-top: 15px;">
+                        <span class="lofi-icon"
+                            style="width: 40px; height: 40px; line-height: 40px; font-size: 24px;">[i]</span>
+                        <p style="margin-top: 10px;">Klik untuk unggah atau seret file</p>
+                        <p style="font-size: 12px; color: #666;">XLSX, XLS (Maks. 5MB)</p>
+                    </div>
+                    <button class="lofi-button" style="margin-top: 20px;">Lanjutkan</button>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <h2 class="page-title">Modal: Tambah Produk Baru</h2>
+    <div class="lofi-modal-overlay">
+        <form class="lofi-modal-content">
+            <div class="lofi-modal-header"><span>Tambah Produk Baru</span> <span>[X]</span></div>
+            <div class="lofi-modal-body" style="display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                    <input type="text" class="lofi-input" value="Indomie" placeholder="Nama Produk">
+                </div>
+                <div>
+                    <input type="text" class="lofi-input" value="123113" placeholder="Kode PLU Unit">
+                </div>
+                <div>
+                    <button class="lofi-button-small" style="background-color: #f0f0f0; font-weight: normal;">Choose
+                        File</button>
+                    <span style="font-size: 14px; margin-left: 10px;">output utama.png</span>
+                    <p style="font-size: 12px; color: #666; margin-top: 5px;">File dipilih: output utama.png</p>
+                </div>
+            </div>
+            <div class="lofi-modal-footer">
+                <button type="button" class="lofi-button-small">Batal</button>
+                <button type="submit" class="lofi-button-small" style="background-color: #ccc;">Simpan</button>
+            </div>
+        </form>
+    </div>
+
+    <h2 class="page-title">Halaman: Page Bank Gambar</h2>
+    <div class="lofi-app-layout">
+        <aside class="lofi-sidebar">
+            <div class="lofi-image-placeholder lofi-sidebar-logo">
+                <span style="font-size: 12px; margin-top: 5px;">Logo LeafGenn</span>
+            </div>
+            <nav class="lofi-sidebar-nav">
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Dashboard</a>
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Buat Leaflet</a>
+                <a href="#" class="lofi-sidebar-nav-link active"><span class="lofi-icon">[i]</span>Bank Gambar</a>
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Template Desain</a>
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>History</a>
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Manajemen Akun (Manager)</a>
+            </nav>
+            <div class="lofi-sidebar-footer">
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Logout</a>
+            </div>
+        </aside>
+
+        <div class="lofi-main-wrapper">
+            <header class="lofi-main-header">
+                <div>
+                    <span style="font-size: 18px; font-weight: bold;">Bank Gambar</span>
+                </div>
+                <div style="text-align: right;">
+                    <p style="font-weight: bold;">Manager</p>
+                    <p style="font-size: 12px; color: #666;">manager@leafgen.app</p>
+                </div>
+            </header>
+            <main class="lofi-main-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div>
+                        <b>Bank Gambar</b>
+                        <p style="font-size: 14px; color: #666;">Database terpusat untuk semua aset gambar produk.</p>
+                    </div>
+                    <button class="lofi-button lofi-button-small" style="width: auto;">
+                        <span class="lofi-icon">[i]</span> Tambah Produk
+                    </button>
+                </div>
+                <div class="lofi-box" style="margin: 0;">
+                    <table class="lofi-table">
+                        <thead>
+                            <tr>
+                                <th>Kode PLU Unit</th>
+                                <th>Gambar</th>
+                                <th>Nama Produk</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>123113</td>
+                                <td>
+                                    <div class="lofi-image-placeholder" style="width: 40px; height: 40px;"><span
+                                            style="font-size: 10px;">Gbr</span></div>
+                                </td>
+                                <td>Indomie</td>
+                                <td><button class="lofi-button-small">[Hapus]</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <h2 class="page-title">Halaman: Page Manajemen Akun</h2>
+    <div class="lofi-app-layout">
+        <aside class="lofi-sidebar">
+            <div class="lofi-image-placeholder lofi-sidebar-logo">
+                <span style="font-size: 12px; margin-top: 5px;">Logo LeafGenn</span>
+            </div>
+            <nav class="lofi-sidebar-nav">
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Dashboard</a>
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Buat Leaflet</a>
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Bank Gambar</a>
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Template Desain</a>
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>History</a>
+                <a href="#" class="lofi-sidebar-nav-link active"><span class="lofi-icon">[i]</span>Manajemen Akun
+                    (Manager)</a>
+            </nav>
+            <div class="lofi-sidebar-footer">
+                <a href="#" class="lofi-sidebar-nav-link"><span class="lofi-icon">[i]</span>Logout</a>
+            </div>
+        </aside>
+
+        <div class="lofi-main-wrapper">
+            <header class="lofi-main-header">
+                <div>
+                    <span style="font-size: 18px; font-weight: bold;">Manajemen Akun</span>
+                </div>
+                <div style="text-align: right;">
+                    <p style="font-weight: bold;">Manager</p>
+                    <p style="font-size: 12px; color: #666;">manager@leafgen.app</p>
+                </div>
+            </header>
+            <main class="lofi-main-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div>
+                        <b>Manajemen Akun</b>
+                        <p style="font-size: 14px; color: #666;">Kelola akun pengguna (khusus Manager).</p>
+                    </div>
+                    <button class="lofi-button lofi-button-small" style="width: auto;">
+                        <span class="lofi-icon">[i]</span> Tambah Akun
+                    </button>
+                </div>
+                <div class="lofi-box" style="margin: 0;">
+                    <table class="lofi-table">
+                        <thead>
+                            <tr>
+                                <th>Nama Staff</th>
+                                <th>Email</th>
+                                <th>Username</th>
+                                <th>Status</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Staff Account</td>
+                                <td>staff@leafgen.app</td>
+                                <td>staff</td>
+                                <td>Aktif</td>
+                                <td><a href="#" style="color: #000; font-size: 12px;">Nonaktifkan</a> <a href="#"
+                                        style="color: #000; font-size: 12px; margin-left: 5px;">[Edit]</a></td>
+                            </tr>
+                            <tr>
+                                <td>Manager Account</td>
+                                <td>manager@leafgen.app</td>
+                                <td>manager</td>
+                                <td>Aktif</td>
+                                <td><a href="#" style="color: #000; font-size: 12px;">Nonaktifkan</a> <a href="#"
+                                        style="color: #000; font-size: 12px; margin-left: 5px;">[Edit]</a></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <h2 class="page-title">Modal: Reset Password dari Manajemen Akun</h2>
+    <div class="lofi-modal-overlay">
+        <form class="lofi-modal-content">
+            <div class="lofi-modal-header"><span>Reset Password untuk Manager Account</span> <span>[X]</span></div>
+            <div class="lofi-modal-body" style="display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                    <label class="lofi-label" for="lofi-mgr-pass1">Password Baru</label>
+                    <input type="password" class="lofi-input" id="lofi-mgr-pass1" placeholder="Minimal 8 karakter">
+                </div>
+                <div>
+                    <label class="lofi-label" for="lofi-mgr-pass2">Konfirmasi Password Baru</label>
+                    <input type="password" class="lofi-input" id="lofi-mgr-pass2"
+                        placeholder="Ketik ulang password baru">
+                </div>
+            </div>
+            <div class="lofi-modal-footer">
+                <button type="button" class="lofi-button-small">Batal</button>
+                <button type="submit" class="lofi-button-small" style="background-color: #ccc;">Reset Password</button>
+            </div>
+        </form>
+    </div>
+
+</body>
+
+</html>
