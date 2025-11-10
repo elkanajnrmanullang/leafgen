@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kartu Produk - Desain Final</title>
+    <style>
+        body {
+            background: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            position: relative;
+            width: 380px;
+            height: 380px;
+            background: #fff;
+            border: 1px solid #ccc;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        /* 1️⃣ 1. GAMBAR PRODUK */
+        .gambar-produk {
+            position: absolute;
+            top: 70px;
+            left: 50px;
+            width: 280px;
+            height: 160px;
+            background: #d8b3ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            z-index: 1;
+            /* lapisan bawah */
+        }
+
+        /* 2️⃣ 7. LABEL POS SP */
+        .label-pos {
+            position: absolute;
+            top: 10px;
+            left: 30px;
+            width: 100px;
+            height: 50px;
+            background: #ff9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 11px;
+            z-index: 3;
+        }
+
+        /* 3️⃣ 5. GAMBAR BBNU (di atas gambar produk) */
+        .gambar-bbnu {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            width: 150px;
+            height: 85px;
+            background: #ffb3b3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 12px;
+            z-index: 2;
+            /* lapisan di atas gambar produk */
+        }
+
+        /* 4️⃣ 6. HARGA CORET */
+        .harga-coret {
+            position: absolute;
+            top: 250px;
+            left: 250px;
+            width: 110px;
+            height: 25px;
+            background: #ff9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            z-index: 4;
+        }
+
+        /* 5️⃣ 3. HARGA TAMPIL */
+        .harga-tampil {
+            position: absolute;
+            top: 280px;
+            left: 250px;
+            width: 110px;
+            height: 30px;
+            background: #99ff99;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 13px;
+            z-index: 4;
+        }
+
+        /* 6️⃣ 4. Ket. dibawah harga */
+        .keterangan {
+            position: absolute;
+            top: 315px;
+            left: 250px;
+            width: 110px;
+            height: 25px;
+            background: #ffff66;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 11px;
+            z-index: 4;
+        }
+
+        /* 7️⃣ 2. Nama Produk */
+        .nama-produk {
+            position: absolute;
+            top: 345px;
+            left: 250px;
+            width: 110px;
+            height: 25px;
+            background: #cc99ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 12px;
+            z-index: 4;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="card">
+        <div class="label-pos">7. LABEL POS SPI</div>
+        <div class="gambar-produk">1. GAMBAR PRODUK</div>
+        <div class="gambar-bbnu">5. GAMBAR BBMU</div>
+        <div class="harga-coret">6. HARGA CORET</div>
+        <div class="harga-tampil">3. HARGA TAMPIL</div>
+        <div class="keterangan">4. Ket. dibawah harga</div>
+        <div class="nama-produk">2. Nama Produk</div>
+    </div>
+
+</body>
+
+</html>
