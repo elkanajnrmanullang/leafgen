@@ -39,18 +39,6 @@ The system focuses on **efficiency**, **consistency**, and **reduced human error
 
 ---
 
-## 🧠 Tech Stack
-
-| Layer            | Technology                |
-| ---------------- | ------------------------- |
-| **Frontend**     | React (Vite + TypeScript) |
-| **UI Framework** | Tailwind CSS + shadcn/ui  |
-| **Backend API**  | Laravel 12                |
-| **Database**     | PostgreSQL                |
-| **Server**       | Ubuntu                    |
-
----
-
 ## 🧪 Testing
 
 LeafGenn implements **Black Box Testing** and **automatic test scripting** to validate system functionality.  
