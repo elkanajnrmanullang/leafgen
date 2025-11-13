@@ -10,6 +10,8 @@ coverage/
 dist/
 build/
 
+docs/
+
 # --- Node/React (frontend) ---
 frontend/node_modules/
 frontend/.env*
@@ -36,7 +38,7 @@ backend/storage/framework/sessions/*
 backend/storage/framework/views/*
 backend/storage/logs/*
 
-# --- Python (kalau ada util skrip) ---
+# --- Python  ---
 __pycache__/
 *.pyc
 .venv/
