@@ -41,13 +41,13 @@ The system focuses on **efficiency**, **consistency**, and **reduced human error
 
 ## 🧠 Tech Stack
 
-| Layer            | Technology                                |
-| ---------------- | ----------------------------------------- |
-| **Frontend**     | React (Vite + TypeScript)                 |
-| **UI Framework** | Tailwind CSS + shadcn/ui                  |
-| **Backend API**  | Laravel 12 (PHP 8.3)                      |
-| **Database**     | PostgreSQL                                |
-| **Server**       | Ubuntu 22.04 (Nginx, PHP-FPM, Supervisor) |
+| Layer            | Technology                |
+| ---------------- | ------------------------- |
+| **Frontend**     | React (Vite + TypeScript) |
+| **UI Framework** | Tailwind CSS + shadcn/ui  |
+| **Backend API**  | Laravel 12                |
+| **Database**     | PostgreSQL                |
+| **Server**       | Ubuntu                    |
 
 ---
 
@@ -75,10 +75,10 @@ Testing covers equivalence partitioning and boundary value analysis (BVA) for ma
 
 1. Clone the repository:
 
-  ```bash
-  git clone https://github.com/your-username/leafgenn.git
-  cd leafgenn
-  ```
+```bash
+git clone https://github.com/your-username/leafgenn.git
+cd leafgenn
+```
 
 2. Install backend dependencies:
 
