@@ -1,11 +1,11 @@
-# 🌿 LeafGenn — Automated Promotional Leaflet Generator
+# LeafGenn — Automated Promotional Leaflet Generator
 
 LeafGenn is a web-based system for generating promotional leaflet designs automatically.  
 It streamlines the process of creating and managing retail promotional materials that were traditionally done manually by design teams.
 
 ---
 
-## 🚀 Overview
+## Overview
 
 **LeafGenn** enables marketing or design teams to import promotional data, generate structured layouts, and export ready-to-print or digital promotional leaflets within minutes.
 
@@ -14,7 +14,7 @@ The system focuses on **efficiency**, **consistency**, and **reduced human error
 
 ---
 
-## 🧩 Core Features
+## Core Features
 
 - **Automated Leaflet Generation**  
   Upload an Excel file containing product data, and the system will automatically generate multi-page leaflet layouts based on predefined templates.
@@ -39,16 +39,16 @@ The system focuses on **efficiency**, **consistency**, and **reduced human error
 
 ---
 
-## 🧪 Testing
+## Testing
 
 LeafGenn implements **Black Box Testing** and **automatic test scripting** to validate system functionality.  
 Testing covers equivalence partitioning and boundary value analysis (BVA) for major modules such as authentication, upload, grid generation, and export.
 
 ---
 
-## 📦 Installation (Development Mode)
+## Installation (Development Mode)
 
-> ⚠️ This setup guide is intended for local development only.  
+> This setup guide is intended for local development only.  
 > Production deployment instructions are intentionally omitted for security reasons.
 
 ### Prerequisites
@@ -85,7 +85,7 @@ cd leafgenn
   npm run dev
 ```
 
-# 📊 Research Background
+# Research Background
 
 - _This project was developed under a research study focused on:_
 - _Automation in visual content generation_
