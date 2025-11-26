@@ -46,19 +46,6 @@ Testing covers equivalence partitioning and boundary value analysis (BVA) for ma
 
 ---
 
-## Installation (Development Mode)
-
-> This setup guide is intended for local development only.  
-> Production deployment instructions are intentionally omitted for security reasons.
-
-### Prerequisites
-
-- Node.js ≥ 18
-- PHP ≥ 8.2
-- Composer
-- PostgreSQL ≥ 15
-- Git
-
 ### Setup
 
 1. Clone the repository:
@@ -68,16 +55,7 @@ git clone https://github.com/your-username/leafgenn.git
 cd leafgenn
 ```
 
-2. Install backend dependencies:
-
-```bash
-  cd backend
-  composer install
-  cp .env.example .env
-  php artisan key:generate
-```
-
-3.  Install frontend dependencies::
+2.  Install frontend dependencies::
 
 ```bash
   cd ../frontend
