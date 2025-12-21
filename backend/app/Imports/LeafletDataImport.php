@@ -20,6 +20,7 @@ class LeafletDataImport implements ToCollection, WithStartRow, WithChunkReading,
     private const NAMA_BARANG_COL = 3;
     private const HARGA_CORET_COL = 9;
     private const HARGA_TAMPIL_COL = 13;
+    // private const LABEL_POTONGAN = 4;
     private const STORE_COL = 14;
     private const START_ROW = 5;
 

@@ -9,7 +9,7 @@ Thumbs.db
 coverage/
 dist/
 build/
-
+cek_layout.html
 docs/
 
 # --- Node/React (frontend) ---
