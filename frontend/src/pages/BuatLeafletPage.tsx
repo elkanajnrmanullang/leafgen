@@ -195,7 +195,7 @@ const BuatLeafletPage = () => {
   const handleGenerateLeaflet = () => {
     // Masuk ke Editor dengan membawa state region yang dipilih
     console.log(`Generating leaflet for region: ${selectedRegion}`);
-    navigate("/editor/1");
+    navigate("/pilih-template");
   };
 
   return (

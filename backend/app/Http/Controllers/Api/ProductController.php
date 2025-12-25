@@ -38,9 +38,43 @@ class ProductController extends Controller
         }
     }
 
+    public function update(Request $request, Product $product)
+    {
+        try {
+            $validatedData = $request->validate([
+                'name' => 'required|string|max:255',
+                'plu_code' => 'required|string|max:50|unique:products,plu_code,' . $product->id,
+                'image_file' => 'nullable|image|mimes:jpg,png|max:2048',
+            ]);
+
+            $dataToUpdate = [
+                'name' => $validatedData['name'],
+                'plu_code' => $validatedData['plu_code'],
+            ];
+
+            if ($request->hasFile('image_file')) {
+                if ($product->image_path && Storage::disk('public')->exists($product->image_path)) {
+                    Storage::disk('public')->delete($product->image_path);
+                }
+
+                $path = $request->file('image_file')->store('products', 'public');
+                $dataToUpdate['image_path'] = $path;
+            }
+
+            $product->update($dataToUpdate);
+
+            return response()->json($product);
+
+        } catch (ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        }
+    }
+
     public function destroy(Product $product)
     {
-        Storage::disk('public')->delete($product->image_path);
+        if ($product->image_path && Storage::disk('public')->exists($product->image_path)) {
+            Storage::disk('public')->delete($product->image_path);
+        }
         $product->delete();
 
         return response()->json(['message' => 'Produk berhasil dihapus.']);

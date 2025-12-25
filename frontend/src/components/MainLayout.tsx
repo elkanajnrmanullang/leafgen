@@ -11,11 +11,20 @@ import {
   LogOut,
   Menu,
 } from "lucide-react";
-import { addProduct } from "../services/productService";
+// import { addProduct } from "../services/productService"; // Pindah ke dalam ProductUploadModal
 import AlertModal from "./AlertModal";
 import { useInactivityTimeout } from "../hooks/useInactivityTimeout";
 import InactivityModal from "./InactivityModal";
 import { useAuth } from "../context/AuthContext";
+import ProductUploadModal from "./ProductUploadModal"; // Import komponen baru
+
+// Definisi tipe data
+interface Product {
+  id: number;
+  plu_code: string;
+  name: string;
+  image_path: string;
+}
 
 type AlertType = "success" | "error" | "confirm" | "info";
 
@@ -35,10 +44,12 @@ const MainLayout = () => {
   const userRole = localStorage.getItem("userRole");
   const userEmail = localStorage.getItem("userEmail") || "user@example.com";
 
+  // State Modal Produk
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
-  const [newProductName, setNewProductName] = useState("");
-  const [newProductPlu, setNewProductPlu] = useState("");
-  const [newProductImage, setNewProductImage] = useState<File | null>(null);
+  const [productToEdit, setProductToEdit] = useState<Product | undefined>(
+    undefined
+  );
+
   const [alertState, setAlertState] = useState<AlertState>({
     isOpen: false,
     title: "",
@@ -86,43 +97,15 @@ const MainLayout = () => {
     }
   }, [location, navLinks]);
 
-  const handleAddProduct = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!newProductImage) {
-      setAlertState({
-        isOpen: true,
-        title: "Peringatan",
-        message: "Silakan pilih file gambar.",
-        type: "info",
-      });
-      return;
-    }
-    const formData = new FormData();
-    formData.append("name", newProductName);
-    formData.append("plu_code", newProductPlu);
-    formData.append("image_file", newProductImage);
-    try {
-      await addProduct(formData);
-      setIsProductModalOpen(false);
-      setNewProductName("");
-      setNewProductPlu("");
-      setNewProductImage(null);
-      (e.target as HTMLFormElement).reset();
-      setAlertState({
-        isOpen: true,
-        title: "Sukses",
-        message: "Produk baru berhasil ditambahkan!",
-        type: "success",
-      });
-      window.dispatchEvent(new CustomEvent("productAdded"));
-    } catch {
-      setAlertState({
-        isOpen: true,
-        title: "Error",
-        message: "Gagal menambah produk. Pastikan Kode PLU unik.",
-        type: "error",
-      });
-    }
+  // Fungsi pembuka modal yang diperbarui untuk mendukung Edit
+  const handleOpenProductModal = (product?: Product) => {
+    setProductToEdit(product);
+    setIsProductModalOpen(true);
+  };
+
+  const handleCloseProductModal = () => {
+    setProductToEdit(undefined);
+    setIsProductModalOpen(false);
   };
 
   return (
@@ -205,72 +188,18 @@ const MainLayout = () => {
             </div>
           </header>
           <main className="flex-1 overflow-y-auto p-6">
-            <Outlet
-              context={{ openProductModal: () => setIsProductModalOpen(true) }}
-            />
+            {/* Kirim fungsi handleOpenProductModal agar bisa diakses child components */}
+            <Outlet context={{ openProductModal: handleOpenProductModal }} />
           </main>
         </div>
       </div>
 
-      {isProductModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <form
-            onSubmit={handleAddProduct}
-            className="bg-white rounded-xl shadow-2xl w-full max-w-md"
-          >
-            <div className="p-6 border-b">
-              <h3 className="text-lg font-semibold text-slate-800">
-                Tambah Produk Baru
-              </h3>
-            </div>
-            <div className="p-6 space-y-4">
-              <input
-                value={newProductName}
-                onChange={(e) => setNewProductName(e.target.value)}
-                required
-                placeholder="Nama Barang"
-                className="w-full p-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <input
-                value={newProductPlu}
-                onChange={(e) => setNewProductPlu(e.target.value)}
-                required
-                placeholder="Kode PLU Unit"
-                className="w-full p-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <input
-                onChange={(e) =>
-                  e.target.files && setNewProductImage(e.target.files[0])
-                }
-                required
-                type="file"
-                accept="image/jpeg, image/png"
-                className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-indigo-700 hover:file:bg-blue-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-              />
-              {newProductImage && (
-                <p className="text-xs text-slate-500 mt-1">
-                  File dipilih: {newProductImage.name}
-                </p>
-              )}
-            </div>
-            <div className="p-6 bg-slate-50 rounded-b-xl flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setIsProductModalOpen(false)}
-                className="px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 font-semibold text-slate-700 transition-colors"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors"
-              >
-                Simpan
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      {/* Gunakan Komponen Modal Terpisah agar lebih rapi */}
+      <ProductUploadModal
+        isOpen={isProductModalOpen}
+        onClose={handleCloseProductModal}
+        productToEdit={productToEdit}
+      />
 
       <AlertModal
         isOpen={alertState.isOpen}

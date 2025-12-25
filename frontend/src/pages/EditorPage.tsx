@@ -10,11 +10,13 @@ import {
   Plus,
   Trash2,
   Copy,
-  // Grid,
+  Move,
+  Grid,
   CheckCircle2,
   ChevronDown,
   FileText,
   Image as ImageIcon,
+  Type,
 } from "lucide-react";
 
 interface LeafletPage {
@@ -57,6 +59,7 @@ const EditorPage = () => {
           items: initialItems,
         },
       ]);
+      setSelectedPageId("page-1");
       setLoading(false);
     }, 500);
   }, []);
@@ -99,7 +102,12 @@ const EditorPage = () => {
     if (!pageToClone) return;
 
     const newPageId = `page-${Date.now()}`;
-    const clonedItems = JSON.parse(JSON.stringify(pageToClone.items));
+    const clonedItems = JSON.parse(JSON.stringify(pageToClone.items)).map(
+      (item: LeafletItem) => ({
+        ...item,
+        id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      })
+    );
 
     setPages((prev) => {
       const idx = prev.findIndex((p) => p.id === pageId);
@@ -111,6 +119,99 @@ const EditorPage = () => {
       });
       return newPages.map((p, i) => ({ ...p, pageNumber: i + 1 }));
     });
+  };
+
+  const handleSidebarDragStart = (e: React.DragEvent, item: LeafletItem) => {
+    e.dataTransfer.setData("application/json", JSON.stringify(item));
+    e.dataTransfer.effectAllowed = "copy";
+  };
+
+  const handleCanvasDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  };
+
+  const handleCanvasDrop = (e: React.DragEvent, pageId: string) => {
+    e.preventDefault();
+    const jsonData = e.dataTransfer.getData("application/json");
+
+    if (!jsonData) return;
+
+    const droppedItem = JSON.parse(jsonData) as LeafletItem;
+    const currentCanvas = pageRefs.current[pageId];
+
+    if (!currentCanvas) return;
+
+    const canvasRect = currentCanvas.getBoundingClientRect();
+    const mouseX = (e.clientX - canvasRect.left) / zoom;
+    const mouseY = (e.clientY - canvasRect.top) / zoom;
+
+    const newItem: LeafletItem = {
+      ...droppedItem,
+      id: `item-${Date.now()}`,
+      layout: {
+        x: mouseX - (droppedItem.layout?.w || 400) / 2,
+        y: mouseY - (droppedItem.layout?.h || 400) / 2,
+        w: droppedItem.layout?.w || 400,
+        h: droppedItem.layout?.h || 400,
+      },
+    };
+
+    setPages((prev) =>
+      prev.map((p) => {
+        if (p.id === pageId) {
+          return { ...p, items: [...p.items, newItem] };
+        }
+        return p;
+      })
+    );
+
+    setSelectedItemId(newItem.id);
+    setSelectedPageId(pageId);
+  };
+
+  const handleAddText = () => {
+    const targetPageId = selectedPageId || pages[0].id;
+    const newItem: LeafletItem = {
+      id: `text-${Date.now()}`,
+      plu: "",
+      name: "Teks Baru",
+      price_display: "Rp 0",
+      show_coret: false,
+      image_url: "",
+      manual_upload_needed: false,
+      components: {},
+      layout: { x: 100, y: 100, w: 600, h: 200 },
+    };
+
+    setPages((prev) =>
+      prev.map((p) =>
+        p.id === targetPageId ? { ...p, items: [...p.items, newItem] } : p
+      )
+    );
+    setSelectedItemId(newItem.id);
+  };
+
+  const handleAddImage = () => {
+    const targetPageId = selectedPageId || pages[0].id;
+    const newItem: LeafletItem = {
+      id: `img-${Date.now()}`,
+      plu: "",
+      name: "Gambar Baru",
+      price_display: "",
+      show_coret: false,
+      image_url: "https://placehold.co/400x400/png?text=Image",
+      manual_upload_needed: false,
+      components: {},
+      layout: { x: 100, y: 100, w: 400, h: 400 },
+    };
+
+    setPages((prev) =>
+      prev.map((p) =>
+        p.id === targetPageId ? { ...p, items: [...p.items, newItem] } : p
+      )
+    );
+    setSelectedItemId(newItem.id);
   };
 
   const handleMouseDown = (
@@ -177,6 +278,22 @@ const EditorPage = () => {
     setDragActivePageId(null);
   };
 
+  const handleDeleteItem = () => {
+    if (!selectedPageId || !selectedItemId) return;
+    setPages((prev) =>
+      prev.map((page) => {
+        if (page.id === selectedPageId) {
+          return {
+            ...page,
+            items: page.items.filter((i) => i.id !== selectedItemId),
+          };
+        }
+        return page;
+      })
+    );
+    setSelectedItemId(null);
+  };
+
   const getSelectedItem = () => {
     if (!selectedPageId || !selectedItemId) return null;
     const page = pages.find((p) => p.id === selectedPageId);
@@ -239,10 +356,10 @@ const EditorPage = () => {
               )}
             </div>
             <span>Grid Cerdas</span>
-            {/* <Grid
+            <Grid
               size={16}
               className={isGridEnabled ? "text-blue-600" : "text-slate-400"}
-            /> */}
+            />
           </button>
 
           <div className="h-8 w-px bg-slate-200"></div>
@@ -420,9 +537,13 @@ const EditorPage = () => {
                 Memuat aset...
               </div>
             ) : (
-              pages[0]?.items.map((item) => (
+              DUMMY_RESPONSE.data.map((item) => (
                 <div
                   key={`sidebar-${item.id}`}
+                  draggable={true}
+                  onDragStart={(e) =>
+                    handleSidebarDragStart(e, item as LeafletItem)
+                  }
                   className="flex gap-3 p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:shadow-md cursor-grab active:cursor-grabbing bg-white transition-all select-none group"
                 >
                   <div className="w-14 h-14 bg-slate-50 rounded-lg overflow-hidden border border-slate-100 p-1 flex-shrink-0 group-hover:bg-blue-50/50 transition-colors">
@@ -446,23 +567,59 @@ const EditorPage = () => {
         </aside>
 
         <main className="flex-1 bg-slate-100 relative flex flex-col min-w-0">
-          <div className="absolute bottom-6 right-6 flex flex-col gap-2 z-30">
-            <div className="bg-white p-1.5 rounded-full shadow-xl border border-slate-200 flex flex-col items-center gap-1">
-              <button
-                onClick={() => setZoom((z) => Math.min(1.5, z + 0.1))}
-                className="p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors"
-              >
-                <ZoomIn size={18} />
-              </button>
-              <span className="text-[10px] font-bold text-slate-500 py-1">
-                {Math.round(zoom * 100)}%
-              </span>
-              <button
-                onClick={() => setZoom((z) => Math.max(0.1, z - 0.1))}
-                className="p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors"
-              >
-                <ZoomOut size={18} />
-              </button>
+          <div className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 z-20 shadow-sm relative">
+            <div className="flex gap-2">
+              <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                <button
+                  className="p-2 bg-white shadow-sm rounded-md text-blue-600"
+                  title="Select"
+                >
+                  <MousePointer2 size={18} />
+                </button>
+                <button
+                  className="p-2 hover:bg-slate-200 rounded-md text-slate-600"
+                  title="Move Canvas"
+                >
+                  <Move size={18} />
+                </button>
+              </div>
+              <div className="w-px h-8 bg-slate-300 mx-2 self-center"></div>
+              <div className="flex gap-1">
+                <button
+                  onClick={handleAddImage}
+                  className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 border border-transparent hover:border-slate-200"
+                  title="Add Image"
+                >
+                  <ImageIcon size={20} />
+                </button>
+                <button
+                  onClick={handleAddText}
+                  className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 border border-transparent hover:border-slate-200"
+                  title="Add Text"
+                >
+                  <Type size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-white rounded-lg px-2 py-1.5 border border-slate-200 shadow-sm">
+                <button
+                  onClick={() => setZoom((z) => Math.max(0.1, z - 0.05))}
+                  className="p-1 hover:bg-slate-100 rounded"
+                >
+                  <ZoomOut size={16} className="text-slate-600" />
+                </button>
+                <span className="text-xs font-mono font-bold w-12 text-center text-slate-700 select-none">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <button
+                  onClick={() => setZoom((z) => Math.min(1.5, z + 0.05))}
+                  className="p-1 hover:bg-slate-100 rounded"
+                >
+                  <ZoomIn size={16} className="text-slate-600" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -509,6 +666,8 @@ const EditorPage = () => {
                                 : ""
                             }
                         `}
+                    onDragOver={handleCanvasDragOver}
+                    onDrop={(e) => handleCanvasDrop(e, page.id)}
                     onClick={() => setSelectedPageId(page.id)}
                     style={{
                       width: "2480px",
@@ -548,10 +707,12 @@ const EditorPage = () => {
                         }}
                       >
                         <div className="w-full h-full p-6 flex flex-col items-center border border-slate-100 pointer-events-none relative overflow-hidden bg-white">
-                          <img
-                            src={item.image_url}
-                            className="h-[55%] w-full object-contain mb-4 mix-blend-multiply"
-                          />
+                          {item.image_url && (
+                            <img
+                              src={item.image_url}
+                              className="h-[55%] w-full object-contain mb-4 mix-blend-multiply"
+                            />
+                          )}
                           <h3 className="text-[48px] font-bold text-center leading-tight text-slate-900 line-clamp-2">
                             {item.name}
                           </h3>
@@ -684,7 +845,10 @@ const EditorPage = () => {
                 </div>
 
                 <div className="pt-6 border-t border-slate-200">
-                  <button className="w-full py-3 bg-white text-red-600 border border-red-200 rounded-xl text-sm font-bold hover:bg-red-50 hover:border-red-300 transition-colors flex justify-center items-center gap-2 shadow-sm">
+                  <button
+                    onClick={handleDeleteItem}
+                    className="w-full py-3 bg-white text-red-600 border border-red-200 rounded-xl text-sm font-bold hover:bg-red-50 hover:border-red-300 transition-colors flex justify-center items-center gap-2 shadow-sm"
+                  >
                     <Trash2 size={16} />
                     Hapus Item
                   </button>
