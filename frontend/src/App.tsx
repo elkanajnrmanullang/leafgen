@@ -17,6 +17,7 @@ import PublicRoute from "./components/PublicRoute";
 function App() {
   return (
     <Routes>
+      {/* Route Publik */}
       <Route
         path="/login"
         element={
@@ -42,6 +43,7 @@ function App() {
         }
       />
 
+      {/* Route Protected Standalone (Full Screen tanpa Sidebar Utama) */}
       <Route
         path="/ganti-password"
         element={
@@ -51,6 +53,17 @@ function App() {
         }
       />
 
+      {/* Editor Page dipindah kesini agar Full Screen */}
+      <Route
+        path="/editor/:id"
+        element={
+          <ProtectedRoute>
+            <EditorPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Route Protected dengan MainLayout (Sidebar & Header) */}
       <Route
         path="/*"
         element={
@@ -65,9 +78,9 @@ function App() {
         <Route path="manajemen-akun" element={<ManajemenAkunPage />} />
         <Route path="buat-leaflet" element={<BuatLeafletPage />} />
         <Route path="pilih-template" element={<PilihTemplatePage />} />
-        <Route path="editor/:id" element={<EditorPage />} />
       </Route>
 
+      {/* Fallback Route */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
