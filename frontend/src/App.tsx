@@ -1,4 +1,9 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import {
+  createBrowserRouter,
+  RouterProvider,
+  Navigate,
+  Outlet,
+} from "react-router-dom";
 import MainLayout from "./components/MainLayout";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -10,80 +15,88 @@ import ManajemenAkunPage from "./pages/ManajemenAkunPage";
 import BuatLeafletPage from "./pages/BuatLeafletPage";
 import PilihTemplatePage from "./pages/PilihTemplatePage";
 import EditorPage from "./pages/EditorPage";
-
+import HistoryPage from "./pages/HistoryPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
+import { AuthProvider } from "./context/AuthContext";
 
-function App() {
-  return (
-    <Routes>
-      {/* Route Publik */}
-      <Route
-        path="/login"
-        element={
+const AuthLayout = () => (
+  <AuthProvider>
+    <Outlet />
+  </AuthProvider>
+);
+
+const router = createBrowserRouter([
+  {
+    element: <AuthLayout />,
+    children: [
+      {
+        path: "/login",
+        element: (
           <PublicRoute>
             <LoginPage />
           </PublicRoute>
-        }
-      />
-      <Route
-        path="/lupa-password"
-        element={
+        ),
+      },
+      {
+        path: "/lupa-password",
+        element: (
           <PublicRoute>
             <ForgotPasswordPage />
           </PublicRoute>
-        }
-      />
-      <Route
-        path="/reset-password/:token"
-        element={
+        ),
+      },
+      {
+        path: "/reset-password/:token",
+        element: (
           <PublicRoute>
             <ResetPasswordPage />
           </PublicRoute>
-        }
-      />
-
-      {/* Route Protected Standalone (Full Screen tanpa Sidebar Utama) */}
-      <Route
-        path="/ganti-password"
-        element={
+        ),
+      },
+      {
+        path: "/ganti-password",
+        element: (
           <ProtectedRoute>
             <ChangePasswordPage />
           </ProtectedRoute>
-        }
-      />
-
-      {/* Editor Page dipindah kesini agar Full Screen */}
-      <Route
-        path="/editor/:id"
-        element={
+        ),
+      },
+      {
+        path: "/editor",
+        element: (
           <ProtectedRoute>
             <EditorPage />
           </ProtectedRoute>
-        }
-      />
-
-      {/* Route Protected dengan MainLayout (Sidebar & Header) */}
-      <Route
-        path="/*"
-        element={
+        ),
+      },
+      {
+        path: "/",
+        element: (
           <ProtectedRoute>
             <MainLayout />
           </ProtectedRoute>
-        }
-      >
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="bank-gambar" element={<BankGambarPage />} />
-        <Route path="manajemen-akun" element={<ManajemenAkunPage />} />
-        <Route path="buat-leaflet" element={<BuatLeafletPage />} />
-        <Route path="pilih-template" element={<PilihTemplatePage />} />
-      </Route>
+        ),
+        children: [
+          { index: true, element: <Navigate to="/dashboard" replace /> },
+          { path: "dashboard", element: <DashboardPage /> },
+          { path: "bank-gambar", element: <BankGambarPage /> },
+          { path: "manajemen-akun", element: <ManajemenAkunPage /> },
+          { path: "buat-leaflet", element: <BuatLeafletPage /> },
+          { path: "pilih-template", element: <PilihTemplatePage /> },
+          { path: "history", element: <HistoryPage /> },
+        ],
+      },
+      {
+        path: "*",
+        element: <Navigate to="/login" replace />,
+      },
+    ],
+  },
+]);
 
-      {/* Fallback Route */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
-  );
+function App() {
+  return <RouterProvider router={router} />;
 }
 
 export default App;

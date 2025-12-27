@@ -1,121 +1,134 @@
 import { useState } from "react";
-import { useNavigate, useLocation, Navigate } from "react-router-dom";
-import { generateLeafletLayout } from "../services/leafletService";
-import { CheckCircle, FileSpreadsheet, Loader2 } from "lucide-react";
-import { isAxiosError } from "axios";
+import { useNavigate, useLocation } from "react-router-dom";
+import { ArrowLeft, Check, Layout, Loader2 } from "lucide-react";
+// FIX: Import LeafletService (bukan generateLeafletLayout)
+import { LeafletService } from "../services/leafletService";
 
-const mockTemplates = [
-  { id: 1, name: "Template Promo Merah", img: "/images/template1.jpg" },
-  { id: 2, name: "Template Promo Biru", img: "/images/template2.jpg" },
+const TEMPLATES = [
+  {
+    id: 1,
+    name: "Grid Standar A4",
+    desc: "3 Kolom x 4 Baris (12 Item/Halaman)",
+    color: "bg-blue-100 text-blue-600",
+  },
+  {
+    id: 2,
+    name: "Grid Padat A4",
+    desc: "4 Kolom x 5 Baris (20 Item/Halaman)",
+    color: "bg-green-100 text-green-600",
+  },
+  {
+    id: 3,
+    name: "Poster Promo A3",
+    desc: "Highlight Produk Besar (6 Item/Halaman)",
+    color: "bg-purple-100 text-purple-600",
+  },
 ];
 
 const PilihTemplatePage = () => {
-  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(
-    mockTemplates[0]?.id || null
-  );
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const uploadId = location.state?.uploadId;
-  const filename = location.state?.filename;
+  // Ambil data file & storeName yang dikirim dari halaman sebelumnya (jika ada)
+  // Note: Karena di BuatLeafletPage kita sudah redirect langsung ke editor,
+  // halaman ini mungkin jarang diakses dengan state, tapi kita jaga-jaga.
+  const { file, storeName } = location.state || {};
 
-  if (!uploadId || !filename) {
-    return <Navigate to="/buat-leaflet" replace />;
-  }
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!selectedTemplateId) {
-      setError("Harap pilih template.");
-      return;
-    }
+  const handleLanjut = async () => {
+    if (!selectedId) return;
 
     setIsLoading(true);
-    setError(null);
-
     try {
-      const response = await generateLeafletLayout(
-        uploadId,
-        selectedTemplateId
-      );
-      navigate(`/editor/${response.leaflet_id}`);
-    } catch (err) {
-      if (isAxiosError(err)) {
-        setError(err.response?.data?.message || "Gagal membuat leaflet.");
+      if (file && storeName) {
+        // Skenario 1: Data diteruskan dari Step 1
+        const result = await LeafletService.generateDraft(
+          file,
+          selectedId,
+          storeName
+        );
+        navigate("/editor", { state: { leafletData: result } });
       } else {
-        setError("Terjadi kesalahan yang tidak terduga.");
+        // Skenario 2: Masuk tanpa data (Fallback / Dummy)
+        // Ini berguna jika user akses langsung url /pilih-template
+        navigate("/editor");
       }
+    } catch (error) {
+      console.error(error);
+      alert("Terjadi kesalahan saat memproses template.");
+    } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <form onSubmit={handleSubmit} className="space-y-8">
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <h2 className="text-xl font-semibold text-slate-700 mb-4">
-            File Terupload
-          </h2>
-          <div className="flex items-center gap-3 rounded-lg border border-green-300 bg-green-50 p-4">
-            <FileSpreadsheet className="h-6 w-6 text-green-700" />
-            <p className="font-semibold text-green-800">{filename}</p>
-          </div>
-        </div>
+    <div className="max-w-4xl mx-auto py-10 px-4">
+      <div className="mb-8">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center text-slate-500 hover:text-slate-800 transition-colors mb-4"
+        >
+          <ArrowLeft size={20} className="mr-2" />
+          Kembali
+        </button>
+        <h1 className="text-2xl font-bold text-slate-800">
+          Pilih Template Desain
+        </h1>
+        <p className="text-slate-500 mt-1">
+          Sesuaikan tata letak produk dengan kebutuhan promosi Anda.
+        </p>
+      </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <h2 className="text-xl font-semibold text-slate-700 mb-4">
-            Langkah 2: Pilih Template Latar
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {mockTemplates.map((template) => (
-              <div
-                key={template.id}
-                onClick={() => setSelectedTemplateId(template.id)}
-                className={`rounded-lg border-2 overflow-hidden cursor-pointer relative transition-all ${
-                  selectedTemplateId === template.id
-                    ? "border-blue-500 ring-2 ring-blue-300"
-                    : "border-slate-200 hover:border-blue-400"
-                }`}
-              >
-                {selectedTemplateId === template.id && (
-                  <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full p-1">
-                    <CheckCircle className="h-4 w-4" />
-                  </div>
-                )}
-                <img
-                  src={template.img}
-                  alt={template.name}
-                  className="h-40 w-full object-cover bg-slate-100"
-                />
-                <p className="text-center text-sm font-medium text-slate-600 p-2">
-                  {template.name}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          {error && (
-            <div className="mb-4 text-center text-red-600 font-medium">
-              {error}
-            </div>
-          )}
+      <div className="grid md:grid-cols-3 gap-6 mb-10">
+        {TEMPLATES.map((template) => (
           <button
-            type="submit"
-            disabled={isLoading || !selectedTemplateId}
-            className="w-full flex items-center justify-center gap-2 text-lg font-semibold py-3 px-6 rounded-lg text-white bg-green-600 hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            key={template.id}
+            onClick={() => setSelectedId(template.id)}
+            className={`
+              relative p-6 rounded-xl border-2 text-left transition-all duration-200 group
+              ${
+                selectedId === template.id
+                  ? "border-blue-600 bg-blue-50 shadow-md"
+                  : "border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm"
+              }
+            `}
           >
-            {isLoading ? (
-              <Loader2 className="h-6 w-6 animate-spin" />
-            ) : (
-              "Generate Leaflet"
+            {selectedId === template.id && (
+              <div className="absolute top-4 right-4 bg-blue-600 text-white p-1 rounded-full animate-in zoom-in">
+                <Check size={16} strokeWidth={3} />
+              </div>
             )}
+
+            <div
+              className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${template.color}`}
+            >
+              <Layout size={24} />
+            </div>
+
+            <h3 className="font-bold text-slate-800 mb-1">{template.name}</h3>
+            <p className="text-sm text-slate-500">{template.desc}</p>
           </button>
-        </div>
-      </form>
+        ))}
+      </div>
+
+      <div className="flex justify-end pt-6 border-t border-slate-200">
+        <button
+          onClick={handleLanjut}
+          disabled={!selectedId || isLoading}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-indigo-200 hover:-translate-y-1 flex items-center gap-2"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="animate-spin" size={20} />
+              Memproses...
+            </>
+          ) : (
+            "Buat Leaflet Sekarang"
+          )}
+        </button>
+      </div>
     </div>
   );
 };

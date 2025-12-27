@@ -11,14 +11,12 @@ import {
   LogOut,
   Menu,
 } from "lucide-react";
-// import { addProduct } from "../services/productService"; // Pindah ke dalam ProductUploadModal
 import AlertModal from "./AlertModal";
 import { useInactivityTimeout } from "../hooks/useInactivityTimeout";
 import InactivityModal from "./InactivityModal";
 import { useAuth } from "../context/AuthContext";
-import ProductUploadModal from "./ProductUploadModal"; // Import komponen baru
+import ProductUploadModal from "./ProductUploadModal";
 
-// Definisi tipe data
 interface Product {
   id: number;
   plu_code: string;
@@ -44,7 +42,6 @@ const MainLayout = () => {
   const userRole = localStorage.getItem("userRole");
   const userEmail = localStorage.getItem("userEmail") || "user@example.com";
 
-  // State Modal Produk
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [productToEdit, setProductToEdit] = useState<Product | undefined>(
     undefined
@@ -97,7 +94,6 @@ const MainLayout = () => {
     }
   }, [location, navLinks]);
 
-  // Fungsi pembuka modal yang diperbarui untuk mendukung Edit
   const handleOpenProductModal = (product?: Product) => {
     setProductToEdit(product);
     setIsProductModalOpen(true);
@@ -188,13 +184,11 @@ const MainLayout = () => {
             </div>
           </header>
           <main className="flex-1 overflow-y-auto p-6">
-            {/* Kirim fungsi handleOpenProductModal agar bisa diakses child components */}
             <Outlet context={{ openProductModal: handleOpenProductModal }} />
           </main>
         </div>
       </div>
 
-      {/* Gunakan Komponen Modal Terpisah agar lebih rapi */}
       <ProductUploadModal
         isOpen={isProductModalOpen}
         onClose={handleCloseProductModal}

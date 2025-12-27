@@ -12,15 +12,21 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail']);
 Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword']);
 
+Route::post('/leaflets/generate-draft', [LeafletController::class, 'generateDraft']);
+Route::post('/leaflet/upload', [LeafletController::class, 'uploadAndGetRegions']);
+Route::get('/leaflet/smart-grid-status', [LeafletController::class, 'getSmartGridStatus']);
+
+Route::get('/leaflets', [LeafletController::class, 'index']);
+Route::get('/leaflets/{id}', [LeafletController::class, 'show']);
+Route::post('/leaflets/save', [LeafletController::class, 'store']);
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    Route::post('/leaflet/upload', [LeafletController::class, 'uploadAndGetRegions']);
     Route::post('/leaflet/generate-layout', [LeafletController::class, 'generateLayout']);
-    Route::get('/leaflet/smart-grid-status', [LeafletController::class, 'getSmartGridStatus']);
 
     Route::get('/users', [UserController::class, 'index']);
     Route::post('/users', [UserController::class, 'store']);

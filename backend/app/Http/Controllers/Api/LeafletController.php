@@ -4,232 +4,305 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
-use Maatwebsite\Excel\Facades\Excel;
-use App\Imports\RegionsImport;
 use App\Imports\LeafletDataImport;
-use App\Imports\HeadingRowImport;
-use App\Imports\SheetToArrayImport;
+use App\Services\LeafletParserService;
+use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Str;
 use App\Models\Leaflet;
-use Illuminate\Support\Facades\Log;
-use PhpOffice\PhpSpreadsheet\IOFactory;
+use Illuminate\Support\Facades\DB;
 
 class LeafletController extends Controller
 {
-    private function findPromoSheetName(string $filePath): ?string
+    protected $parserService;
+
+    public function __construct(LeafletParserService $parserService)
+    {
+        $this->parserService = $parserService;
+    }
+
+    public function index()
     {
         try {
-            $fullPath = Storage::path($filePath);
-            $spreadsheet = IOFactory::load($fullPath);
+            $leaflets = Leaflet::orderBy('updated_at', 'desc')->get();
 
-            foreach ($spreadsheet->getSheetNames() as $sheetName) {
-                $worksheet = $spreadsheet->getSheetByName($sheetName);
-                $cellValue = $worksheet->getCell('A1')->getValue();
+            $formatted = $leaflets->map(function ($item) {
+                $pages = json_decode($item->content, true) ?? [];
+                return [
+                    'id' => $item->id,
+                    'title' => $item->name,
+                    'store' => $item->store_name ?? 'Unknown',
+                    'date' => $item->updated_at->format('d M Y H:i'),
+                    'status' => $item->status ?? 'draft',
+                    'pageCount' => count($pages),
+                    'thumbnailUrl' => null
+                ];
+            });
 
-                if (str_contains(strtoupper((string)$cellValue), 'FINAL PROMO SPI')) {
-                    return $sheetName;
-                }
-            }
+            return response()->json(['success' => true, 'data' => $formatted]);
         } catch (\Exception $e) {
-            Log::error('Gagal membaca sheet Excel: ' . $e->getMessage());
-            return null;
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function show($id)
+    {
+        try {
+            $leaflet = Leaflet::findOrFail($id);
+            $content = json_decode($leaflet->content, true);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'leaflet_name' => $leaflet->name,
+                    'store' => $leaflet->store_name,
+                    'pages' => $content,
+                    'id' => $leaflet->id
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Leaflet not found'], 404);
+        }
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'title' => 'required|string',
+            'store' => 'required|string',
+            'pages' => 'required|array',
+            'status' => 'required|string'
+        ]);
+
+        try {
+            // Jika ID dikirim, lakukan update. Jika tidak, buat baru.
+            // Kita cari berdasarkan 'id' jika ada, atau buat baru.
+            $leaflet = null;
+            if ($request->has('id') && $request->id) {
+                $leaflet = Leaflet::find($request->id);
+            }
+
+            if ($leaflet) {
+                $leaflet->update([
+                    'name' => $request->title,
+                    'store_name' => $request->store,
+                    'content' => json_encode($request->pages),
+                    'status' => $request->status
+                ]);
+            } else {
+                $leaflet = Leaflet::create([
+                    'name' => $request->title,
+                    'store_name' => $request->store,
+                    'content' => json_encode($request->pages),
+                    'status' => $request->status,
+                    'user_id' => 1 // Sementara hardcoded ID 1
+                ]);
+            }
+
+            return response()->json(['success' => true, 'data' => $leaflet]);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function generateDraft(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv|max:2048',
+            'store_name' => 'required|string',
+        ]);
+
+        try {
+            $rawData = Excel::toArray(new LeafletDataImport, $request->file('file'));
+
+            if (empty($rawData) || empty($rawData[0])) {
+                return response()->json(['message' => 'File Excel kosong atau tidak terbaca'], 400);
+            }
+
+            $sheetData = $rawData[0];
+
+            $mapConfig = $this->mapColumnsVertically($sheetData);
+
+            if (empty($mapConfig['map']['plu']) || empty($mapConfig['map']['nama_barang'])) {
+                return response()->json([
+                    'message' => 'Gagal membaca format Excel. Pastikan ada kolom "UNIT" dan "NAMA BARANG".',
+                    'debug_detected' => $mapConfig['map']
+                ], 400);
+            }
+
+            $cleanData = $this->extractDataUsingMap($sheetData, $mapConfig);
+
+            if (empty($cleanData)) {
+                return response()->json(['message' => 'Tidak ada data produk yang ditemukan.'], 400);
+            }
+
+            $result = $this->parserService->parse($cleanData, $request->store_name);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'leaflet_name' => 'Draft Otomatis',
+                    'store' => $request->store_name,
+                    'pages' => $result
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    private function mapColumnsVertically(array $sheetData)
+    {
+        $scanLimit = 15;
+        $mapping = [];
+        $dataStartRow = 0;
+
+        $maxCols = 0;
+        foreach (array_slice($sheetData, 0, $scanLimit) as $row) {
+            $maxCols = max($maxCols, count($row));
         }
 
-        return null;
+        $rules = [
+            'plu' => ['UNIT'],
+            'nama_barang' => ['NAMA BARANG'],
+            'store' => ['STORE'],
+            'syarat_bbmu' => ['SYARAT BBMU'],
+            'nett' => ['NETT'],
+            'promosi_h_jual_setting_md' => ['Setting MD', 'SETTING MD'],
+            'setting_pp_supp' => ['SUPP'],
+            'setting_pp_mkt' => ['MKT'],
+            'keteranganpembatasan' => ['KETERANGAN/PEMBATASAN', 'KETERANGAN'],
+            'poin' => ['POIN']
+        ];
+
+        for ($col = 0; $col < $maxCols; $col++) {
+            $colText = '';
+            for ($row = 0; $row < $scanLimit; $row++) {
+                if (isset($sheetData[$row][$col])) {
+                    $val = (string)$sheetData[$row][$col];
+                    if (!empty($val)) {
+                        $colText .= ' ' . strtoupper($val);
+                    }
+                }
+            }
+
+            foreach ($rules as $key => $keywords) {
+                if (isset($mapping[$key])) continue;
+
+                foreach ($keywords as $keyword) {
+                    if (str_contains($colText, strtoupper($keyword))) {
+                        $mapping[$key] = $col;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (isset($mapping['plu'])) {
+            $pluCol = $mapping['plu'];
+            for ($r = 0; $r < 50; $r++) {
+                $val = $sheetData[$r][$pluCol] ?? '';
+                if (is_numeric($val) && !str_contains(strtoupper($val), 'UNIT')) {
+                    $dataStartRow = $r;
+                    break;
+                }
+            }
+        }
+
+        if ($dataStartRow === 0) $dataStartRow = 10;
+
+        return ['map' => $mapping, 'start_row' => $dataStartRow];
+    }
+
+    private function extractDataUsingMap(array $sheetData, array $mapConfig)
+    {
+        $normalizedData = [];
+        $totalRows = count($sheetData);
+        $map = $mapConfig['map'];
+        $startRow = $mapConfig['start_row'];
+
+        for ($i = $startRow; $i < $totalRows; $i++) {
+            $row = $sheetData[$i];
+            $rowData = [];
+            $isEmptyRow = true;
+
+            if (empty($row[$map['nama_barang'] ?? -1])) {
+                continue;
+            }
+
+            foreach ($map as $key => $colIndex) {
+                $value = $row[$colIndex] ?? null;
+                $rowData[$key] = $value;
+                if (!empty($value)) $isEmptyRow = false;
+            }
+
+            if (!$isEmptyRow) {
+                $normalizedData[] = $rowData;
+            }
+        }
+
+        return $normalizedData;
     }
 
     public function uploadAndGetRegions(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'leaflet_file' => 'required|file|mimes:xlsx,csv|max:5120',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        $file = $request->file('leaflet_file');
-        $path = null;
+        $request->validate(['file' => 'required|mimes:xlsx,xls,csv|max:2048']);
 
         try {
-            $fileName = time() . '_' . $file->getClientOriginalName();
-            $path = $file->storeAs('temp_leaflets', $fileName);
+            $rawData = Excel::toArray(new LeafletDataImport, $request->file('file'));
+            if (empty($rawData) || empty($rawData[0])) {
+                return response()->json(['message' => 'File kosong'], 400);
+            }
+            $sheetData = $rawData[0];
 
-            $correctSheetName = $this->findPromoSheetName($path);
+            $mapConfig = $this->mapColumnsVertically($sheetData);
 
-            if ($correctSheetName === null) {
-                Storage::delete($path);
-                return response()->json(['message' => 'File Excel tidak valid. Sheet "FINAL PROMO SPI" tidak ditemukan.'], 400);
+            if (!isset($mapConfig['map']['store'])) {
+                return response()->json(['success' => true, 'data' => ['NASIONAL (Default)']]);
             }
 
-            $headerRowNumber = 4;
-            $headingImport = new HeadingRowImport($headerRowNumber);
-            $headingImport->setSheetName($correctSheetName);
-            $headings = Excel::toArray($headingImport, $path);
+            $storeColIdx = $mapConfig['map']['store'];
+            $startRow = $mapConfig['start_row'];
+            $detectedStores = [];
 
-            $regions = [];
-            $storeColIndex = -1;
-
-             if(isset($headings[0][0])) {
-                 foreach($headings[0][0] as $index => $header) {
-                     if(strtolower(trim($header ?? '')) === 'store') {
-                         $storeColIndex = $index;
-                         break;
-                     }
-                 }
-             }
-
-             if($storeColIndex !== -1) {
-                $allDataImport = new SheetToArrayImport($correctSheetName);
-                $allDataRows = Excel::toArray($allDataImport, $path);
-
-                $allData = collect($allDataRows[0]);
-
-                $dataStartRowIndex = 4;
-                $regions = $allData->slice($dataStartRowIndex)
-                                    ->pluck($storeColIndex)
-                                    ->map(fn($val) => trim(strtolower($val ?? '')))
-                                    ->filter()
-                                    ->unique()
-                                    ->values()
-                                    ->all();
-             }
-
-            $uniqueRegions = $regions;
-
-            if (empty($uniqueRegions)) {
-                Storage::delete($path);
-                return response()->json(['message' => 'Kolom "Store" tidak ditemukan atau kosong.'], 400);
+            $totalRows = count($sheetData);
+            for ($i = $startRow; $i < $totalRows; $i++) {
+                $val = $sheetData[$i][$storeColIdx] ?? '';
+                if (!empty($val)) {
+                    $parts = explode(',', $val);
+                    foreach ($parts as $p) {
+                        $cleanStore = trim(strtoupper($p));
+                        if (!empty($cleanStore) && strlen($cleanStore) < 50) {
+                            $detectedStores[$cleanStore] = true;
+                        }
+                    }
+                }
             }
+
+            $resultList = array_keys($detectedStores);
+            sort($resultList);
 
             return response()->json([
-                'message' => 'File berhasil diunggah.',
-                'file_path' => $path,
-                'regions' => $uniqueRegions,
+                'success' => true,
+                'data' => $resultList
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error Upload/GetRegions: at ' . $e->getFile() . ':' . $e->getLine() . ' ' . $e->getMessage());
-             if ($path && Storage::exists($path)) {
-                 Storage::delete($path);
-             }
-            return response()->json(['message' => 'Gagal memproses file.', 'error' => $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
     public function generateLayout(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'file_path' => 'required|string',
-            'region' => 'required|string',
-            'start_date' => 'required|date_format:Y-m-d',
-            'end_date' => 'required|date_format:Y-m-d|after_or_equal:start_date',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        $filePath = $request->input('file_path');
-        $region = $request->input('region');
-
-        clearstatcache();
-
-        if (!Storage::exists($filePath)) {
-            return response()->json(['message' => 'File tidak ditemukan atau sesi telah berakhir.'], 404);
-        }
-
-        try {
-            $correctSheetName = $this->findPromoSheetName($filePath);
-            if ($correctSheetName === null) {
-                return response()->json(['message' => 'File Excel tidak valid. Sheet "FINAL PROMO SPI" tidak ditemukan.'], 400);
-            }
-
-            $leafletImport = new LeafletDataImport($region);
-            $leafletImport->setSheetName($correctSheetName);
-
-            Excel::import($leafletImport, $filePath);
-            $productData = $leafletImport->getProcessedData();
-
-            if ($productData->isEmpty()) {
-                Storage::delete($filePath);
-                return response()->json(['message' => 'Tidak ada data produk ditemukan untuk region yang dipilih.'], 404);
-            }
-
-            Storage::delete($filePath);
-
-            $layout = [];
-            $columnCount = 4;
-            $itemWidth = 200;
-            $itemHeight = 250;
-            $gap = 20;
-            $validProductIndex = 0;
-
-            foreach ($productData as $item) {
-                $row = floor($validProductIndex / $columnCount);
-                $col = $validProductIndex % $columnCount;
-
-                $posX = $col * ($itemWidth + $gap);
-                $posY = $row * ($itemHeight + $gap);
-
-                $layout[] = [
-                    'id' => $item['plu_code'],
-                    'plu' => $item['plu_code'],
-                    'name' => $item['nama_barang'],
-                    'displayPrice' => $item['harga_tampil'],
-                    'strikethroughPrice' => $item['harga_coret'],
-                    'imagePath' => $item['image_path'],
-                    'imageMissing' => $item['imageMissing'],
-                    'initialX' => $posX,
-                    'initialY' => $posY,
-                    'currentX' => $posX,
-                    'currentY' => $posY,
-                    'styles' => [
-                         'fontFamily' => 'Arial',
-                         'fontSize' => 12,
-                         'fontColor' => '#000000',
-                         'bgColor' => '#FFFFFF',
-                         'borderColor' => '#CCCCCC',
-                         'borderWidth' => 1,
-                         'imageScale' => 1,
-                     ]
-                ];
-                $validProductIndex++;
-            }
-
-             if (empty($layout)) {
-                 return response()->json(['message' => 'Tidak ada produk valid yang dapat ditampilkan.'], 404);
-             }
-
-            return response()->json([
-                'layout' => $layout,
-                'grid_info' => [
-                    'columns' => $columnCount,
-                    'itemWidth' => $itemWidth,
-                    'itemHeight' => $itemHeight,
-                    'gap' => $gap
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            if (Storage::exists($filePath)) {
-                Storage::delete($filePath);
-            }
-            Log::error('Error saat generate layout: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return response()->json(['message' => 'Gagal memproses data layout.', 'error' => $e->getMessage()], 500);
-        }
+        return response()->json(['message' => 'Not implemented'], 200);
     }
 
     public function getSmartGridStatus()
     {
-        try {
-            $leafletCount = Leaflet::count();
-            $isSmartGridActive = $leafletCount >= 5;
-            return response()->json(['active' => $isSmartGridActive]);
-        } catch (\Exception $e) {
-            Log::error('Error getSmartGridStatus: ' . $e->getMessage());
-            return response()->json(['active' => false], 500);
-        }
+        return response()->json(['status' => 'ready'], 200);
     }
 }
