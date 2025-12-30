@@ -7,9 +7,7 @@ use Illuminate\Http\Request;
 use App\Imports\LeafletDataImport;
 use App\Services\LeafletParserService;
 use Maatwebsite\Excel\Facades\Excel;
-use Illuminate\Support\Str;
 use App\Models\Leaflet;
-use Illuminate\Support\Facades\DB;
 
 class LeafletController extends Controller
 {
@@ -69,32 +67,32 @@ class LeafletController extends Controller
         $request->validate([
             'title' => 'required|string',
             'store' => 'required|string',
-            'pages' => 'required|array',
+            'pages' => 'present|array',
             'status' => 'required|string'
         ]);
 
         try {
-            // Jika ID dikirim, lakukan update. Jika tidak, buat baru.
-            // Kita cari berdasarkan 'id' jika ada, atau buat baru.
             $leaflet = null;
             if ($request->has('id') && $request->id) {
                 $leaflet = Leaflet::find($request->id);
             }
 
+            $contentJson = json_encode($request->pages);
+
             if ($leaflet) {
                 $leaflet->update([
                     'name' => $request->title,
                     'store_name' => $request->store,
-                    'content' => json_encode($request->pages),
+                    'content' => $contentJson,
                     'status' => $request->status
                 ]);
             } else {
                 $leaflet = Leaflet::create([
                     'name' => $request->title,
                     'store_name' => $request->store,
-                    'content' => json_encode($request->pages),
+                    'content' => $contentJson,
                     'status' => $request->status,
-                    'user_id' => 1 // Sementara hardcoded ID 1
+                    'user_id' => 1
                 ]);
             }
 
@@ -125,8 +123,7 @@ class LeafletController extends Controller
 
             if (empty($mapConfig['map']['plu']) || empty($mapConfig['map']['nama_barang'])) {
                 return response()->json([
-                    'message' => 'Gagal membaca format Excel. Pastikan ada kolom "UNIT" dan "NAMA BARANG".',
-                    'debug_detected' => $mapConfig['map']
+                    'message' => 'Gagal membaca format Excel. Pastikan ada kolom "UNIT" dan "NAMA BARANG".'
                 ], 400);
             }
 
@@ -155,6 +152,54 @@ class LeafletController extends Controller
         }
     }
 
+    public function uploadAndGetRegions(Request $request)
+    {
+        $request->validate(['file' => 'required|mimes:xlsx,xls,csv|max:2048']);
+
+        try {
+            $rawData = Excel::toArray(new LeafletDataImport, $request->file('file'));
+            if (empty($rawData) || empty($rawData[0])) {
+                return response()->json(['message' => 'File kosong'], 400);
+            }
+            $sheetData = $rawData[0];
+
+            $mapConfig = $this->mapColumnsVertically($sheetData);
+
+            if (!isset($mapConfig['map']['store'])) {
+                return response()->json(['success' => true, 'data' => ['NASIONAL (Default)']]);
+            }
+
+            $storeColIdx = $mapConfig['map']['store'];
+            $startRow = $mapConfig['start_row'];
+            $detectedStores = [];
+
+            $totalRows = count($sheetData);
+            for ($i = $startRow; $i < $totalRows; $i++) {
+                $val = $sheetData[$i][$storeColIdx] ?? '';
+                if (!empty($val)) {
+                    $parts = explode(',', $val);
+                    foreach ($parts as $p) {
+                        $cleanStore = trim(strtoupper($p));
+                        if (!empty($cleanStore) && strlen($cleanStore) < 50) {
+                            $detectedStores[$cleanStore] = true;
+                        }
+                    }
+                }
+            }
+
+            $resultList = array_keys($detectedStores);
+            sort($resultList);
+
+            return response()->json([
+                'success' => true,
+                'data' => $resultList
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     private function mapColumnsVertically(array $sheetData)
     {
         $scanLimit = 15;
@@ -167,11 +212,11 @@ class LeafletController extends Controller
         }
 
         $rules = [
-            'plu' => ['UNIT'],
-            'nama_barang' => ['NAMA BARANG'],
-            'store' => ['STORE'],
+            'plu' => ['UNIT', 'PLU'],
+            'nama_barang' => ['NAMA BARANG', 'DESKRIPSI'],
+            'store' => ['STORE', 'WILAYAH'],
             'syarat_bbmu' => ['SYARAT BBMU'],
-            'nett' => ['NETT'],
+            'nett' => ['NETT', 'HARGA'],
             'promosi_h_jual_setting_md' => ['Setting MD', 'SETTING MD'],
             'setting_pp_supp' => ['SUPP'],
             'setting_pp_mkt' => ['MKT'],
@@ -246,63 +291,5 @@ class LeafletController extends Controller
         }
 
         return $normalizedData;
-    }
-
-    public function uploadAndGetRegions(Request $request)
-    {
-        $request->validate(['file' => 'required|mimes:xlsx,xls,csv|max:2048']);
-
-        try {
-            $rawData = Excel::toArray(new LeafletDataImport, $request->file('file'));
-            if (empty($rawData) || empty($rawData[0])) {
-                return response()->json(['message' => 'File kosong'], 400);
-            }
-            $sheetData = $rawData[0];
-
-            $mapConfig = $this->mapColumnsVertically($sheetData);
-
-            if (!isset($mapConfig['map']['store'])) {
-                return response()->json(['success' => true, 'data' => ['NASIONAL (Default)']]);
-            }
-
-            $storeColIdx = $mapConfig['map']['store'];
-            $startRow = $mapConfig['start_row'];
-            $detectedStores = [];
-
-            $totalRows = count($sheetData);
-            for ($i = $startRow; $i < $totalRows; $i++) {
-                $val = $sheetData[$i][$storeColIdx] ?? '';
-                if (!empty($val)) {
-                    $parts = explode(',', $val);
-                    foreach ($parts as $p) {
-                        $cleanStore = trim(strtoupper($p));
-                        if (!empty($cleanStore) && strlen($cleanStore) < 50) {
-                            $detectedStores[$cleanStore] = true;
-                        }
-                    }
-                }
-            }
-
-            $resultList = array_keys($detectedStores);
-            sort($resultList);
-
-            return response()->json([
-                'success' => true,
-                'data' => $resultList
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
-    }
-
-    public function generateLayout(Request $request)
-    {
-        return response()->json(['message' => 'Not implemented'], 200);
-    }
-
-    public function getSmartGridStatus()
-    {
-        return response()->json(['status' => 'ready'], 200);
     }
 }

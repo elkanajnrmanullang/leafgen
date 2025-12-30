@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation, useBlocker } from "react-router-dom";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -22,73 +22,13 @@ import {
   Loader2,
   Download,
 } from "lucide-react";
-
-interface ItemContent {
-  name: string;
-  price_display: string | number;
-  price_original?: number;
-  show_coret?: boolean;
-  description?: string;
-  image_url?: string;
-  is_bbmu?: boolean;
-  badge_promo?: {
-    active: boolean;
-    txt_qty_promo: string;
-    txt_price_promo: string;
-  } | null;
-  badge_igr?: {
-    active: boolean;
-    txt_keterangan_qty_igr: string;
-    txt_satuan_igr: string;
-    txt_price_bonus_igr: string;
-  } | null;
-  badge_spi_value?: number;
-}
-
-interface EditorItem {
-  id: string;
-  plu?: string;
-  type?: string;
-  layout: {
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-  };
-  content?: ItemContent;
-  needs_manual_image?: boolean;
-}
-
-interface LeafletPage {
-  id: string;
-  pageNumber: number;
-  items: EditorItem[];
-}
-
-interface BackendItem {
-  id: string;
-  type: string;
-  plu: string;
-  content: ItemContent;
-  needs_manual_image: boolean;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-interface BackendPage {
-  id: string;
-  page_number: number;
-  items: BackendItem[];
-}
-
-interface BackendLeafletResponse {
-  leaflet_name: string;
-  store: string;
-  pages: BackendPage[];
-  id?: string;
-}
+import type {
+  LeafletPage,
+  EditorItem,
+  BackendLeafletResponse,
+  BackendPage,
+  BackendItem,
+} from "../types";
 
 const EditorPage = () => {
   const navigate = useNavigate();
@@ -178,23 +118,30 @@ const EditorPage = () => {
       if (backendData.id) setLeafletId(backendData.id);
       if (idFromHistory) setLeafletId(idFromHistory);
 
-      const mappedPages: LeafletPage[] = backendData.pages.map((page) => ({
-        id: page.id,
-        pageNumber: page.page_number,
-        items: page.items.map((item) => ({
-          id: item.id,
-          plu: item.plu,
-          type: item.type,
-          content: item.content,
-          needs_manual_image: item.needs_manual_image,
-          layout: {
-            x: item.x || 0,
-            y: item.y || 0,
-            w: item.w || 200,
-            h: item.h || 300,
-          },
-        })),
-      }));
+      const mappedPages: LeafletPage[] = backendData.pages.map(
+        (page: BackendPage) => ({
+          id: page.id,
+          pageNumber: page.page_number,
+          items: page.items.map((item: BackendItem) => ({
+            id: item.id,
+            plu: item.plu,
+            type: item.type,
+            content: {
+              ...item.content,
+              image_url:
+                item.content.image_url ||
+                "https://placehold.co/400x400/png?text=No+Image",
+            },
+            needs_manual_image: item.needs_manual_image,
+            layout: {
+              x: Number(item.x) || 0,
+              y: Number(item.y) || 0,
+              w: Number(item.w) || 200,
+              h: Number(item.h) || 300,
+            },
+          })),
+        })
+      );
 
       setPages(mappedPages);
       if (mappedPages.length > 0) setSelectedPageId(mappedPages[0].id);
@@ -383,7 +330,7 @@ const EditorPage = () => {
         show_coret: false,
         image_url: "",
         is_bbmu: false,
-        badge_spi_value: 0,
+        badge_spi_url: null,
       },
       needs_manual_image: false,
       layout: { x: 100, y: 100, w: 600, h: 200 },
@@ -409,7 +356,7 @@ const EditorPage = () => {
         show_coret: false,
         image_url: "https://placehold.co/400x400/png?text=Image",
         is_bbmu: false,
-        badge_spi_value: 0,
+        badge_spi_url: null,
       },
       needs_manual_image: false,
       layout: { x: 100, y: 100, w: 400, h: 400 },
@@ -449,11 +396,11 @@ const EditorPage = () => {
     const mouseX = (e.clientX - canvasRect.left) / zoom;
     const mouseY = (e.clientY - canvasRect.top) / zoom;
     setPages((prevPages) =>
-      prevPages.map((page) => {
+      prevPages.map((page: LeafletPage) => {
         if (page.id !== dragActivePageId) return page;
         return {
           ...page,
-          items: page.items.map((item) =>
+          items: page.items.map((item: EditorItem) =>
             item.id === draggingId
               ? {
                   ...item,
@@ -478,11 +425,13 @@ const EditorPage = () => {
   const handleDeleteItem = () => {
     if (!selectedPageId || !selectedItemId) return;
     setPages((prev) =>
-      prev.map((page) =>
+      prev.map((page: LeafletPage) =>
         page.id === selectedPageId
           ? {
               ...page,
-              items: page.items.filter((i) => i.id !== selectedItemId),
+              items: page.items.filter(
+                (i: EditorItem) => i.id !== selectedItemId
+              ),
             }
           : page
       )
@@ -688,7 +637,7 @@ const EditorPage = () => {
               </div>
             ) : (
               (pages.find((p) => p.id === selectedPageId)?.items || []).map(
-                (item) => (
+                (item: EditorItem) => (
                   <div
                     key={`sidebar-${item.id}`}
                     draggable={true}
@@ -727,7 +676,7 @@ const EditorPage = () => {
         <main className="flex-1 bg-slate-100/50 relative flex flex-col min-w-0">
           <div className="flex-1 overflow-auto flex flex-col items-center py-10 px-8 gap-10 relative scroll-smooth">
             {!loading &&
-              pages.map((page) => (
+              pages.map((page: LeafletPage) => (
                 <div
                   key={page.id}
                   className="group relative flex flex-col gap-2"
@@ -780,7 +729,7 @@ const EditorPage = () => {
                         ))}
                       </div>
                     )}
-                    {page.items.map((item) => (
+                    {page.items.map((item: EditorItem) => (
                       <div
                         key={item.id}
                         onMouseDown={(e) => handleMouseDown(e, item, page.id)}
@@ -807,11 +756,39 @@ const EditorPage = () => {
                               No Image
                             </div>
                           )}
-                          {item.content?.is_bbmu && (
-                            <div className="absolute top-0 right-0 bg-yellow-400 text-red-700 text-[10px] font-black px-2 py-1 rounded-bl-lg shadow-sm">
-                              BBMU
-                            </div>
+
+                          {item.content?.badge_bbmu_url && (
+                            <img
+                              src={item.content.badge_bbmu_url}
+                              className="absolute top-0 right-0 h-8 w-auto z-20"
+                              alt="BBMU Badge"
+                            />
                           )}
+
+                          {item.content?.badge_spi_url && (
+                            <img
+                              src={item.content.badge_spi_url}
+                              className="absolute top-0 left-0 h-8 w-auto z-20"
+                              alt="Poin SPI"
+                            />
+                          )}
+
+                          <div className="absolute bottom-0 w-full flex flex-col gap-1 items-center z-20">
+                            {item.content?.badge_promo_url && (
+                              <img
+                                src={item.content.badge_promo_url}
+                                className="w-full h-auto"
+                                alt="Promo"
+                              />
+                            )}
+                            {item.content?.badge_igr_url && (
+                              <img
+                                src={item.content.badge_igr_url}
+                                className="w-full h-auto"
+                                alt="Poin IGR"
+                              />
+                            )}
+                          </div>
                         </div>
                         <div className="h-[45%] w-full p-2 flex flex-col justify-between bg-white">
                           <h3 className="text-[24px] font-bold text-center leading-tight text-slate-800 line-clamp-2">
