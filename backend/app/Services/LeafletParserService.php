@@ -3,12 +3,11 @@
 namespace App\Services;
 
 use App\Models\Product;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class LeafletParserService
 {
     private const MM_TO_PX = 11.811;
-    private const TEMPLATE_PATH = 'master_templates/json/';
 
     protected $badgeGenerator;
 
@@ -19,10 +18,12 @@ class LeafletParserService
 
     public function parse(array $rawData, string $selectedStore)
     {
-        ini_set('memory_limit', '512M');
-        set_time_limit(120);
+        ini_set('memory_limit', '1024M');
+        set_time_limit(300);
 
-        $sortedItems = $this->filterAndSortItems($rawData, $selectedStore);
+        $filteredItems = $this->filterItems($rawData, $selectedStore);
+        $groupedItems = $this->groupItemsByVariant($filteredItems);
+        $sortedItems = $this->sortItems($groupedItems);
         $visualItems = $this->mapToVisualItems($sortedItems);
 
         $layoutCover = $this->loadLayoutStructure('layout_cover.json');
@@ -31,13 +32,16 @@ class LeafletParserService
         return $this->distributeToPages($visualItems, $layoutCover, $layoutInner);
     }
 
-    private function filterAndSortItems(array $rows, string $store)
+    private function filterItems(array $rows, string $store)
     {
         $validItems = [];
         $upperStore = strtoupper(trim($store));
 
         foreach ($rows as $row) {
             $rowStore = strtoupper($row['store'] ?? '');
+
+            if (empty($rowStore)) continue;
+
             $stores = array_map('trim', explode(',', $rowStore));
 
             $isGlobal = in_array('SPI NAS', $stores) || in_array('NAS', $stores);
@@ -52,24 +56,97 @@ class LeafletParserService
                 }
             }
 
-            if (!$isGlobal && !$isLocal) {
-                continue;
+            if ($isGlobal || $isLocal) {
+                $validItems[] = $row;
+            }
+        }
+        return $validItems;
+    }
+
+    private function groupItemsByVariant(array $items)
+    {
+        $groups = [];
+
+        foreach ($items as $item) {
+            $name = strtoupper($item['nama_barang'] ?? '');
+            if (empty($name)) continue;
+
+            $words = explode(' ', $name);
+            $baseName = implode(' ', array_slice($words, 0, 3));
+
+            $size = '';
+            if (preg_match('/(\d+\s*(?:GR|GRAM|G|ML|L|LITER|KG|PCS|BTL|BOX|SACHET))$/i', $name, $matches)) {
+                $size = $matches[1];
             }
 
-            $isBbmu = !empty($row['syarat_bbmu']);
-            $priority = $isBbmu ? 1 : 2;
+            $key = trim($baseName . '_' . $size);
 
-            $validItems[] = [
-                'data' => $row,
-                'priority' => $priority
-            ];
+            if (!isset($groups[$key])) {
+                $groups[$key] = [];
+            }
+            $groups[$key][] = $item;
         }
 
-        usort($validItems, function ($a, $b) {
+        $result = [];
+
+        foreach ($groups as $group) {
+            $representative = $group[0];
+            $count = count($group);
+
+            if ($count > 1) {
+                $fullNameRep = strtoupper($representative['nama_barang']);
+                $words = explode(' ', $fullNameRep);
+                $baseName = implode(' ', array_slice($words, 0, 3));
+
+                $size = '';
+                if (preg_match('/(\d+\s*(?:GR|GRAM|G|ML|L|LITER|KG|PCS|BTL|BOX|SACHET))$/i', $fullNameRep, $matches)) {
+                    $size = $matches[1];
+                }
+
+                if ($count > 3) {
+                    $representative['nama_barang'] = trim($baseName . ' ' . $size);
+                }
+                else {
+                    $variants = [];
+                    foreach ($group as $g) {
+                        $n = strtoupper($g['nama_barang']);
+                        $temp = str_replace($baseName, '', $n);
+                        $temp = str_replace($size, '', $temp);
+                        $cleanVariant = trim(preg_replace('/[^A-Z0-9]/', ' ', $temp));
+
+                        if (!empty($cleanVariant)) {
+                            $variants[] = ucfirst(strtolower($cleanVariant));
+                        }
+                    }
+
+                    $variants = array_unique($variants);
+                    if (!empty($variants)) {
+                        $variantStr = implode(', ', $variants);
+                        $representative['nama_barang'] = trim($baseName . ' ' . $variantStr . ' ' . $size);
+                    }
+                }
+            }
+
+            $result[] = $representative;
+        }
+
+        return $result;
+    }
+
+    private function sortItems(array $items)
+    {
+        $sorted = [];
+        foreach ($items as $item) {
+            $isBbmu = !empty($item['syarat_bbmu']);
+            $priority = $isBbmu ? 1 : 2;
+            $sorted[] = ['data' => $item, 'priority' => $priority];
+        }
+
+        usort($sorted, function ($a, $b) {
             return $a['priority'] <=> $b['priority'];
         });
 
-        return array_column($validItems, 'data');
+        return array_column($sorted, 'data');
     }
 
     private function mapToVisualItems(array $items)
@@ -235,37 +312,50 @@ class LeafletParserService
 
     private function loadLayoutStructure(string $filename)
     {
-        $path = self::TEMPLATE_PATH . $filename;
+        $path = storage_path('app/master_templates/json/' . $filename);
 
-        if (!Storage::exists($path)) {
+        if (!file_exists($path)) {
+            Log::warning("Layout JSON not found: " . $path);
             return [];
         }
 
-        $jsonContent = Storage::get($path);
+        $jsonContent = file_get_contents($path);
         $data = json_decode($jsonContent, true);
 
-        if (!isset($data[0]['children'])) {
-            return [];
-        }
-
-        $slots = [];
-        $children = $data[0]['children'];
-
-        foreach ($children as $node) {
-            if (isset($node['name']) && str_starts_with($node['name'], 'slot_')) {
-                $slots[] = [
-                    'name' => $node['name'],
-                    'x' => ($node['absoluteBoundingBox']['x'] ?? 0) * self::MM_TO_PX,
-                    'y' => ($node['absoluteBoundingBox']['y'] ?? 0) * self::MM_TO_PX,
-                    'w' => ($node['absoluteBoundingBox']['width'] ?? 0) * self::MM_TO_PX,
-                    'h' => ($node['absoluteBoundingBox']['height'] ?? 0) * self::MM_TO_PX,
-                ];
-            }
-        }
+        $slots = $this->findSlotsRecursively($data);
 
         usort($slots, function ($a, $b) {
             return strcmp($a['name'], $b['name']);
         });
+
+        return $slots;
+    }
+
+    private function findSlotsRecursively($nodes) {
+        $slots = [];
+
+        if (isset($nodes['id'])) {
+            $nodes = [$nodes];
+        }
+
+        foreach ($nodes as $node) {
+            if (isset($node['name']) && str_starts_with($node['name'], 'slot_')) {
+                $scale = 4;
+
+                $slots[] = [
+                    'name' => $node['name'],
+                    'x' => ($node['absoluteBoundingBox']['x'] ?? 0) * $scale,
+                    'y' => ($node['absoluteBoundingBox']['y'] ?? 0) * $scale,
+                    'w' => ($node['absoluteBoundingBox']['width'] ?? 0) * $scale,
+                    'h' => ($node['absoluteBoundingBox']['height'] ?? 0) * $scale,
+                ];
+            }
+
+            if (isset($node['children']) && is_array($node['children'])) {
+                $childSlots = $this->findSlotsRecursively($node['children']);
+                $slots = array_merge($slots, $childSlots);
+            }
+        }
 
         return $slots;
     }
@@ -279,12 +369,12 @@ class LeafletParserService
 
         while ($itemIndex < $totalItems) {
             $currentSlots = ($pageNumber === 1) ? $coverSlots : $innerSlots;
-            $slotsCount = count($currentSlots);
 
-            if ($slotsCount === 0 && $pageNumber > 1) {
-               $currentSlots = $coverSlots;
-               $slotsCount = count($currentSlots);
+            if (empty($currentSlots) && !empty($coverSlots)) {
+                $currentSlots = $coverSlots;
             }
+
+            $slotsCount = count($currentSlots);
 
             if ($slotsCount === 0) {
                 break;
@@ -315,7 +405,6 @@ class LeafletParserService
             ];
 
             $pageNumber++;
-
             if ($pageNumber > 50) break;
         }
 

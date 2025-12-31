@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, useLocation, useBlocker } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { LeafletService } from "../services/leafletService";
@@ -64,6 +64,8 @@ const EditorPage = () => {
 
   const saveData = useCallback(
     async (status: "draft" | "exported") => {
+      if (pages.length === 0) return;
+
       setSaveStatus("saving");
       try {
         const response = await LeafletService.saveLeaflet({
@@ -85,25 +87,6 @@ const EditorPage = () => {
     },
     [designName, storeName, pages, leafletId]
   );
-
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      saveStatus === "unsaved" &&
-      currentLocation.pathname !== nextLocation.pathname
-  );
-
-  useEffect(() => {
-    if (blocker.state === "blocked") {
-      const confirmLeave = window.confirm(
-        "Perubahan belum tersimpan. Apakah Anda ingin menyimpannya sebagai Draft sebelum keluar?"
-      );
-      if (confirmLeave) {
-        saveData("draft").then(() => blocker.proceed());
-      } else {
-        blocker.proceed();
-      }
-    }
-  }, [blocker, saveData]);
 
   useEffect(() => {
     const backendData = location.state?.leafletData as
@@ -619,12 +602,12 @@ const EditorPage = () => {
         </div>
       </header>
       <div
-        className="flex-1 flex overflow-hidden"
+        className="flex-1 flex overflow-hidden bg-slate-200/50"
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        <aside className="w-72 bg-white border-r border-slate-200 flex flex-col shadow-sm z-10">
+        <aside className="w-72 bg-white border-r border-slate-200 flex flex-col shadow-sm z-10 shrink-0">
           <div className="p-4 border-b border-slate-100">
             <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-2">
               <Layers size={14} /> Daftar Item
@@ -673,41 +656,54 @@ const EditorPage = () => {
             )}
           </div>
         </aside>
-        <main className="flex-1 bg-slate-100/50 relative flex flex-col min-w-0">
-          <div className="flex-1 overflow-auto flex flex-col items-center py-10 px-8 gap-10 relative scroll-smooth">
-            {!loading &&
-              pages.map((page: LeafletPage) => (
+
+        {/* --- MAIN CANVAS AREA FIX --- */}
+        <main className="flex-1 relative flex flex-col min-w-0 overflow-auto items-center py-10">
+          {!loading &&
+            pages.map((page: LeafletPage) => (
+              <div
+                key={page.id}
+                className="group flex flex-col gap-2 items-center mb-10"
+              >
+                {/* Header Page */}
                 <div
-                  key={page.id}
-                  className="group relative flex flex-col gap-2"
+                  className="flex items-center justify-between px-2 transition-all"
+                  style={{ width: 2480 * zoom }}
                 >
-                  <div
-                    className="flex items-center justify-between px-2 w-[calc(2480px*var(--zoom))] transition-all"
-                    style={{ "--zoom": zoom } as React.CSSProperties}
-                  >
-                    <span className="text-xs font-bold text-slate-500 bg-white px-3 py-1 rounded shadow-sm border border-slate-200">
-                      Halaman {page.pageNumber}
-                    </span>
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => handleDuplicatePage(page.id)}
-                        className="p-1.5 bg-white hover:text-blue-600 rounded shadow-sm border text-slate-500"
-                      >
-                        <Copy size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleDeletePage(page.id)}
-                        className="p-1.5 bg-white hover:text-red-600 rounded shadow-sm border text-slate-500"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                  <span className="text-xs font-bold text-slate-500 bg-white px-3 py-1 rounded shadow-sm border border-slate-200">
+                    Halaman {page.pageNumber}
+                  </span>
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => handleDuplicatePage(page.id)}
+                      className="p-1.5 bg-white hover:text-blue-600 rounded shadow-sm border text-slate-500"
+                    >
+                      <Copy size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleDeletePage(page.id)}
+                      className="p-1.5 bg-white hover:text-red-600 rounded shadow-sm border text-slate-500"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
+                </div>
+
+                {/* WRAPPER (Dynamic Size) */}
+                <div
+                  style={{
+                    width: 2480 * zoom,
+                    height: 3508 * zoom,
+                    position: "relative",
+                  }}
+                  className="bg-white shadow-2xl transition-all duration-200 ease-out"
+                >
+                  {/* CANVAS (Fixed A4 Size, Scaled Down) */}
                   <div
                     ref={(el) => {
                       pageRefs.current[page.id] = el;
                     }}
-                    className={`bg-white shadow-xl transition-all duration-200 ease-out origin-top relative overflow-hidden ${
+                    className={`bg-white overflow-hidden origin-top-left absolute top-0 left-0 ${
                       selectedPageId === page.id
                         ? "ring-4 ring-blue-500/20"
                         : ""
@@ -719,7 +715,6 @@ const EditorPage = () => {
                       width: "2480px",
                       height: "3508px",
                       transform: `scale(${zoom})`,
-                      marginBottom: `calc(3508px * ${zoom} - 3508px)`,
                     }}
                   >
                     {isGridEnabled && (
@@ -815,31 +810,24 @@ const EditorPage = () => {
                       </div>
                     ))}
                   </div>
-                  <div
-                    style={{
-                      height: `calc(3508px * ${zoom})`,
-                      display: "none",
-                    }}
-                  ></div>
                 </div>
-              ))}
-            <div
-              className="w-[calc(2480px*var(--zoom))] transition-all pb-20"
-              style={{ "--zoom": zoom } as React.CSSProperties}
+              </div>
+            ))}
+          <div className="transition-all pb-20" style={{ width: 2480 * zoom }}>
+            <button
+              onClick={handleAddPage}
+              className="group flex items-center justify-center gap-3 w-full py-8 bg-slate-200/50 hover:bg-slate-200 border-2 border-dashed border-slate-300 rounded-xl transition-all text-slate-500"
             >
-              <button
-                onClick={handleAddPage}
-                className="group flex items-center justify-center gap-3 w-full py-8 bg-slate-200/50 hover:bg-slate-200 border-2 border-dashed border-slate-300 rounded-xl transition-all text-slate-500"
-              >
-                <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Plus size={20} />
-                </div>
-                <span className="font-bold">Tambah Halaman</span>
-              </button>
-            </div>
+              <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Plus size={20} />
+              </div>
+              <span className="font-bold">Tambah Halaman</span>
+            </button>
           </div>
         </main>
-        <aside className="w-72 bg-white border-l border-slate-200 flex flex-col shadow-sm z-10">
+        {/* --- END MAIN CANVAS AREA --- */}
+
+        <aside className="w-72 bg-white border-l border-slate-200 flex flex-col shadow-sm z-10 shrink-0">
           <div className="p-4 border-b border-slate-100">
             <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-2">
               <MousePointer2 size={14} /> Properti
@@ -855,7 +843,7 @@ const EditorPage = () => {
                   <input
                     type="text"
                     className="w-full text-xs border border-slate-300 rounded p-2 bg-white"
-                    value={activeItem.content?.name || ""}
+                    value={activeItem.content?.name ?? ""}
                     readOnly
                   />
                 </div>

@@ -27,6 +27,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::post('/leaflet/generate-layout', [LeafletController::class, 'generateLayout']);
+    Route::get('/leaflet/preview', [LeafletController::class, 'preview']);
 
     Route::get('/users', [UserController::class, 'index']);
     Route::post('/users', [UserController::class, 'store']);

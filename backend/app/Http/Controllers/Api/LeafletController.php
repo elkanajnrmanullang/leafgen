@@ -8,6 +8,8 @@ use App\Imports\LeafletDataImport;
 use App\Services\LeafletParserService;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\Leaflet;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class LeafletController extends Controller
 {
@@ -16,6 +18,23 @@ class LeafletController extends Controller
     public function __construct(LeafletParserService $parserService)
     {
         $this->parserService = $parserService;
+    }
+
+    public function preview()
+    {
+        try {
+            $previewData = $this->parserService->previewLayout();
+            return response()->json([
+                'status' => 'success',
+                'data' => $previewData
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Preview Error: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function index()
@@ -72,6 +91,8 @@ class LeafletController extends Controller
         ]);
 
         try {
+            $userId = Auth::id() ?? 1;
+
             $leaflet = null;
             if ($request->has('id') && $request->id) {
                 $leaflet = Leaflet::find($request->id);
@@ -92,14 +113,15 @@ class LeafletController extends Controller
                     'store_name' => $request->store,
                     'content' => $contentJson,
                     'status' => $request->status,
-                    'user_id' => 1
+                    'user_id' => $userId
                 ]);
             }
 
             return response()->json(['success' => true, 'data' => $leaflet]);
 
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            Log::error('Leaflet Save Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Gagal menyimpan: ' . $e->getMessage()], 500);
         }
     }
 
@@ -145,6 +167,8 @@ class LeafletController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            Log::error('Generate Error: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage()
