@@ -13,7 +13,13 @@ class BackgroundTemplate extends Model
     protected $fillable = [
         'title',
         'image_path',
+        'type',
+        'is_default',
         'user_id',
+    ];
+
+    protected $casts = [
+        'is_default' => 'boolean',
     ];
 
     public function user(): BelongsTo

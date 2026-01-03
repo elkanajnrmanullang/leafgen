@@ -105,8 +105,7 @@ class LeafletParserService
 
                 if ($count > 3) {
                     $representative['nama_barang'] = trim($baseName . ' ' . $size);
-                }
-                else {
+                } else {
                     $variants = [];
                     foreach ($group as $g) {
                         $n = strtoupper($g['nama_barang']);
@@ -240,8 +239,8 @@ class LeafletParserService
     {
         $upperText = strtoupper($text);
         $isActive = str_contains($upperText, 'TOTAL POTONGAN') ||
-                    str_contains($upperText, 'TOTAL DISC') ||
-                    (str_contains($upperText, 'BELI') && str_contains($upperText, 'DISC'));
+            str_contains($upperText, 'TOTAL DISC') ||
+            (str_contains($upperText, 'BELI') && str_contains($upperText, 'DISC'));
 
         if (!$isActive) return null;
 
@@ -331,7 +330,8 @@ class LeafletParserService
         return $slots;
     }
 
-    private function findSlotsRecursively($nodes) {
+    private function findSlotsRecursively($nodes)
+    {
         $slots = [];
 
         if (isset($nodes['id'])) {

@@ -8,8 +8,13 @@ use App\Imports\LeafletDataImport;
 use App\Services\LeafletParserService;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\Leaflet;
+use App\Models\BackgroundTemplate;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Config;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
 
 class LeafletController extends Controller
 {
@@ -20,21 +25,132 @@ class LeafletController extends Controller
         $this->parserService = $parserService;
     }
 
-    public function preview()
+    public function getTemplates()
     {
         try {
-            $previewData = $this->parserService->previewLayout();
+            $templates = BackgroundTemplate::orderBy('created_at', 'desc')->get();
             return response()->json([
-                'status' => 'success',
-                'data' => $previewData
+                'success' => true,
+                'data' => $templates
             ]);
         } catch (\Exception $e) {
-            Log::error('Preview Error: ' . $e->getMessage());
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
+    }
+
+    public function storeTemplate(Request $request)
+    {
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'image' => 'required|image|mimes:jpeg,png,jpg|max:20480',
+        ]);
+
+        try {
+            $file = $request->file('image');
+            $filename = 'template_' . time() . '.png';
+            $path = 'templates/' . $filename;
+
+            if (!Storage::disk('public')->exists('templates')) {
+                Storage::disk('public')->makeDirectory('templates');
+            }
+
+            $manager = new ImageManager(new Driver());
+            $image = $manager->read($file);
+
+            $image->cover(2480, 3508);
+
+            $image->save(storage_path('app/public/' . $path));
+
+            $type = $request->input('type', 'master');
+
+            $template = BackgroundTemplate::create([
+                'title' => $request->title,
+                'type' => $type,
+                'image_path' => $path,
+                'user_id' => Auth::id(),
+                'is_default' => false
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $template,
+                'message' => 'Template berhasil diupload dan disesuaikan (A4)'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Template Upload Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function updateTemplate(Request $request, $id)
+    {
+        $template = BackgroundTemplate::findOrFail($id);
+
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg|max:20480',
+        ]);
+
+        try {
+            $data = [
+                'title' => $request->title
+            ];
+
+            if ($request->hasFile('image')) {
+                if (Storage::disk('public')->exists($template->image_path)) {
+                    Storage::disk('public')->delete($template->image_path);
+                }
+
+                $file = $request->file('image');
+                $filename = 'template_' . time() . '.png';
+                $path = 'templates/' . $filename;
+
+                $manager = new ImageManager(new Driver());
+                $image = $manager->read($file);
+                $image->cover(2480, 3508);
+                $image->save(storage_path('app/public/' . $path));
+
+                $data['image_path'] = $path;
+            }
+
+            $template->update($data);
+
+            return response()->json([
+                'success' => true,
+                'data' => $template,
+                'message' => 'Template berhasil diperbarui'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Template Update Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function destroyTemplate($id)
+    {
+        try {
+            $template = BackgroundTemplate::findOrFail($id);
+
+            if (Storage::disk('public')->exists($template->image_path)) {
+                Storage::disk('public')->delete($template->image_path);
+            }
+
+            $template->delete();
+
+            return response()->json(['success' => true, 'message' => 'Template dihapus']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Gagal menghapus template'], 500);
+        }
+    }
+
+    public function preview()
+    {
+        return response()->json([
+            'status' => 'success',
+            'data' => []
+        ]);
     }
 
     public function index()
@@ -128,40 +244,27 @@ class LeafletController extends Controller
     public function generateDraft(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:xlsx,xls,csv|max:2048',
-            'store_name' => 'required|string',
+            'file' => 'required|mimes:xlsx,xls,csv|max:10240',
+            'store_name' => 'nullable|string',
         ]);
 
         try {
-            $rawData = Excel::toArray(new LeafletDataImport, $request->file('file'));
+            $data = Excel::toArray(new LeafletDataImport, $request->file('file'));
+            $rawData = $data[0] ?? [];
 
-            if (empty($rawData) || empty($rawData[0])) {
+            if (empty($rawData)) {
                 return response()->json(['message' => 'File Excel kosong atau tidak terbaca'], 400);
             }
 
-            $sheetData = $rawData[0];
+            $regionCode = $request->input('store_name');
 
-            $mapConfig = $this->mapColumnsVertically($sheetData);
-
-            if (empty($mapConfig['map']['plu']) || empty($mapConfig['map']['nama_barang'])) {
-                return response()->json([
-                    'message' => 'Gagal membaca format Excel. Pastikan ada kolom "UNIT" dan "NAMA BARANG".'
-                ], 400);
-            }
-
-            $cleanData = $this->extractDataUsingMap($sheetData, $mapConfig);
-
-            if (empty($cleanData)) {
-                return response()->json(['message' => 'Tidak ada data produk yang ditemukan.'], 400);
-            }
-
-            $result = $this->parserService->parse($cleanData, $request->store_name);
+            $result = $this->parserService->parse($rawData, $regionCode ?? '');
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'leaflet_name' => 'Draft Otomatis',
-                    'store' => $request->store_name,
+                    'leaflet_name' => 'Draft Otomatis ' . ($regionCode ?? 'Nasional'),
+                    'store' => $regionCode ?? 'NASIONAL',
                     'pages' => $result
                 ]
             ]);
@@ -178,142 +281,14 @@ class LeafletController extends Controller
 
     public function uploadAndGetRegions(Request $request)
     {
-        $request->validate(['file' => 'required|mimes:xlsx,xls,csv|max:2048']);
-
         try {
-            $rawData = Excel::toArray(new LeafletDataImport, $request->file('file'));
-            if (empty($rawData) || empty($rawData[0])) {
-                return response()->json(['message' => 'File kosong'], 400);
-            }
-            $sheetData = $rawData[0];
-
-            $mapConfig = $this->mapColumnsVertically($sheetData);
-
-            if (!isset($mapConfig['map']['store'])) {
-                return response()->json(['success' => true, 'data' => ['NASIONAL (Default)']]);
-            }
-
-            $storeColIdx = $mapConfig['map']['store'];
-            $startRow = $mapConfig['start_row'];
-            $detectedStores = [];
-
-            $totalRows = count($sheetData);
-            for ($i = $startRow; $i < $totalRows; $i++) {
-                $val = $sheetData[$i][$storeColIdx] ?? '';
-                if (!empty($val)) {
-                    $parts = explode(',', $val);
-                    foreach ($parts as $p) {
-                        $cleanStore = trim(strtoupper($p));
-                        if (!empty($cleanStore) && strlen($cleanStore) < 50) {
-                            $detectedStores[$cleanStore] = true;
-                        }
-                    }
-                }
-            }
-
-            $resultList = array_keys($detectedStores);
-            sort($resultList);
-
+            $configuredRegions = array_keys(Config::get('leaflet_regions', []));
             return response()->json([
                 'success' => true,
-                'data' => $resultList
+                'data' => $configuredRegions
             ]);
-
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
-    }
-
-    private function mapColumnsVertically(array $sheetData)
-    {
-        $scanLimit = 15;
-        $mapping = [];
-        $dataStartRow = 0;
-
-        $maxCols = 0;
-        foreach (array_slice($sheetData, 0, $scanLimit) as $row) {
-            $maxCols = max($maxCols, count($row));
-        }
-
-        $rules = [
-            'plu' => ['UNIT', 'PLU'],
-            'nama_barang' => ['NAMA BARANG', 'DESKRIPSI'],
-            'store' => ['STORE', 'WILAYAH'],
-            'syarat_bbmu' => ['SYARAT BBMU'],
-            'nett' => ['NETT', 'HARGA'],
-            'promosi_h_jual_setting_md' => ['Setting MD', 'SETTING MD'],
-            'setting_pp_supp' => ['SUPP'],
-            'setting_pp_mkt' => ['MKT'],
-            'keteranganpembatasan' => ['KETERANGAN/PEMBATASAN', 'KETERANGAN'],
-            'poin' => ['POIN']
-        ];
-
-        for ($col = 0; $col < $maxCols; $col++) {
-            $colText = '';
-            for ($row = 0; $row < $scanLimit; $row++) {
-                if (isset($sheetData[$row][$col])) {
-                    $val = (string)$sheetData[$row][$col];
-                    if (!empty($val)) {
-                        $colText .= ' ' . strtoupper($val);
-                    }
-                }
-            }
-
-            foreach ($rules as $key => $keywords) {
-                if (isset($mapping[$key])) continue;
-
-                foreach ($keywords as $keyword) {
-                    if (str_contains($colText, strtoupper($keyword))) {
-                        $mapping[$key] = $col;
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (isset($mapping['plu'])) {
-            $pluCol = $mapping['plu'];
-            for ($r = 0; $r < 50; $r++) {
-                $val = $sheetData[$r][$pluCol] ?? '';
-                if (is_numeric($val) && !str_contains(strtoupper($val), 'UNIT')) {
-                    $dataStartRow = $r;
-                    break;
-                }
-            }
-        }
-
-        if ($dataStartRow === 0) $dataStartRow = 10;
-
-        return ['map' => $mapping, 'start_row' => $dataStartRow];
-    }
-
-    private function extractDataUsingMap(array $sheetData, array $mapConfig)
-    {
-        $normalizedData = [];
-        $totalRows = count($sheetData);
-        $map = $mapConfig['map'];
-        $startRow = $mapConfig['start_row'];
-
-        for ($i = $startRow; $i < $totalRows; $i++) {
-            $row = $sheetData[$i];
-            $rowData = [];
-            $isEmptyRow = true;
-
-            if (empty($row[$map['nama_barang'] ?? -1])) {
-                continue;
-            }
-
-            foreach ($map as $key => $colIndex) {
-                $value = $row[$colIndex] ?? null;
-                $rowData[$key] = $value;
-                if (!empty($value)) $isEmptyRow = false;
-            }
-
-            if (!$isEmptyRow) {
-                $normalizedData[] = $rowData;
-            }
-        }
-
-        return $normalizedData;
     }
 }

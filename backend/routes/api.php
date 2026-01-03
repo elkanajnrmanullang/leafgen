@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\LeafletController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ForgotPasswordController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\BadgeController;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail']);
@@ -14,11 +15,12 @@ Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'
 
 Route::post('/leaflets/generate-draft', [LeafletController::class, 'generateDraft']);
 Route::post('/leaflet/upload', [LeafletController::class, 'uploadAndGetRegions']);
-Route::get('/leaflet/smart-grid-status', [LeafletController::class, 'getSmartGridStatus']);
 
 Route::get('/leaflets', [LeafletController::class, 'index']);
 Route::get('/leaflets/{id}', [LeafletController::class, 'show']);
 Route::post('/leaflets/save', [LeafletController::class, 'store']);
+
+Route::post('/generate-badge', [BadgeController::class, 'generate']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
@@ -28,6 +30,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/leaflet/generate-layout', [LeafletController::class, 'generateLayout']);
     Route::get('/leaflet/preview', [LeafletController::class, 'preview']);
+
+
+    Route::get('/leaflet/templates', [LeafletController::class, 'getTemplates']);
+    Route::post('/leaflet/templates', [LeafletController::class, 'storeTemplate']);
+    Route::post('/leaflet/templates/{id}', [LeafletController::class, 'updateTemplate']);
+    Route::delete('/leaflet/templates/{id}', [LeafletController::class, 'destroyTemplate']);
 
     Route::get('/users', [UserController::class, 'index']);
     Route::post('/users', [UserController::class, 'store']);

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useOutletContext } from "react-router-dom";
 import { getProducts } from "../services/productService";
+import { LeafletService } from "../services/leafletService";
 import {
   FileSpreadsheet,
   Archive,
@@ -18,26 +19,42 @@ interface AppContext {
 
 const DashboardPage = () => {
   const { openProductModal } = useOutletContext<AppContext>();
-  const [stats, setStats] = useState({ leaflet: 2, produk: 0, template: 2 });
+
+  // Inisialisasi semua stats dengan 0
+  const [stats, setStats] = useState({ leaflet: 0, produk: 0, template: 0 });
+
   const [activities] = useState([
     { id: 1, icon: FilePlus2, text: "Leaflet baru LFG-002 dibuat." },
     { id: 2, icon: Plus, text: "Produk baru Air Mineral ditambahkan." },
   ]);
 
-  const fetchProductCount = async () => {
+  const fetchStats = async () => {
     try {
+      // 1. Fetch Produk
       const products = await getProducts();
-      setStats((prevStats) => ({ ...prevStats, produk: products.length }));
+
+      // 2. Fetch Templates
+      const templates = await LeafletService.getTemplates();
+
+      // 3. Fetch Leaflets (History) - Jika ingin dinamis juga
+      // const leaflets = await LeafletService.getHistory();
+
+      setStats((prevStats) => ({
+        ...prevStats,
+        produk: products.length,
+        template: templates.length,
+        // leaflet: leaflets.length // Uncomment jika endpoint history sudah siap
+      }));
     } catch (error) {
-      console.error("Gagal mengambil jumlah produk:", error);
+      console.error("Gagal mengambil statistik dashboard:", error);
     }
   };
 
   useEffect(() => {
-    fetchProductCount();
+    fetchStats();
 
-    const handleProductChange = () => fetchProductCount();
-
+    // Listener untuk update real-time jika ada penambahan produk
+    const handleProductChange = () => fetchStats();
     window.addEventListener("productAdded", handleProductChange);
 
     return () => {
@@ -49,6 +66,7 @@ const DashboardPage = () => {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2 space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Card Leaflet */}
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 transition-transform hover:-translate-y-1">
             <div className="p-3 bg-blue-50 rounded-xl">
               <FileSpreadsheet className="h-6 w-6 text-blue-600" />
@@ -62,6 +80,8 @@ const DashboardPage = () => {
               </p>
             </div>
           </div>
+
+          {/* Card Produk */}
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 transition-transform hover:-translate-y-1">
             <div className="p-3 bg-emerald-50 rounded-xl">
               <Archive className="h-6 w-6 text-emerald-600" />
@@ -75,6 +95,8 @@ const DashboardPage = () => {
               </p>
             </div>
           </div>
+
+          {/* Card Template (UPDATED: Data Real) */}
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 transition-transform hover:-translate-y-1">
             <div className="p-3 bg-amber-50 rounded-xl">
               <LayoutTemplate className="h-6 w-6 text-amber-600" />
@@ -89,6 +111,7 @@ const DashboardPage = () => {
             </div>
           </div>
         </div>
+
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
           <h3 className="text-lg font-bold text-slate-800 mb-6">
             Aktivitas Terakhir
@@ -117,6 +140,7 @@ const DashboardPage = () => {
           </ul>
         </div>
       </div>
+
       <div className="space-y-6">
         <div>
           <div className="space-y-4">

@@ -83,6 +83,7 @@ const router = createBrowserRouter([
           { path: "bank-gambar", element: <BankGambarPage /> },
           { path: "manajemen-akun", element: <ManajemenAkunPage /> },
           { path: "buat-leaflet", element: <BuatLeafletPage /> },
+          // Pastikan path ini sesuai
           { path: "pilih-template", element: <PilihTemplatePage /> },
           { path: "history", element: <HistoryPage /> },
         ],

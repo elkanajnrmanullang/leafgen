@@ -66,7 +66,7 @@ const MainLayout = () => {
       { to: "/buat-leaflet", label: "Buat Leaflet", icon: FilePlus2 },
       { to: "/bank-gambar", label: "Bank Gambar", icon: Archive },
       {
-        to: "/template-desain",
+        to: "/pilih-template", // Path ini harus sama persis dengan App.tsx
         label: "Template Desain",
         icon: LayoutTemplate,
       },
@@ -82,11 +82,19 @@ const MainLayout = () => {
   );
 
   useEffect(() => {
-    const currentPath =
-      location.pathname === "/" ? "/dashboard" : location.pathname;
-    const currentLink = navLinks.find((link) =>
-      currentPath.startsWith(link.to)
+    // Normalisasi path untuk menghindari trailing slash issue
+    const currentPath = location.pathname.endsWith("/")
+      ? location.pathname.slice(0, -1)
+      : location.pathname;
+
+    // Handle root path
+    const normalizedPath = currentPath === "" ? "/dashboard" : currentPath;
+
+    const currentLink = navLinks.find(
+      (link) =>
+        normalizedPath === link.to || normalizedPath.startsWith(`${link.to}/`)
     );
+
     if (currentLink) {
       setPageTitle(currentLink.label);
     } else {
@@ -118,10 +126,12 @@ const MainLayout = () => {
           <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto">
             {navLinks.map((link) => {
               if (link.role && link.role !== userRole) return null;
+
+              // Logic Active State yang lebih aman
               const isActive =
-                location.pathname === "/"
-                  ? link.to === "/dashboard"
-                  : location.pathname.startsWith(link.to);
+                location.pathname === link.to ||
+                location.pathname.startsWith(`${link.to}/`);
+
               const Icon = link.icon;
               return (
                 <Link
@@ -130,7 +140,7 @@ const MainLayout = () => {
                   onClick={() => setSidebarOpen(false)}
                   className={`flex items-center px-3 py-2.5 font-medium rounded-lg transition-colors ${
                     isActive
-                      ? "bg-slate-700 text-white"
+                      ? "bg-slate-700 text-white shadow-sm"
                       : "hover:bg-slate-700/50 hover:text-white"
                   }`}
                 >
@@ -164,26 +174,26 @@ const MainLayout = () => {
         )}
 
         <div className="flex-1 flex flex-col md:ml-64">
-          <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-6 flex-shrink-0 sticky top-0 z-10">
+          <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-6 flex-shrink-0 sticky top-0 z-10 shadow-sm">
             <div className="flex items-center">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="md:hidden mr-4 text-slate-600 focus:outline-none"
+                className="md:hidden mr-4 text-slate-600 focus:outline-none hover:bg-slate-100 p-2 rounded-md"
               >
                 <Menu className="h-6 w-6" />
               </button>
-              <h2 className="text-2xl font-semibold text-slate-800">
+              <h2 className="text-2xl font-semibold text-slate-800 tracking-tight">
                 {pageTitle}
               </h2>
             </div>
             <div className="text-right">
-              <p className="font-semibold text-slate-800 capitalize">
+              <p className="font-semibold text-slate-800 capitalize text-sm md:text-base">
                 {userRole}
               </p>
-              <p className="text-sm text-slate-500">{userEmail}</p>
+              <p className="text-xs md:text-sm text-slate-500">{userEmail}</p>
             </div>
           </header>
-          <main className="flex-1 overflow-y-auto p-6">
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50/50">
             <Outlet context={{ openProductModal: handleOpenProductModal }} />
           </main>
         </div>
