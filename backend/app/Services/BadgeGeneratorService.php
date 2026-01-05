@@ -5,6 +5,7 @@ namespace App\Services;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 use Intervention\Image\Typography\FontFactory;
+use Illuminate\Support\Facades\Log;
 
 class BadgeGeneratorService
 {
@@ -73,35 +74,39 @@ class BadgeGeneratorService
 
                 $insertPath = $this->findInsertImage($value);
 
-                if ($insertPath && file_exists($insertPath)) {
-                    $imgToInsert = $this->manager->read($insertPath);
+                if ($insertPath) {
+                    try {
+                        $imgToInsert = $this->manager->read($insertPath);
 
-                    $absW = $layer['absoluteBoundingBox']['width'] ?? 0;
-                    $absH = $layer['absoluteBoundingBox']['height'] ?? 0;
-                    $absX = $layer['absoluteBoundingBox']['x'] ?? 0;
-                    $absY = $layer['absoluteBoundingBox']['y'] ?? 0;
+                        $absW = $layer['absoluteBoundingBox']['width'] ?? 0;
+                        $absH = $layer['absoluteBoundingBox']['height'] ?? 0;
+                        $absX = $layer['absoluteBoundingBox']['x'] ?? 0;
+                        $absY = $layer['absoluteBoundingBox']['y'] ?? 0;
 
-                    $finalX = ($absX - $rootX) * $scaleX;
-                    $finalY = ($absY - $rootY) * $scaleY;
-                    $targetW = $absW * $scaleX;
-                    $targetH = $absH * $scaleY;
+                        $finalX = ($absX - $rootX) * $scaleX;
+                        $finalY = ($absY - $rootY) * $scaleY;
+                        $targetW = $absW * $scaleX;
+                        $targetH = $absH * $scaleY;
 
-                    if ($targetW <= 1) $targetW = 1;
-                    if ($targetH <= 1) $targetH = 1;
+                        if ($targetW <= 1) $targetW = 1;
+                        if ($targetH <= 1) $targetH = 1;
 
-                    if ($layerName === 'img_product') {
-                        $imgToInsert->scale((int)$targetW, (int)$targetH);
+                        if ($layerName === 'img_product') {
+                            $imgToInsert->scale((int)$targetW, (int)$targetH);
 
-                        $newW = $imgToInsert->width();
-                        $newH = $imgToInsert->height();
+                            $newW = $imgToInsert->width();
+                            $newH = $imgToInsert->height();
 
-                        $offsetX = ($targetW - $newW) / 2;
-                        $offsetY = ($targetH - $newH) / 2;
+                            $offsetX = ($targetW - $newW) / 2;
+                            $offsetY = ($targetH - $newH) / 2;
 
-                        $img->place($imgToInsert, 'top-left', (int)($finalX + $offsetX), (int)($finalY + $offsetY));
-                    } else {
-                        $imgToInsert->resize((int)$targetW, (int)$targetH);
-                        $img->place($imgToInsert, 'top-left', (int)$finalX, (int)$finalY);
+                            $img->place($imgToInsert, 'top-left', (int)($finalX + $offsetX), (int)($finalY + $offsetY));
+                        } else {
+                            $imgToInsert->resize((int)$targetW, (int)$targetH);
+                            $img->place($imgToInsert, 'top-left', (int)$finalX, (int)$finalY);
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning("Failed to insert image layer {$layerName}: " . $e->getMessage());
                     }
                 }
             }
@@ -152,10 +157,10 @@ class BadgeGeneratorService
 
                 if ($layerName === 'txt_name') {
                     $maxLines = 2;
-                    $minFontSize = $fontSize * 0.5;
+                    $minFontSize = $fontSize * 0.7;
 
                     $fitFound = false;
-                    for ($s = $fontSize; $s >= $minFontSize; $s -= 0.5) {
+                    for ($s = $fontSize; $s >= $minFontSize; $s -= 1) {
                         $tempLines = $this->wrapText($value, $s, $fontFile, $finalW);
                         if (count($tempLines) <= $maxLines) {
                             $lines = $tempLines;
@@ -208,12 +213,15 @@ class BadgeGeneratorService
 
         foreach ($words as $word) {
             $testLine = $currentLine . ($currentLine ? ' ' : '') . $word;
+            $width = 0;
 
             try {
                 $box = imagettfbbox($fontSize, 0, $fontFile, $testLine);
-                $width = abs($box[2] - $box[0]);
+                if ($box) {
+                    $width = abs($box[2] - $box[0]);
+                }
             } catch (\Exception $e) {
-                $width = 0;
+                $width = strlen($testLine) * ($fontSize * 0.6);
             }
 
             if ($width <= $maxWidth) {
@@ -234,13 +242,19 @@ class BadgeGeneratorService
 
     private function findInsertImage($filenameOrPath)
     {
+        if (filter_var($filenameOrPath, FILTER_VALIDATE_URL)) {
+            return $filenameOrPath;
+        }
+
         if (file_exists($filenameOrPath)) return $filenameOrPath;
 
         $candidates = [
             "{$this->publicUploadPath}/{$filenameOrPath}",
             "{$this->publicUploadPath}/uploads/{$filenameOrPath}",
             "{$this->basePath}/assets/components/{$filenameOrPath}",
-            "{$this->basePath}/assets/components/{$filenameOrPath}.png"
+            "{$this->basePath}/assets/components/{$filenameOrPath}.png",
+            "{$this->basePath}/assets/{$filenameOrPath}",
+            "{$this->basePath}/assets/{$filenameOrPath}.png"
         ];
 
         foreach ($candidates as $path) {
@@ -289,13 +303,14 @@ class BadgeGeneratorService
         $filename = "{$familyClean}-{$styleClean}.ttf";
         $fullPath = "{$this->fontPath}/{$filename}";
 
-        if (file_exists($fullPath)) {
-            return $fullPath;
-        }
+        if (file_exists($fullPath)) return $fullPath;
 
         $fallbackPath = "{$this->fontPath}/{$familyClean}-Regular.ttf";
-        if (file_exists($fallbackPath)) {
-            return $fallbackPath;
+        if (file_exists($fallbackPath)) return $fallbackPath;
+
+        if (str_contains(strtolower($style), 'bold')) {
+             $boldPath = "{$this->fontPath}/Poppins-Bold.ttf";
+             if (file_exists($boldPath)) return $boldPath;
         }
 
         return "{$this->fontPath}/Poppins-Regular.ttf";
@@ -303,9 +318,9 @@ class BadgeGeneratorService
 
     private function rgbToHex($colorObj)
     {
-        $r = dechex(round($colorObj['r'] * 255));
-        $g = dechex(round($colorObj['g'] * 255));
-        $b = dechex(round($colorObj['b'] * 255));
+        $r = dechex(round(($colorObj['r'] ?? 0) * 255));
+        $g = dechex(round(($colorObj['g'] ?? 0) * 255));
+        $b = dechex(round(($colorObj['b'] ?? 0) * 255));
         return "#" . str_pad($r, 2, "0", STR_PAD_LEFT) . str_pad($g, 2, "0", STR_PAD_LEFT) . str_pad($b, 2, "0", STR_PAD_LEFT);
     }
 }

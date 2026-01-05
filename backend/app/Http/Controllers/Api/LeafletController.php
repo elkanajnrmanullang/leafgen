@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Imports\LeafletDataImport;
 use App\Services\LeafletParserService;
+use App\Services\LeafletComposerService;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\Leaflet;
 use App\Models\BackgroundTemplate;
@@ -19,10 +20,12 @@ use Intervention\Image\Drivers\Gd\Driver;
 class LeafletController extends Controller
 {
     protected $parserService;
+    protected $composerService;
 
-    public function __construct(LeafletParserService $parserService)
+    public function __construct(LeafletParserService $parserService, LeafletComposerService $composerService)
     {
         $this->parserService = $parserService;
+        $this->composerService = $composerService;
     }
 
     public function getTemplates()
@@ -256,6 +259,8 @@ class LeafletController extends Controller
                 return response()->json(['message' => 'File Excel kosong atau tidak terbaca'], 400);
             }
 
+            $periodText = isset($rawData[2][0]) ? trim((string)$rawData[2][0]) : '';
+
             $mappedData = [];
             $currentCategory = 'GENERAL';
             $currentNumber = null;
@@ -264,14 +269,12 @@ class LeafletController extends Controller
                 $colNo = trim((string)($row[0] ?? ''));
                 $upperNo = strtoupper($colNo);
 
-                // Deteksi Kategori (FOOD/NFOOD)
                 if ($upperNo === 'FOOD' || str_contains($upperNo, 'NFOOD') || str_contains($upperNo, 'NON FOOD')) {
                     $currentCategory = $upperNo;
                     $currentNumber = null;
                     continue;
                 }
 
-                // Logika Grouping Nomor (Carry Forward)
                 if ($colNo !== '' && is_numeric($colNo)) {
                     $currentNumber = $colNo;
                 }
@@ -330,6 +333,7 @@ class LeafletController extends Controller
                     $finalResults[] = [
                         'leaflet_name' => 'Draft Otomatis ' . $region,
                         'store' => $region,
+                        'period_text' => $periodText,
                         'pages' => $pages
                     ];
                 }
@@ -346,6 +350,42 @@ class LeafletController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function generateLayout(Request $request)
+    {
+        $validated = $request->validate([
+            'template_id' => 'nullable|integer',
+            'period_text' => 'nullable|string',
+            'pages'       => 'required|array',
+            'pages.*.id'  => 'required',
+            'pages.*.layout_type' => 'required|string',
+            'pages.*.items' => 'present|array',
+        ]);
+
+        try {
+            $imageUrls = $this->composerService->generateDebugLayout(
+                $validated['pages'],
+                $validated['template_id'] ?? null,
+                $validated['period_text'] ?? ''
+            );
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Layout generated successfully',
+                'images' => $imageUrls
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Leaflet Layout Generation Error: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to generate layout',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
