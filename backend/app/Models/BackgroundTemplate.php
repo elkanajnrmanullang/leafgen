@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BackgroundTemplate extends Model
 {
@@ -12,17 +11,17 @@ class BackgroundTemplate extends Model
 
     protected $fillable = [
         'title',
-        'image_path',
         'type',
+        'image_path',
         'is_default',
-        'user_id',
+        'user_id'
     ];
 
     protected $casts = [
         'is_default' => 'boolean',
     ];
 
-    public function user(): BelongsTo
+    public function user()
     {
         return $this->belongsTo(User::class);
     }

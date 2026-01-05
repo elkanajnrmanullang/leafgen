@@ -4,36 +4,29 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\User; 
-use App\Models\LeafletItem; 
 
 class Leaflet extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'code',
-        'region',
+        'name',
+        'store_name',
         'promotion_start_date',
         'promotion_end_date',
-        'final_image_path',
-        'user_id',
+        'content',
+        'status',
+        'user_id'
     ];
 
     protected $casts = [
+        'content' => 'array',
         'promotion_start_date' => 'date',
         'promotion_end_date' => 'date',
     ];
 
-    public function user(): BelongsTo
+    public function user()
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function items(): HasMany
-    {
-        return $this->hasMany(LeafletItem::class);
     }
 }

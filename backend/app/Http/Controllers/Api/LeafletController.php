@@ -256,17 +256,88 @@ class LeafletController extends Controller
                 return response()->json(['message' => 'File Excel kosong atau tidak terbaca'], 400);
             }
 
-            $regionCode = $request->input('store_name');
+            $mappedData = [];
+            $currentCategory = 'GENERAL';
+            $currentNumber = null;
 
-            $result = $this->parserService->parse($rawData, $regionCode ?? '');
+            foreach ($rawData as $row) {
+                $colNo = trim((string)($row[0] ?? ''));
+                $upperNo = strtoupper($colNo);
+
+                // Deteksi Kategori (FOOD/NFOOD)
+                if ($upperNo === 'FOOD' || str_contains($upperNo, 'NFOOD') || str_contains($upperNo, 'NON FOOD')) {
+                    $currentCategory = $upperNo;
+                    $currentNumber = null;
+                    continue;
+                }
+
+                // Logika Grouping Nomor (Carry Forward)
+                if ($colNo !== '' && is_numeric($colNo)) {
+                    $currentNumber = $colNo;
+                }
+
+                $colPlu = trim((string)($row[2] ?? ''));
+                $colName = trim((string)($row[3] ?? ''));
+
+                if ($colPlu === '' && $colName === '') {
+                    continue;
+                }
+
+                if ($currentNumber) {
+                    $rowGroupId = $currentCategory . '_' . $currentNumber;
+                } else {
+                    $rowGroupId = uniqid('orphan_');
+                }
+
+                $cleanPrice = function($val) {
+                    if (is_string($val) && str_starts_with($val, '=')) {
+                        return 0;
+                    }
+                    return (float) filter_var($val, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
+                };
+
+                $mappedData[] = [
+                    'group_id' => $rowGroupId,
+                    'plu' => $row[2] ?? null,
+                    'nama_barang' => $row[3] ?? null,
+                    'setting_md' => $cleanPrice($row[16] ?? 0),
+                    'supp' => $cleanPrice($row[17] ?? 0),
+                    'mkt' => $cleanPrice($row[18] ?? 0),
+                    'satuan' => $row[19] ?? null,
+                    'nett' => $cleanPrice($row[20] ?? 0),
+                    'poin' => $cleanPrice($row[21] ?? 0),
+                    'syarat_bbmu' => $row[22] ?? null,
+                    'store' => $row[23] ?? null,
+                    'keterangan' => $row[24] ?? null,
+                ];
+            }
+
+            $requestedStore = $request->input('store_name');
+            $targetRegions = [];
+
+            if (!empty($requestedStore)) {
+                $targetRegions[] = strtoupper(trim($requestedStore));
+            } else {
+                $targetRegions = ['JAWA', 'SUM', 'KAL', 'SUL', 'MALUKU'];
+            }
+
+            $finalResults = [];
+
+            foreach ($targetRegions as $region) {
+                $pages = $this->parserService->parse($mappedData, $region);
+
+                if (!empty($pages)) {
+                    $finalResults[] = [
+                        'leaflet_name' => 'Draft Otomatis ' . $region,
+                        'store' => $region,
+                        'pages' => $pages
+                    ];
+                }
+            }
 
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'leaflet_name' => 'Draft Otomatis ' . ($regionCode ?? 'Nasional'),
-                    'store' => $regionCode ?? 'NASIONAL',
-                    'pages' => $result
-                ]
+                'data' => $finalResults
             ]);
 
         } catch (\Exception $e) {

@@ -2,16 +2,19 @@
 
 namespace App\Imports;
 
-use Maatwebsite\Excel\Concerns\ToCollection;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Illuminate\Support\Collection;
+use Maatwebsite\Excel\Concerns\ToArray;
+use Maatwebsite\Excel\Concerns\WithStartRow;
+use Maatwebsite\Excel\Concerns\WithCalculatedFormulas;
 
-class LeafletDataImport implements ToCollection, WithHeadingRow
+class LeafletDataImport implements ToArray, WithStartRow, WithCalculatedFormulas
 {
-    public $data = [];
-
-    public function collection(Collection $rows)
+    public function startRow(): int
     {
-        $this->data = $rows;
+        return 10;
+    }
+
+    public function array(array $array)
+    {
+        return $array;
     }
 }
