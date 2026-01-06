@@ -39,7 +39,7 @@ class LeafletComposerService
         $this->assetPath = storage_path('app/master_templates/assets');
         $this->jsonPath = storage_path('app/master_templates/json');
         $this->fontPath = storage_path('app/master_templates/fonts/Poppins-Bold.ttf');
-        $this->outputPath = storage_path('app/public/debug_layouts');
+        $this->outputPath = storage_path('app/public/layouts');
 
         if (!file_exists($this->outputPath)) {
             mkdir($this->outputPath, 0777, true);
@@ -184,9 +184,9 @@ class LeafletComposerService
                     }
                 }
 
-                $outputFilename = 'debug_' . $layoutType . '_' . uniqid() . '.png';
+                $outputFilename = $layoutType . '.png';
                 $canvas->save($this->outputPath . '/' . $outputFilename);
-                $generatedImages[] = url('storage/debug_layouts/' . $outputFilename);
+                $generatedImages[] = url('storage/layouts/' . $outputFilename);
 
             } catch (\Exception $e) {
                 Log::error("Error generating layout page {$page['page_number']}: " . $e->getMessage());
@@ -208,7 +208,7 @@ class LeafletComposerService
             $w = $node['width'] * $scaleFactor;
             $fontSize = ($node['fontSize'] ?? 12) * $scaleFactor;
 
-            if ($name === 'txt_tgl_periode') {
+            if ($name === 'txt_tgl_periode' || $name === 'txt_tgl_periode_inner') {
                 $canvas->text($periodText, $x + ($w / 2), $y, function(FontFactory $font) use ($fontSize) {
                     $font->filename($this->fontPath);
                     $font->size($fontSize);

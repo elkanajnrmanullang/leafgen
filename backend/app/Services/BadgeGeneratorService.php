@@ -59,6 +59,19 @@ class BadgeGeneratorService
         $rootX = $frame['absoluteBoundingBox']['x'] ?? 0;
         $rootY = $frame['absoluteBoundingBox']['y'] ?? 0;
 
+        $hasCoret = !empty($dataReplacement['txt_coret']);
+        $hasPromo = !empty($dataReplacement['img_bg_label_promo']);
+        $useAltLayout = $hasCoret && $hasPromo;
+
+        $promoKeys = [
+            'img_bg_label_promo',
+            'img_container_ketPromo',
+            'txt_qty_promo',
+            'txt_price_promo',
+            'txt_keterangan_promo',
+            'txt_satuan'
+        ];
+
         if (isset($frame['children'])) {
 
             $layers = $frame['children'];
@@ -66,10 +79,20 @@ class BadgeGeneratorService
             foreach ($layers as $layer) {
                 $layerName = $layer['name'];
 
-                if (!str_starts_with($layerName, 'img_')) continue;
-                if (!array_key_exists($layerName, $dataReplacement)) continue;
+                $isAltLayer = str_ends_with($layerName, '_alt');
+                $baseName = $isAltLayer ? substr($layerName, 0, -4) : $layerName;
+                $isPromoLayer = in_array($baseName, $promoKeys);
 
-                $value = $dataReplacement[$layerName];
+                if ($useAltLayout) {
+                    if ($isPromoLayer && !$isAltLayer) continue;
+                } else {
+                    if ($isAltLayer) continue;
+                }
+
+                if (!str_starts_with($baseName, 'img_')) continue;
+                if (!array_key_exists($baseName, $dataReplacement)) continue;
+
+                $value = $dataReplacement[$baseName];
                 if (empty($value)) continue;
 
                 $insertPath = $this->findInsertImage($value);
@@ -91,7 +114,7 @@ class BadgeGeneratorService
                         if ($targetW <= 1) $targetW = 1;
                         if ($targetH <= 1) $targetH = 1;
 
-                        if ($layerName === 'img_product') {
+                        if ($baseName === 'img_product') {
                             $imgToInsert->scale((int)$targetW, (int)$targetH);
 
                             $newW = $imgToInsert->width();
@@ -114,10 +137,20 @@ class BadgeGeneratorService
             foreach ($layers as $layer) {
                 $layerName = $layer['name'];
 
-                if ($layer['type'] !== 'TEXT') continue;
-                if (!array_key_exists($layerName, $dataReplacement)) continue;
+                $isAltLayer = str_ends_with($layerName, '_alt');
+                $baseName = $isAltLayer ? substr($layerName, 0, -4) : $layerName;
+                $isPromoLayer = in_array($baseName, $promoKeys);
 
-                $value = $dataReplacement[$layerName];
+                if ($useAltLayout) {
+                    if ($isPromoLayer && !$isAltLayer) continue;
+                } else {
+                    if ($isAltLayer) continue;
+                }
+
+                if ($layer['type'] !== 'TEXT') continue;
+                if (!array_key_exists($baseName, $dataReplacement)) continue;
+
+                $value = $dataReplacement[$baseName];
                 if (empty($value)) continue;
 
                 $jsonFontSize = $layer['fontSize'] ?? 12;
@@ -155,7 +188,7 @@ class BadgeGeneratorService
                 $lines = [];
                 $finalFontSize = $fontSize;
 
-                if ($layerName === 'txt_name') {
+                if ($baseName === 'txt_name') {
                     $maxLines = 2;
                     $minFontSize = $fontSize * 0.7;
 

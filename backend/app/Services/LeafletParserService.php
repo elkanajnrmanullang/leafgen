@@ -22,12 +22,11 @@ class LeafletParserService
         $filteredItems = $this->filterItems($rawData, $selectedStore);
         $groupedItems = $this->groupItemsByVariant($filteredItems);
         $sortedItems = $this->sortItems($groupedItems);
-        $visualItems = $this->mapToVisualItems($sortedItems);
 
         $layoutCover = $this->loadLayoutStructure('layout_cover.json');
         $layoutInner = $this->loadLayoutStructure('layout_inner.json');
 
-        return $this->distributeToPages($visualItems, $layoutCover, $layoutInner);
+        return $this->distributeToPages($sortedItems, $layoutCover, $layoutInner);
     }
 
     private function filterItems(array $rows, string $targetRegion)
@@ -35,7 +34,6 @@ class LeafletParserService
         $validItems = [];
         $targetRegion = strtoupper(trim($targetRegion));
 
-        // Daftar Kode Daerah per Pulau
         $regionMap = [
             'JAWA' => ['JAWA', 'BLI', 'BGR', 'CKL', 'CPG', 'CPT', 'KRW', 'KMY', 'MLG', 'PWT', 'SMG', 'SLO', 'SBI', 'SBY', 'TGR', 'YOG'],
             'SUM' => ['SUM', 'BTM', 'JBI', 'BDL', 'MDN', 'PLG', 'PKU'],
@@ -187,11 +185,13 @@ class LeafletParserService
         return array_column($sorted, 'data');
     }
 
-    private function mapToVisualItems(array $items)
+    private function mapToVisualItems(array $items, int $pageNumber)
     {
         $mapped = [];
         $pluList = array_map(fn($item) => (string)($item['unit'] ?? $item['plu'] ?? ''), $items);
         $dbProducts = Product::whereIn('plu_code', $pluList)->pluck('image_path', 'plu_code');
+
+        $cardBg = ($pageNumber === 1) ? 'img_card_bg_master.png' : 'card_inner_master_bg.png';
 
         foreach ($items as $index => $item) {
             $plu = (string)($item['unit'] ?? $item['plu'] ?? '0');
@@ -230,7 +230,7 @@ class LeafletParserService
                     'txt_price' => $txtPrice,
                     'txt_satuan_price' => $satuan ? "/$satuan" : '',
                     'img_product' => $finalImage,
-                    'img_card_bg' => 'img_card_bg_master.png',
+                    'img_card_bg' => $cardBg,
                     'img_container_price' => 'img_container_price.png',
 
                     'txt_coret' => $txtCoret,
@@ -262,7 +262,8 @@ class LeafletParserService
                     'txt_keterangan_qty_spi' => $spiBadgeUrl['txt_keterangan_qty_spi'] ?? null,
                 ],
                 'needs_manual_image' => $needsManual,
-                'x' => 0, 'y' => 0, 'w' => 0, 'h' => 0
+                'x' => $item['x'] ?? 0, 'y' => $item['y'] ?? 0, 'w' => $item['w'] ?? 0, 'h' => $item['h'] ?? 0,
+                'slot_id' => $item['slot_id'] ?? null
             ];
         }
 
@@ -458,11 +459,11 @@ class LeafletParserService
         return $slots;
     }
 
-    private function distributeToPages(array $items, array $coverSlots, array $innerSlots)
+    private function distributeToPages(array $rawItems, array $coverSlots, array $innerSlots)
     {
         $pages = [];
         $itemIndex = 0;
-        $totalItems = count($items);
+        $totalItems = count($rawItems);
         $pageNumber = 1;
 
         while ($itemIndex < $totalItems) {
@@ -478,28 +479,31 @@ class LeafletParserService
                 break;
             }
 
-            $pageItems = [];
+            $pageItemsRaw = [];
 
             for ($i = 0; $i < $slotsCount; $i++) {
                 if ($itemIndex >= $totalItems) break;
 
-                $item = $items[$itemIndex];
+                $item = $rawItems[$itemIndex];
                 $slot = $currentSlots[$i];
 
                 $item['x'] = $slot['x'];
                 $item['y'] = $slot['y'];
                 $item['w'] = $slot['w'];
                 $item['h'] = $slot['h'];
+                $item['slot_id'] = $slot['name'];
 
-                $pageItems[] = $item;
+                $pageItemsRaw[] = $item;
                 $itemIndex++;
             }
+
+            $visualItems = $this->mapToVisualItems($pageItemsRaw, $pageNumber);
 
             $pages[] = [
                 'id' => 'page-' . $pageNumber,
                 'page_number' => $pageNumber,
                 'layout_type' => ($pageNumber === 1) ? 'cover' : 'inner',
-                'items' => $pageItems
+                'items' => $visualItems
             ];
 
             $pageNumber++;
