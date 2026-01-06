@@ -184,7 +184,7 @@ class LeafletComposerService
                     }
                 }
 
-                $outputFilename = $layoutType . '.png';
+                $outputFilename =  $layoutType . '_' . uniqid() . '.png';
                 $canvas->save($this->outputPath . '/' . $outputFilename);
                 $generatedImages[] = url('storage/layouts/' . $outputFilename);
 

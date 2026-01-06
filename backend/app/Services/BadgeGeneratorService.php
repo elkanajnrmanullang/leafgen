@@ -169,10 +169,12 @@ class BadgeGeneratorService
                 $absX = $layer['absoluteBoundingBox']['x'] ?? 0;
                 $absY = $layer['absoluteBoundingBox']['y'] ?? 0;
                 $absW = $layer['absoluteBoundingBox']['width'] ?? 0;
+                $absH = $layer['absoluteBoundingBox']['height'] ?? 0;
 
                 $finalX = ($absX - $rootX) * $scaleX;
                 $finalY = ($absY - $rootY) * $scaleY;
                 $finalW = $absW * $scaleX;
+                $finalH = $absH * $scaleY; 
 
                 $textAlign = $layer['textAlignHorizontal'] ?? 'LEFT';
                 $alignMap = ['LEFT' => 'left', 'CENTER' => 'center', 'RIGHT' => 'right', 'JUSTIFIED' => 'left'];
@@ -190,12 +192,16 @@ class BadgeGeneratorService
 
                 if ($baseName === 'txt_name') {
                     $maxLines = 2;
+                    $startFontSize = $fontSize * 1.25;
                     $minFontSize = $fontSize * 0.7;
 
                     $fitFound = false;
-                    for ($s = $fontSize; $s >= $minFontSize; $s -= 1) {
+                    for ($s = $startFontSize; $s >= $minFontSize; $s -= 0.5) {
                         $tempLines = $this->wrapText($value, $s, $fontFile, $finalW);
-                        if (count($tempLines) <= $maxLines) {
+
+                        $totalHeight = count($tempLines) * ($s * 1.15);
+
+                        if (count($tempLines) <= $maxLines && $totalHeight <= ($finalH + 5)) {
                             $lines = $tempLines;
                             $finalFontSize = $s;
                             $fitFound = true;
