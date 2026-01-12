@@ -34,7 +34,7 @@ class LeafletParserService
         $validItems = [];
         $targetRegion = strtoupper(trim($targetRegion));
 
-        $regionMap = [
+        $regionCities = [
             'JAWA' => ['JAWA', 'BLI', 'BGR', 'CKL', 'CPG', 'CPT', 'KRW', 'KMY', 'MLG', 'PWT', 'SMG', 'SLO', 'SBI', 'SBY', 'TGR', 'YOG'],
             'SUM' => ['SUM', 'BTM', 'JBI', 'BDL', 'MDN', 'PLG', 'PKU'],
             'KAL' => ['KAL', 'BMS', 'PTK', 'SMD'],
@@ -43,45 +43,51 @@ class LeafletParserService
         ];
 
         foreach ($rows as $row) {
-            $storeString = strtoupper($row['store'] ?? '');
+            $storeString = strtoupper(trim($row['store'] ?? ''));
 
             if (empty($storeString)) continue;
 
-            if (str_contains($storeString, 'NAS') || str_contains($storeString, 'SPI NAS')) {
+            if (preg_match('/(EXCLD|KEC|EXC)\s+.*' . preg_quote($targetRegion, '/') . '/', $storeString)) {
+                continue;
+            }
+
+            if (isset($regionCities[$targetRegion])) {
+                foreach ($regionCities[$targetRegion] as $city) {
+                    if (preg_match('/(EXCLD|KEC|EXC)\s+.*' . preg_quote($city, '/') . '/', $storeString)) {
+                        continue 2;
+                    }
+                }
+            }
+
+            if (str_contains($storeString, 'NAS') || str_contains($storeString, 'ALL') || str_contains($storeString, 'SEMUA')) {
+                if (str_contains($storeString, 'LUAR JAWA')) {
+                    if ($targetRegion === 'JAWA') {
+                        continue;
+                    }
+                }
                 $validItems[] = $row;
                 continue;
             }
 
             if (str_contains($storeString, 'LUAR JAWA')) {
-                if ($targetRegion === 'JAWA') {
-                    continue;
+                if ($targetRegion !== 'JAWA') {
+                    $validItems[] = $row;
                 }
+                continue;
+            }
 
-                if ($targetRegion === 'MALUKU' && str_contains($storeString, 'KEC AMB')) {
-                    continue;
-                }
-
+            if (str_contains($storeString, $targetRegion)) {
                 $validItems[] = $row;
                 continue;
             }
 
-            $isMatch = false;
-
-            if (isset($regionMap[$targetRegion])) {
-                foreach ($regionMap[$targetRegion] as $code) {
-                    if (str_contains($storeString, $code)) {
-                        $isMatch = true;
-                        break;
+            if (isset($regionCities[$targetRegion])) {
+                foreach ($regionCities[$targetRegion] as $city) {
+                    if (str_contains($storeString, $city)) {
+                        $validItems[] = $row;
+                        continue 2;
                     }
                 }
-            } else {
-                if (str_contains($storeString, $targetRegion)) {
-                    $isMatch = true;
-                }
-            }
-
-            if ($isMatch) {
-                $validItems[] = $row;
             }
         }
         return $validItems;
@@ -286,7 +292,7 @@ class LeafletParserService
         $upperText = strtoupper($text);
         $totalSubsidi = $supp + $mkt;
 
-        if (preg_match('/(?:MAX\s+)?(\d+)\s*CTN\/MM\/HARI/', $upperText, $matches)) {
+        if (preg_match('/(?:MAX|MAKS|MAKSIMAL)\s*(\d+)\s*CTN\/.*\/HARI/i', $upperText, $matches)) {
             $qty = $matches[1];
             if ($totalSubsidi < 1000) {
                 return "*Harga Setelah Potongan\n(Maksimal $qty Karton /member/hari)";
@@ -294,12 +300,12 @@ class LeafletParserService
             return null;
         }
 
-        if (preg_match('/MAKS\s+(\d+)\s*CTN/', $upperText, $matches)) {
+        if (preg_match('/MAKS\s+(\d+)\s*CTN/i', $upperText, $matches)) {
             return "*Maks. Potongan {$matches[1]} Karton /member/hari";
         }
 
         if (str_contains($upperText, 'BELI 1 RCG POTONGAN') || str_contains($upperText, 'BELI 1 CTN POTONGAN')) {
-             if ($totalSubsidi < 1000) {
+             if ($supp < 1000 && $mkt < 1000) {
                  return "*Harga Setelah Potongan";
              }
              return null;
@@ -322,29 +328,26 @@ class LeafletParserService
         $satuan = '';
         $maxPrice = 0;
 
-        if (preg_match('/TOTAL POTONGAN RP\.\s*([\d\.,]+)\/([A-Z]+)/', $upperText, $matches)) {
-             $priceStr = $matches[1];
-             $satuan = $matches[2];
-             $maxPrice = (float) str_replace(['.', ','], '', $priceStr);
+        preg_match_all('/(?:POTONGAN|DISC|RP|POT)\.?\s*([\d\.,]+)/', $upperText, $priceMatches);
+        if (!empty($priceMatches[1])) {
+            foreach ($priceMatches[1] as $priceStr) {
+                $val = (float) str_replace(['.', ','], '', $priceStr);
+                if ($val > $maxPrice) {
+                    $maxPrice = $val;
+                }
+            }
+        }
 
-             if (preg_match('/BELI\s+(\d+)/', $upperText, $qtyMatches)) {
-                $qty = "BELI " . $qtyMatches[1];
-             }
-        } elseif (preg_match('/TOTAL DISC PER ([A-Z]+)\s*([\d\.,]+)/', $upperText, $matches)) {
-             $satuan = $matches[1];
-             $priceStr = $matches[2];
-             $maxPrice = (float) str_replace(['.', ','], '', $priceStr);
+        if (preg_match('/BELI\s+(\d+)/', $upperText, $qtyMatch)) {
+            $qty = "BELI " . $qtyMatch[1];
+        } else {
+            $qty = "BELI 1";
+        }
 
-             if (preg_match('/BELI\s+(\d+)\s+[A-Z]+\s+(?:TAMBAHAN\s+)?DISC/', $upperText, $qtyMatches)) {
-                $qty = "BELI " . $qtyMatches[1];
-             } else {
-                 $qty = "BELI 1";
-             }
-        } elseif (preg_match('/TIAP PEMBELIAN\s+(\d+)\s+([A-Z]+),\s*POT[.\s]*([\d\.,]+)/', $upperText, $matches)) {
-             $qty = "BELI " . $matches[1];
-             $satuan = $matches[2];
-             $priceStr = $matches[3];
-             $maxPrice = (float) str_replace(['.', ','], '', $priceStr);
+        if (preg_match('/(?:CTN|KARTON|RCG|PCS)/', $upperText, $satuanMatch)) {
+            $satuan = $satuanMatch[0];
+        } else if (preg_match('/BELI\s+\d+\s+([A-Z]+)/', $upperText, $satuanMatch)) {
+            $satuan = $satuanMatch[1];
         }
 
         return [

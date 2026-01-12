@@ -18,6 +18,7 @@ const getUploadAuthHeader = () => {
   return {
     headers: {
       Authorization: `Bearer ${token}`,
+      "Content-Type": "multipart/form-data",
       Accept: "application/json",
     },
   };
@@ -33,12 +34,9 @@ export const LeafletService = {
       if (response.data.success) {
         return response.data.data;
       }
-      throw new Error(response.data.message);
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error)) {
-        return [];
-      }
-      throw error;
+      return [];
+    } catch (error) {
+      return [];
     }
   },
 
@@ -56,7 +54,7 @@ export const LeafletService = {
 
   updateTemplate: async (id: number, data: FormData) => {
     const response = await axios.post(
-      `${API_URL}/leaflet/templates/${id}`,
+      `${API_URL}/leaflet/templates/${id}?_method=PUT`,
       data,
       getUploadAuthHeader()
     );
@@ -74,66 +72,63 @@ export const LeafletService = {
     return response.data.success;
   },
 
-  generateDraft: async (file: File, templateId: number, storeName: string) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("store_name", storeName);
-    formData.append("template_id", templateId.toString());
-
-    try {
-      const response = await axios.post(
-        `${API_URL}/leaflets/generate-draft`,
-        formData,
-        getUploadAuthHeader()
-      );
-
-      if (response.data.success) {
-        return response.data.data;
-      } else {
-        throw new Error(response.data.message || "Gagal memproses data");
-      }
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error)) {
-        throw new Error(
-          error.response?.data?.message ||
-            "Terjadi kesalahan saat koneksi ke server."
-        );
-      }
-      throw error;
-    }
-  },
-
   uploadAndGetRegions: async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
 
     try {
       const response = await axios.post(
-        `${API_URL}/leaflet/upload`,
+        `${API_URL}/leaflet/check-regions`,
         formData,
         getUploadAuthHeader()
       );
       if (response.data.success) {
-        return response.data.data;
+        return response.data.data; 
       }
       throw new Error(response.data.message);
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error)) {
-        throw new Error(
-          error.response?.data?.message || "Gagal membaca wilayah dari file."
-        );
-      }
-      throw error;
+    } catch (error: any) {
+        if(error.response && error.response.status === 404) {
+             return ["ALL", "JAWA", "SUM", "KAL", "SUL", "AMB", "BLI"];
+        }
+      throw new Error(error.response?.data?.message || "Gagal membaca wilayah.");
     }
   },
 
-  saveLeaflet: async (data: {
-    id?: string;
-    title: string;
-    store: string;
-    pages: unknown[];
-    status: "draft" | "exported";
-  }) => {
+  generateDraft: async (file: File, storeName: string, leafletName: string) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("store_name", storeName);
+    formData.append("leaflet_name", leafletName);
+
+    const response = await axios.post(
+      `${API_URL}/leaflet/generate-draft`,
+      formData,
+      getUploadAuthHeader()
+    );
+
+    if (response.data.success) {
+      return response.data.data;
+    }
+    throw new Error(response.data.message);
+  },
+
+  generateLayout: async (draftId: number, templateId: number) => {
+    const response = await axios.post(
+        `${API_URL}/leaflet/generate-layout`,
+        {
+            draft_id: draftId,
+            template_id: templateId
+        },
+        getJsonAuthHeader()
+    );
+
+    if (response.data.success) {
+        return response.data.data;
+    }
+    throw new Error(response.data.message);
+  },
+
+  saveLeaflet: async (data: any) => {
     const response = await axios.post(
       `${API_URL}/leaflets/save`,
       data,
@@ -154,7 +149,7 @@ export const LeafletService = {
       if (response.data.success) {
         return response.data.data;
       }
-      throw new Error(response.data.message);
+      return [];
     } catch {
       return [];
     }

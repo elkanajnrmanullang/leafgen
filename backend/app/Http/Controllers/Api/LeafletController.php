@@ -13,7 +13,6 @@ use App\Models\BackgroundTemplate;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Config;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 
@@ -70,7 +69,7 @@ class LeafletController extends Controller
                 'title' => $request->title,
                 'type' => $type,
                 'image_path' => $path,
-                'user_id' => Auth::id(),
+                'user_id' => Auth::id() ?? 1,
                 'is_default' => false
             ]);
 
@@ -249,6 +248,7 @@ class LeafletController extends Controller
         $request->validate([
             'file' => 'required|mimes:xlsx,xls,csv|max:10240',
             'store_name' => 'nullable|string',
+            'leaflet_name' => 'nullable|string',
         ]);
 
         try {
@@ -259,7 +259,8 @@ class LeafletController extends Controller
                 return response()->json(['message' => 'File Excel kosong atau tidak terbaca'], 400);
             }
 
-            $periodText = isset($rawData[2][0]) ? trim((string)$rawData[2][0]) : '';
+            $periodText = isset($rawData[2][0]) ? trim((string)$rawData[2][0]) : '2';
+            $baseLeafletName = $request->input('leaflet_name', 'Draft Otomatis');
 
             $mappedData = [];
             $currentCategory = 'GENERAL';
@@ -315,24 +316,24 @@ class LeafletController extends Controller
                 ];
             }
 
-            $requestedStore = $request->input('store_name');
-            $targetRegions = [];
+            $storeNameInput = strtoupper($request->input('store_name', 'ALL'));
 
-            if (!empty($requestedStore)) {
-                $targetRegions[] = strtoupper(trim($requestedStore));
-            } else {
+            $targetRegions = [];
+            if ($storeNameInput === 'ALL') {
                 $targetRegions = ['JAWA', 'SUM', 'KAL', 'SUL', 'MALUKU'];
+            } else {
+                $targetRegions = [$storeNameInput];
             }
 
             $finalResults = [];
 
-            foreach ($targetRegions as $region) {
-                $pages = $this->parserService->parse($mappedData, $region);
+            foreach ($targetRegions as $regionCode) {
+                $pages = $this->parserService->parse($mappedData, $regionCode);
 
                 if (!empty($pages)) {
-                    $finalResults[] = [
-                        'leaflet_name' => 'Draft Otomatis ' . $region,
-                        'store' => $region,
+                    $finalResults[$regionCode] = [
+                        'leaflet_name' => $baseLeafletName . " " . $regionCode,
+                        'store' => $regionCode,
                         'period_text' => $periodText,
                         'pages' => $pages
                     ];
@@ -356,27 +357,68 @@ class LeafletController extends Controller
 
     public function generateLayout(Request $request)
     {
-        $validated = $request->validate([
-            'template_id' => 'nullable|integer',
-            'period_text' => 'nullable|string',
-            'pages'       => 'required|array',
-            'pages.*.id'  => 'required',
-            'pages.*.layout_type' => 'required|string',
-            'pages.*.items' => 'present|array',
-        ]);
-
         try {
-            $imageUrls = $this->composerService->generateDebugLayout(
-                $validated['pages'],
-                $validated['template_id'] ?? null,
-                $validated['period_text'] ?? ''
-            );
+            $inputData = $request->all();
+            $knownRegions = ['JAWA', 'SUM', 'KAL', 'SUL', 'MALUKU'];
 
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Layout generated successfully',
-                'images' => $imageUrls
-            ]);
+            $isBatch = false;
+            foreach ($knownRegions as $region) {
+                if (isset($inputData[$region]) && is_array($inputData[$region])) {
+                    $isBatch = true;
+                    break;
+                }
+            }
+
+            if ($isBatch) {
+                $responseData = [];
+                $templateId = $request->input('template_id', null);
+
+                foreach ($knownRegions as $region) {
+                    if (isset($inputData[$region])) {
+                        $regionData = $inputData[$region];
+
+                        if (empty($regionData['pages'])) continue;
+
+                        try {
+                            $images = $this->composerService->generateDebugLayout(
+                                $regionData['pages'],
+                                $templateId,
+                                $regionData['period_text'] ?? ''
+                            );
+                            $responseData[$region] = $images;
+                        } catch (\Exception $e) {
+                            $responseData[$region] = ['error' => $e->getMessage()];
+                            Log::error("Layout Error for $region: " . $e->getMessage());
+                        }
+                    }
+                }
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Layouts generated for multiple regions',
+                    'data' => $responseData
+                ]);
+
+            } else {
+                $request->validate([
+                    'pages' => 'required|array',
+                    'pages.*.id' => 'required',
+                    'pages.*.layout_type' => 'required|string',
+                    'pages.*.items' => 'present|array',
+                ]);
+
+                $imageUrls = $this->composerService->generateDebugLayout(
+                    $request->input('pages'),
+                    $request->input('template_id'),
+                    $request->input('period_text') ?? ''
+                );
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Layout generated successfully',
+                    'images' => $imageUrls
+                ]);
+            }
 
         } catch (\Exception $e) {
             Log::error('Leaflet Layout Generation Error: ' . $e->getMessage());
@@ -393,7 +435,7 @@ class LeafletController extends Controller
     public function uploadAndGetRegions(Request $request)
     {
         try {
-            $configuredRegions = array_keys(Config::get('leaflet_regions', []));
+            $configuredRegions = ['JAWA', 'SUM', 'KAL', 'SUL', 'MALUKU'];
             return response()->json([
                 'success' => true,
                 'data' => $configuredRegions

@@ -21,6 +21,8 @@ import {
   Type,
   Loader2,
   Download,
+  ToggleLeft,
+  ToggleRight
 } from "lucide-react";
 import type {
   LeafletPage,
@@ -89,21 +91,18 @@ const EditorPage = () => {
   );
 
   useEffect(() => {
-    const backendData = location.state?.leafletData as
-      | BackendLeafletResponse
-      | undefined;
+    const backendData = location.state?.leafletData as BackendLeafletResponse;
     const initialName = location.state?.leafletName;
-    const idFromHistory = location.state?.leafletId;
+    const storeFromNav = location.state?.storeName;
 
     if (backendData && backendData.pages) {
-      setDesignName(initialName || backendData.leaflet_name);
-      setStoreName(backendData.store);
+      setDesignName(initialName || backendData.leaflet_name || "New Leaflet");
+      setStoreName(storeFromNav || backendData.store || "Region");
       if (backendData.id) setLeafletId(backendData.id);
-      if (idFromHistory) setLeafletId(idFromHistory);
 
       const mappedPages: LeafletPage[] = backendData.pages.map(
         (page: BackendPage) => ({
-          id: page.id,
+          id: page.id || `page-${page.page_number}`,
           pageNumber: page.page_number,
           items: page.items.map((item: BackendItem) => ({
             id: item.id,
@@ -111,9 +110,7 @@ const EditorPage = () => {
             type: item.type,
             content: {
               ...item.content,
-              image_url:
-                item.content.image_url ||
-                "https://placehold.co/400x400/png?text=No+Image",
+              image_url: item.content.image_url,
             },
             needs_manual_image: item.needs_manual_image,
             layout: {
@@ -422,6 +419,59 @@ const EditorPage = () => {
     setSelectedItemId(null);
   };
 
+  const toggleItemProperty = (key: string) => {
+    if (!selectedPageId || !selectedItemId) return;
+    setPages((prev) =>
+        prev.map((page) => {
+            if (page.id !== selectedPageId) return page;
+            const updatedItems = page.items.map((item) => {
+                if (item.id !== selectedItemId) return item;
+                if (!item.content) return item; // Guard clause
+
+                return {
+                    ...item,
+                    content: {
+                        ...item.content,
+                        [key]: !item.content[key as keyof typeof item.content]
+                    }
+                };
+            });
+            
+            return {
+                ...page,
+                items: updatedItems as EditorItem[] // Force type assertion
+            };
+        })
+    );
+  };
+
+  const updateItemContent = (key: string, value: string | number | boolean | null) => {
+    if (!selectedPageId || !selectedItemId) return;
+    setPages((prev) =>
+        prev.map((page) => {
+            if (page.id !== selectedPageId) return page;
+            
+            const updatedItems = page.items.map((item) => {
+                if (item.id !== selectedItemId) return item;
+                if (!item.content) return item; // Guard clause
+
+                return {
+                    ...item,
+                    content: {
+                        ...item.content,
+                        [key]: value
+                    }
+                };
+            });
+
+            return {
+                ...page,
+                items: updatedItems as EditorItem[] // Force type assertion
+            };
+        })
+    );
+  };
+
   const getSelectedItem = () => {
     if (!selectedPageId || !selectedItemId) return null;
     return pages
@@ -436,7 +486,7 @@ const EditorPage = () => {
       <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 shadow-sm shrink-0 z-40">
         <div className="flex items-center gap-6">
           <button
-            onClick={() => navigate("/buat-leaflet")}
+            onClick={() => navigate("/pilih-template")}
             className="flex items-center justify-center w-10 h-10 hover:bg-slate-100 rounded-full text-slate-700 transition-colors"
           >
             <ArrowLeft size={24} strokeWidth={1.5} />
@@ -450,31 +500,17 @@ const EditorPage = () => {
         </div>
         <div className="flex items-center gap-6">
           <div className="flex gap-1 items-center bg-slate-100 p-1 rounded-lg">
-            <button
-              className="p-2 bg-white shadow-sm rounded-md text-blue-600 hover:text-blue-700"
-              title="Select"
-            >
+            <button className="p-2 bg-white shadow-sm rounded-md text-blue-600 hover:text-blue-700" title="Select">
               <MousePointer2 size={18} />
             </button>
-            <button
-              className="p-2 text-slate-600 hover:bg-white hover:shadow-sm hover:rounded-md transition-all"
-              title="Move Canvas"
-            >
+            <button className="p-2 text-slate-600 hover:bg-white hover:shadow-sm hover:rounded-md transition-all" title="Move Canvas">
               <Move size={18} />
             </button>
             <div className="w-px h-5 bg-slate-300 mx-1"></div>
-            <button
-              onClick={handleAddImage}
-              className="p-2 text-slate-600 hover:bg-white hover:shadow-sm hover:rounded-md transition-all"
-              title="Add Image"
-            >
+            <button onClick={handleAddImage} className="p-2 text-slate-600 hover:bg-white hover:shadow-sm hover:rounded-md transition-all" title="Add Image">
               <ImageIcon size={18} />
             </button>
-            <button
-              onClick={handleAddText}
-              className="p-2 text-slate-600 hover:bg-white hover:shadow-sm hover:rounded-md transition-all"
-              title="Add Text"
-            >
+            <button onClick={handleAddText} className="p-2 text-slate-600 hover:bg-white hover:shadow-sm hover:rounded-md transition-all" title="Add Text">
               <Type size={18} />
             </button>
           </div>
@@ -497,28 +533,20 @@ const EditorPage = () => {
             )}
           </div>
           <div className="flex items-center gap-2 bg-white rounded-lg px-2 py-1.5 border border-slate-200 shadow-sm">
-            <button
-              onClick={() => setZoom((z) => Math.max(0.1, z - 0.05))}
-              className="p-1 hover:bg-slate-100 rounded"
-            >
+            <button onClick={() => setZoom((z) => Math.max(0.1, z - 0.05))} className="p-1 hover:bg-slate-100 rounded">
               <ZoomOut size={16} className="text-slate-600" />
             </button>
             <span className="text-xs font-mono font-bold w-12 text-center text-slate-700 select-none">
               {Math.round(zoom * 100)}%
             </span>
-            <button
-              onClick={() => setZoom((z) => Math.min(1.5, z + 0.05))}
-              className="p-1 hover:bg-slate-100 rounded"
-            >
+            <button onClick={() => setZoom((z) => Math.min(1.5, z + 0.05))} className="p-1 hover:bg-slate-100 rounded">
               <ZoomIn size={16} className="text-slate-600" />
             </button>
           </div>
           <button
             onClick={() => setIsGridEnabled(!isGridEnabled)}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-              isGridEnabled
-                ? "bg-blue-50 text-blue-700 border border-blue-200"
-                : "text-slate-600 hover:bg-slate-50 border border-transparent"
+              isGridEnabled ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-slate-600 hover:bg-slate-50 border border-transparent"
             }`}
           >
             <Grid size={16} /> Grid
@@ -529,18 +557,9 @@ const EditorPage = () => {
               disabled={isDownloading}
               className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg shadow-slate-200 transition-all transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {isDownloading ? (
-                <Loader2 className="animate-spin" size={16} />
-              ) : (
-                <Download size={16} />
-              )}
+              {isDownloading ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
               {isDownloading ? "Memproses..." : "Download"}
-              <ChevronDown
-                size={16}
-                className={`transition-transform ${
-                  isDownloadMenuOpen ? "rotate-180" : ""
-                }`}
-              />
+              <ChevronDown size={16} className={`transition-transform ${isDownloadMenuOpen ? "rotate-180" : ""}`} />
             </button>
             {isDownloadMenuOpen && (
               <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95">
@@ -553,39 +572,16 @@ const EditorPage = () => {
                       key={fmt}
                       onClick={() => setSelectedFormat(fmt)}
                       className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all ${
-                        selectedFormat === fmt
-                          ? "bg-blue-50 border border-blue-100"
-                          : "hover:bg-slate-50 border border-transparent"
+                        selectedFormat === fmt ? "bg-blue-50 border border-blue-100" : "hover:bg-slate-50 border border-transparent"
                       }`}
                     >
-                      <div
-                        className={`w-8 h-8 rounded flex items-center justify-center ${
-                          selectedFormat === fmt
-                            ? "bg-blue-100 text-blue-600"
-                            : "bg-slate-100 text-slate-500"
-                        }`}
-                      >
-                        {fmt === "PDF" ? (
-                          <FileText size={18} />
-                        ) : (
-                          <ImageIcon size={18} />
-                        )}
+                      <div className={`w-8 h-8 rounded flex items-center justify-center ${selectedFormat === fmt ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-500"}`}>
+                        {fmt === "PDF" ? <FileText size={18} /> : <ImageIcon size={18} />}
                       </div>
-                      <span
-                        className={`text-sm font-bold ${
-                          selectedFormat === fmt
-                            ? "text-blue-700"
-                            : "text-slate-700"
-                        }`}
-                      >
+                      <span className={`text-sm font-bold ${selectedFormat === fmt ? "text-blue-700" : "text-slate-700"}`}>
                         {fmt}
                       </span>
-                      {selectedFormat === fmt && (
-                        <CheckCircle2
-                          size={16}
-                          className="ml-auto text-blue-600"
-                        />
-                      )}
+                      {selectedFormat === fmt && <CheckCircle2 size={16} className="ml-auto text-blue-600" />}
                     </button>
                   ))}
                 </div>
@@ -624,30 +620,21 @@ const EditorPage = () => {
                   <div
                     key={`sidebar-${item.id}`}
                     draggable={true}
-                    onDragStart={(e) =>
-                      handleSidebarDragStart(e, item as EditorItem)
-                    }
+                    onDragStart={(e) => handleSidebarDragStart(e, item as EditorItem)}
                     className="flex gap-3 p-2 rounded-lg border border-slate-200 hover:border-blue-400 cursor-grab active:cursor-grabbing bg-white transition-all select-none group"
                   >
-                    <div className="w-12 h-12 bg-slate-50 rounded border border-slate-100 flex-shrink-0 flex items-center justify-center">
+                    <div className="w-12 h-12 bg-slate-50 rounded border border-slate-100 flex-shrink-0 flex items-center justify-center overflow-hidden">
                       <img
-                        src={
-                          item.content?.image_url ||
-                          "https://placehold.co/100x100"
-                        }
+                        src={item.content?.image_url || "https://placehold.co/100x100"}
                         className="w-10 h-10 object-contain mix-blend-multiply"
                       />
                     </div>
                     <div className="min-w-0 flex flex-col justify-center">
                       <p className="text-xs font-bold text-slate-700 truncate">
-                        {item.content?.name}
+                        {item.content?.name || "Tanpa Nama"}
                       </p>
                       <p className="text-[10px] font-mono text-blue-600 font-bold mt-1">
-                        {typeof item.content?.price_display === "number"
-                          ? `Rp ${item.content.price_display.toLocaleString(
-                              "id-ID"
-                            )}`
-                          : item.content?.price_display}
+                        {item.content?.price_display}
                       </p>
                     </div>
                   </div>
@@ -657,39 +644,24 @@ const EditorPage = () => {
           </div>
         </aside>
 
-        {/* --- MAIN CANVAS AREA FIX --- */}
         <main className="flex-1 relative flex flex-col min-w-0 overflow-auto items-center py-10">
           {!loading &&
             pages.map((page: LeafletPage) => (
-              <div
-                key={page.id}
-                className="group flex flex-col gap-2 items-center mb-10"
-              >
-                {/* Header Page */}
-                <div
-                  className="flex items-center justify-between px-2 transition-all"
-                  style={{ width: 2480 * zoom }}
-                >
+              <div key={page.id} className="group flex flex-col gap-2 items-center mb-10">
+                <div className="flex items-center justify-between px-2 transition-all" style={{ width: 2480 * zoom }}>
                   <span className="text-xs font-bold text-slate-500 bg-white px-3 py-1 rounded shadow-sm border border-slate-200">
                     Halaman {page.pageNumber}
                   </span>
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => handleDuplicatePage(page.id)}
-                      className="p-1.5 bg-white hover:text-blue-600 rounded shadow-sm border text-slate-500"
-                    >
+                    <button onClick={() => handleDuplicatePage(page.id)} className="p-1.5 bg-white hover:text-blue-600 rounded shadow-sm border text-slate-500">
                       <Copy size={14} />
                     </button>
-                    <button
-                      onClick={() => handleDeletePage(page.id)}
-                      className="p-1.5 bg-white hover:text-red-600 rounded shadow-sm border text-slate-500"
-                    >
+                    <button onClick={() => handleDeletePage(page.id)} className="p-1.5 bg-white hover:text-red-600 rounded shadow-sm border text-slate-500">
                       <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
 
-                {/* WRAPPER (Dynamic Size) */}
                 <div
                   style={{
                     width: 2480 * zoom,
@@ -698,16 +670,9 @@ const EditorPage = () => {
                   }}
                   className="bg-white shadow-2xl transition-all duration-200 ease-out"
                 >
-                  {/* CANVAS (Fixed A4 Size, Scaled Down) */}
                   <div
-                    ref={(el) => {
-                      pageRefs.current[page.id] = el;
-                    }}
-                    className={`bg-white overflow-hidden origin-top-left absolute top-0 left-0 ${
-                      selectedPageId === page.id
-                        ? "ring-4 ring-blue-500/20"
-                        : ""
-                    }`}
+                    ref={(el) => { pageRefs.current[page.id] = el; }}
+                    className={`bg-white overflow-hidden origin-top-left absolute top-0 left-0 ${selectedPageId === page.id ? "ring-4 ring-blue-500/20" : ""}`}
                     onDragOver={handleCanvasDragOver}
                     onDrop={(e) => handleCanvasDrop(e, page.id)}
                     onClick={() => setSelectedPageId(page.id)}
@@ -719,9 +684,7 @@ const EditorPage = () => {
                   >
                     {isGridEnabled && (
                       <div className="absolute inset-0 grid grid-cols-4 grid-rows-4 divide-x divide-y divide-blue-500/20 pointer-events-none z-50 border border-blue-500/20">
-                        {[...Array(16)].map((_, i) => (
-                          <div key={i} className=""></div>
-                        ))}
+                        {[...Array(16)].map((_, i) => <div key={i}></div>)}
                       </div>
                     )}
                     {page.items.map((item: EditorItem) => (
@@ -729,9 +692,7 @@ const EditorPage = () => {
                         key={item.id}
                         onMouseDown={(e) => handleMouseDown(e, item, page.id)}
                         className={`absolute bg-white select-none group/item cursor-move flex flex-col border border-slate-100 ${
-                          selectedItemId === item.id
-                            ? "ring-2 ring-blue-500 z-40 shadow-xl"
-                            : "hover:ring-1 hover:ring-blue-300 z-10"
+                          selectedItemId === item.id ? "ring-2 ring-blue-500 z-40 shadow-xl" : "hover:ring-1 hover:ring-blue-300 z-10"
                         }`}
                         style={{
                           left: item.layout.x,
@@ -740,49 +701,25 @@ const EditorPage = () => {
                           height: item.layout.h,
                         }}
                       >
-                        <div className="h-[55%] w-full p-2 flex items-center justify-center bg-white relative">
+                        <div className="h-[55%] w-full p-2 flex items-center justify-center bg-white relative overflow-visible">
                           {item.content?.image_url ? (
-                            <img
-                              src={item.content.image_url}
-                              className="max-h-full max-w-full object-contain mix-blend-multiply"
-                            />
+                            <img src={item.content.image_url} className="max-h-full max-w-full object-contain mix-blend-multiply" />
                           ) : (
-                            <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-300">
-                              No Image
-                            </div>
+                            <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-300">No Image</div>
                           )}
 
+                          {item.content?.is_bbmu && (
+                             <div className="absolute top-0 right-0 bg-yellow-400 text-xs font-bold px-2 py-1 rounded-bl">BBMU</div>
+                          )}
                           {item.content?.badge_bbmu_url && (
-                            <img
-                              src={item.content.badge_bbmu_url}
-                              className="absolute top-0 right-0 h-8 w-auto z-20"
-                              alt="BBMU Badge"
-                            />
+                             <img src={item.content.badge_bbmu_url} className="absolute top-0 right-0 h-12 w-auto z-20" alt="BBMU" />
                           )}
-
                           {item.content?.badge_spi_url && (
-                            <img
-                              src={item.content.badge_spi_url}
-                              className="absolute top-0 left-0 h-8 w-auto z-20"
-                              alt="Poin SPI"
-                            />
+                             <img src={item.content.badge_spi_url} className="absolute top-0 left-0 h-10 w-auto z-20" alt="SPI" />
                           )}
-
                           <div className="absolute bottom-0 w-full flex flex-col gap-1 items-center z-20">
-                            {item.content?.badge_promo_url && (
-                              <img
-                                src={item.content.badge_promo_url}
-                                className="w-full h-auto"
-                                alt="Promo"
-                              />
-                            )}
-                            {item.content?.badge_igr_url && (
-                              <img
-                                src={item.content.badge_igr_url}
-                                className="w-full h-auto"
-                                alt="Poin IGR"
-                              />
-                            )}
+                             {item.content?.badge_promo_url && <img src={item.content.badge_promo_url} className="w-full h-auto" alt="Promo" />}
+                             {item.content?.badge_igr_url && <img src={item.content.badge_igr_url} className="w-full h-auto" alt="IGR" />}
                           </div>
                         </div>
                         <div className="h-[45%] w-full p-2 flex flex-col justify-between bg-white">
@@ -792,18 +729,11 @@ const EditorPage = () => {
                           <div className="text-center">
                             {item.content?.show_coret && (
                               <div className="text-[18px] text-red-500 line-through decoration-2">
-                                Rp{" "}
-                                {item.content.price_original?.toLocaleString(
-                                  "id-ID"
-                                )}
+                                Rp {item.content.price_original?.toLocaleString("id-ID")}
                               </div>
                             )}
                             <div className="text-[48px] font-black text-blue-700 leading-none tracking-tight">
-                              {typeof item.content?.price_display === "number"
-                                ? `Rp ${item.content.price_display.toLocaleString(
-                                    "id-ID"
-                                  )}`
-                                : item.content?.price_display}
+                              {typeof item.content?.price_display === "number" ? `Rp ${item.content.price_display.toLocaleString("id-ID")}` : item.content?.price_display}
                             </div>
                           </div>
                         </div>
@@ -814,18 +744,12 @@ const EditorPage = () => {
               </div>
             ))}
           <div className="transition-all pb-20" style={{ width: 2480 * zoom }}>
-            <button
-              onClick={handleAddPage}
-              className="group flex items-center justify-center gap-3 w-full py-8 bg-slate-200/50 hover:bg-slate-200 border-2 border-dashed border-slate-300 rounded-xl transition-all text-slate-500"
-            >
-              <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Plus size={20} />
-              </div>
+            <button onClick={handleAddPage} className="group flex items-center justify-center gap-3 w-full py-8 bg-slate-200/50 hover:bg-slate-200 border-2 border-dashed border-slate-300 rounded-xl transition-all text-slate-500">
+              <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform"><Plus size={20} /></div>
               <span className="font-bold">Tambah Halaman</span>
             </button>
           </div>
         </main>
-        {/* --- END MAIN CANVAS AREA --- */}
 
         <aside className="w-72 bg-white border-l border-slate-200 flex flex-col shadow-sm z-10 shrink-0">
           <div className="p-4 border-b border-slate-100">
@@ -837,45 +761,47 @@ const EditorPage = () => {
             {activeItem ? (
               <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-200">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">
-                    Nama Produk
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full text-xs border border-slate-300 rounded p-2 bg-white"
-                    value={activeItem.content?.name ?? ""}
-                    readOnly
-                  />
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Nama Produk</label>
+                  <input type="text" className="w-full text-xs border border-slate-300 rounded p-2 bg-white" value={activeItem.content?.name ?? ""} onChange={(e) => updateItemContent('name', e.target.value)} />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Harga Tampil</label>
+                  <input type="text" className="w-full text-xs border border-slate-300 rounded p-2 bg-white" value={activeItem.content?.price_display ?? ""} onChange={(e) => updateItemContent('price_display', e.target.value)} />
+                </div>
+                
+                <div className="pt-4 border-t border-slate-200 space-y-3">
+                    <h4 className="text-xs font-bold text-slate-700">Komponen Badge</h4>
+                    
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-600">Harga Coret</span>
+                        <button onClick={() => toggleItemProperty('show_coret')} className={`text-slate-400 hover:text-blue-600 ${activeItem.content?.show_coret ? 'text-blue-600' : ''}`}>
+                            {activeItem.content?.show_coret ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
+                        </button>
+                    </div>
+                    {activeItem.content?.show_coret && (
+                        <input type="number" placeholder="Harga Asli" className="w-full text-xs border p-2 rounded" value={activeItem.content?.price_original} onChange={(e) => updateItemContent('price_original', parseFloat(e.target.value))} />
+                    )}
+
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-600">Badge BBMU</span>
+                        <button onClick={() => toggleItemProperty('is_bbmu')} className={`text-slate-400 hover:text-blue-600 ${activeItem.content?.is_bbmu ? 'text-blue-600' : ''}`}>
+                            {activeItem.content?.is_bbmu ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-4 border-t border-slate-200">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">
-                      X
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full text-xs border border-slate-300 rounded p-2 font-mono"
-                      value={Math.round(activeItem.layout.x)}
-                      readOnly
-                    />
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">X</label>
+                    <input type="text" className="w-full text-xs border border-slate-300 rounded p-2 font-mono" value={Math.round(activeItem.layout.x)} readOnly />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">
-                      Y
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full text-xs border border-slate-300 rounded p-2 font-mono"
-                      value={Math.round(activeItem.layout.y)}
-                      readOnly
-                    />
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Y</label>
+                    <input type="text" className="w-full text-xs border border-slate-300 rounded p-2 font-mono" value={Math.round(activeItem.layout.y)} readOnly />
                   </div>
                 </div>
                 <div className="pt-4 border-t border-slate-200">
-                  <button
-                    onClick={handleDeleteItem}
-                    className="w-full py-2 bg-white text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-50 flex items-center justify-center gap-2"
-                  >
+                  <button onClick={handleDeleteItem} className="w-full py-2 bg-white text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-50 flex items-center justify-center gap-2">
                     <Trash2 size={14} /> Hapus Item
                   </button>
                 </div>

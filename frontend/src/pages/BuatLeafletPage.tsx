@@ -29,7 +29,6 @@ const BuatLeafletPage = () => {
       setError(null);
       setStep(1);
 
-      // Auto-generate nama default
       const defaultName = `Leaflet ${
         e.target.files[0].name.split(".")[0]
       } - ${new Date().toLocaleDateString("id-ID")}`;
@@ -50,55 +49,34 @@ const BuatLeafletPage = () => {
     try {
       const regions = await LeafletService.uploadAndGetRegions(selectedFile);
 
-      if (regions.length === 0) {
-        setError("Tidak ditemukan data wilayah (STORE) di file Excel.");
-        setIsLoading(false);
-        return;
+      if (!regions || regions.length === 0) {
+        setDetectedRegions(["ALL", "JAWA", "SUM", "KAL", "SUL", "AMB", "BLI"]);
+        setSelectedRegion("ALL");
+      } else {
+        setDetectedRegions(regions);
+        setSelectedRegion(regions[0]);
       }
-
-      setDetectedRegions(regions);
-      setSelectedRegion(regions[0]);
       setStep(2);
     } catch (err: unknown) {
-      let message = "Gagal memproses file Excel.";
-      if (err instanceof Error) {
-        message = err.message;
-      }
-      setError(message);
+      console.error(err);
+      setDetectedRegions(["ALL", "JAWA", "SUM", "KAL", "SUL", "AMB", "BLI"]);
+      setSelectedRegion("ALL");
+      setStep(2);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGenerateLeaflet = async () => {
+  const handleNextStep = () => {
     if (!selectedFile || !selectedRegion) return;
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const result = await LeafletService.generateDraft(
-        selectedFile,
-        1,
-        selectedRegion
-      );
-
-      // Navigate dengan membawa Nama Leaflet juga
-      navigate("/editor", {
-        state: {
-          leafletData: result,
-          leafletName: leafletName, // Kirim nama ini ke Editor
-        },
-      });
-    } catch (err: unknown) {
-      let message = "Gagal memproses leaflet.";
-      if (err instanceof Error) {
-        message = err.message;
-      }
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
+    navigate("/pilih-template", {
+      state: {
+        file: selectedFile,
+        storeName: selectedRegion,
+        leafletName: leafletName,
+      },
+    });
   };
 
   return (
@@ -215,13 +193,11 @@ const BuatLeafletPage = () => {
               <p className="text-sm text-blue-800 flex gap-2">
                 <MapPin size={18} />
                 Sistem mendeteksi{" "}
-                <strong>{detectedRegions.length} wilayah</strong> dari kolom
-                STORE.
+                <strong>{detectedRegions.length} opsi wilayah</strong>.
               </p>
             </div>
 
             <div className="space-y-6">
-              {/* Input Nama Promosi */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Nama Promosi (Untuk Riwayat)
@@ -241,7 +217,6 @@ const BuatLeafletPage = () => {
                 </div>
               </div>
 
-              {/* Input Wilayah */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Wilayah Promosi
@@ -260,21 +235,12 @@ const BuatLeafletPage = () => {
               </div>
 
               <button
-                onClick={handleGenerateLeaflet}
-                disabled={isLoading || !leafletName.trim()}
+                onClick={handleNextStep}
+                disabled={!leafletName.trim()}
                 className="w-full flex items-center justify-center gap-2 text-lg font-bold py-4 px-6 rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-lg hover:shadow-indigo-200 hover:-translate-y-1 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                    Generating Layout...
-                  </>
-                ) : (
-                  <>
-                    Generate Layout & Masuk Editor
-                    <ArrowRight className="h-5 w-5" />
-                  </>
-                )}
+                Pilih Template Desain
+                <ArrowRight className="h-5 w-5" />
               </button>
             </div>
           </div>
