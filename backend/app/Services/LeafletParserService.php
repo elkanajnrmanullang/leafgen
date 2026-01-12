@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Product;
 use Illuminate\Support\Facades\Log;
+use App\Services\BadgeGeneratorService;
 
 class LeafletParserService
 {
@@ -236,33 +237,33 @@ class LeafletParserService
                     'txt_price' => $txtPrice,
                     'txt_satuan_price' => $satuan ? "/$satuan" : '',
                     'img_product' => $finalImage,
-                    'img_card_bg' => $cardBg,
-                    'img_container_price' => 'img_container_price.png',
+                    'img_card_bg' => asset('assets/' . $cardBg),
+                    'img_container_price' => asset('assets/img_container_price.png'),
 
                     'txt_coret' => $txtCoret,
-                    'img_container_coret' => $coretData['show'] ? 'img_container_coret.png' : null,
-                    'img_coret_line' => $coretData['show'] ? 'img_coret_line.png' : null,
+                    'img_container_coret' => $coretData['show'] ? asset('assets/img_container_coret.png') : null,
+                    'img_coret_line' => $coretData['show'] ? asset('assets/img_coret_line.png') : null,
 
                     'txt_keterangan' => $descText,
-                    'img_container_keterangan' => !empty($descText) ? 'img_container_keterangan.png' : null,
+                    'img_container_keterangan' => !empty($descText) ? asset('assets/img_container_keterangan.png') : null,
 
-                    'img_badge_bbmu' => !empty($bbmuBadgeUrl) ? 'img_badge_bbmu.png' : null,
+                    'img_badge_bbmu' => !empty($bbmuBadgeUrl) ? asset('assets/' . $bbmuBadgeUrl) : null,
 
-                    'img_bg_label_promo' => $promoBadgeUrl ? 'img_bg_label_promo.png' : null,
-                    'img_container_ketPromo' => $promoBadgeUrl ? 'img_container_ketPromo.png' : null,
+                    'img_bg_label_promo' => $promoBadgeUrl ? asset('assets/img_bg_label_promo.png') : null,
+                    'img_container_ketPromo' => $promoBadgeUrl ? asset('assets/img_container_ketPromo.png') : null,
                     'txt_qty_promo' => $promoBadgeUrl['txt_qty_promo'] ?? null,
                     'txt_price_promo' => $promoBadgeUrl['txt_price_promo'] ?? null,
                     'txt_keterangan_promo' => $promoBadgeUrl['txt_keterangan_promo'] ?? null,
                     'txt_satuan' => $promoBadgeUrl['txt_satuan'] ?? null,
 
-                    'img_bg_poin_igr' => $igrBadgeUrl ? 'img_bg_poin_igr.png' : null,
-                    'img_container_igr' => $igrBadgeUrl ? 'img_container_igr.png' : null,
+                    'img_bg_poin_igr' => $igrBadgeUrl ? asset('assets/img_bg_poin_igr.png') : null,
+                    'img_container_igr' => $igrBadgeUrl ? asset('assets/img_container_igr.png') : null,
                     'txt_satuan_igr' => $igrBadgeUrl['txt_satuan_igr'] ?? null,
                     'txt_price_bonus_igr' => $igrBadgeUrl['txt_price_bonus_igr'] ?? null,
                     'txt_keterangan_qty_igr' => $igrBadgeUrl['txt_keterangan_qty_igr'] ?? null,
 
-                    'img_logo_spi' => $spiBadgeUrl ? 'img_logo_spi.png' : null,
-                    'img_container_spi' => $spiBadgeUrl ? 'img_container_spi.png' : null,
+                    'img_logo_spi' => $spiBadgeUrl ? asset('assets/img_logo_spi.png') : null,
+                    'img_container_spi' => $spiBadgeUrl ? asset('assets/img_container_spi.png') : null,
                     'txt_satuan_spi' => $spiBadgeUrl['txt_satuan_spi'] ?? null,
                     'txt_price_bonus_spi' => $spiBadgeUrl['txt_price_bonus_spi'] ?? null,
                     'txt_keterangan_qty_spi' => $spiBadgeUrl['txt_keterangan_qty_spi'] ?? null,

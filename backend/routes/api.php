@@ -16,6 +16,7 @@ Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'
 Route::post('/leaflet/generate-draft', [LeafletController::class, 'generateDraft']);
 Route::post('/leaflet/generate-layout', [LeafletController::class, 'generateLayout']);
 Route::post('/leaflet/upload', [LeafletController::class, 'uploadAndGetRegions']);
+Route::post('/leaflet/check-regions', [LeafletController::class, 'uploadAndGetRegions']);
 Route::get('/leaflet/preview', [LeafletController::class, 'preview']);
 
 Route::get('/leaflets', [LeafletController::class, 'index']);

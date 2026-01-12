@@ -51,17 +51,32 @@ const PilihTemplatePage = () => {
   const handleSelectTemplate = async (templateId: number) => {
     setIsProcessing(true);
     try {
+        const selectedTemplate = templates.find(t => t.id === templateId);
+        const templateUrl = selectedTemplate 
+            ? `http://127.0.0.1:8000/storage/${selectedTemplate.image_path}` 
+            : null;
+
         const draftResult = await LeafletService.generateDraft(file, storeName, leafletName);
         
-        const draftId = draftResult.id; 
+        let targetData = null;
         
-        const layoutResult = await LeafletService.generateLayout(draftId, templateId);
+        if (storeName === 'ALL') {
+            const firstRegion = Object.keys(draftResult)[0];
+            if (firstRegion) targetData = draftResult[firstRegion];
+        } else {
+            targetData = draftResult[storeName];
+        }
+
+        if (!targetData) {
+            throw new Error("Gagal mengambil data layout dari draft.");
+        }
 
         navigate("/editor", {
             state: {
-                leafletData: layoutResult,
+                leafletData: targetData, 
                 leafletName: leafletName,
-                storeName: storeName
+                storeName: storeName,
+                templateUrl: templateUrl 
             }
         });
 

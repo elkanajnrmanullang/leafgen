@@ -112,22 +112,6 @@ export const LeafletService = {
     throw new Error(response.data.message);
   },
 
-  generateLayout: async (draftId: number, templateId: number) => {
-    const response = await axios.post(
-        `${API_URL}/leaflet/generate-layout`,
-        {
-            draft_id: draftId,
-            template_id: templateId
-        },
-        getJsonAuthHeader()
-    );
-
-    if (response.data.success) {
-        return response.data.data;
-    }
-    throw new Error(response.data.message);
-  },
-
   saveLeaflet: async (data: any) => {
     const response = await axios.post(
       `${API_URL}/leaflets/save`,

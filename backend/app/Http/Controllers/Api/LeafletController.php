@@ -10,9 +10,11 @@ use App\Services\LeafletComposerService;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\Leaflet;
 use App\Models\BackgroundTemplate;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Hash;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 
@@ -58,29 +60,29 @@ class LeafletController extends Controller
 
             $manager = new ImageManager(new Driver());
             $image = $manager->read($file);
-
             $image->cover(2480, 3508);
-
             $image->save(storage_path('app/public/' . $path));
 
             $type = $request->input('type', 'master');
+
+            $user = Auth::user() ?? User::first();
+            $userId = $user ? $user->id : 1;
 
             $template = BackgroundTemplate::create([
                 'title' => $request->title,
                 'type' => $type,
                 'image_path' => $path,
-                'user_id' => Auth::id() ?? 1,
+                'user_id' => $userId,
                 'is_default' => false
             ]);
 
             return response()->json([
                 'success' => true,
                 'data' => $template,
-                'message' => 'Template berhasil diupload dan disesuaikan (A4)'
+                'message' => 'Template berhasil diupload'
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Template Upload Error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -95,9 +97,7 @@ class LeafletController extends Controller
         ]);
 
         try {
-            $data = [
-                'title' => $request->title
-            ];
+            $data = ['title' => $request->title];
 
             if ($request->hasFile('image')) {
                 if (Storage::disk('public')->exists($template->image_path)) {
@@ -125,7 +125,6 @@ class LeafletController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Template Update Error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -147,100 +146,12 @@ class LeafletController extends Controller
         }
     }
 
-    public function preview()
+    public function checkRegions(Request $request)
     {
         return response()->json([
-            'status' => 'success',
-            'data' => []
+            'success' => true,
+            'data' => ['ALL', 'JAWA', 'SUM', 'KAL', 'SUL', 'MALUKU']
         ]);
-    }
-
-    public function index()
-    {
-        try {
-            $leaflets = Leaflet::orderBy('updated_at', 'desc')->get();
-
-            $formatted = $leaflets->map(function ($item) {
-                $pages = json_decode($item->content, true) ?? [];
-                return [
-                    'id' => $item->id,
-                    'title' => $item->name,
-                    'store' => $item->store_name ?? 'Unknown',
-                    'date' => $item->updated_at->format('d M Y H:i'),
-                    'status' => $item->status ?? 'draft',
-                    'pageCount' => count($pages),
-                    'thumbnailUrl' => null
-                ];
-            });
-
-            return response()->json(['success' => true, 'data' => $formatted]);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
-    }
-
-    public function show($id)
-    {
-        try {
-            $leaflet = Leaflet::findOrFail($id);
-            $content = json_decode($leaflet->content, true);
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'leaflet_name' => $leaflet->name,
-                    'store' => $leaflet->store_name,
-                    'pages' => $content,
-                    'id' => $leaflet->id
-                ]
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Leaflet not found'], 404);
-        }
-    }
-
-    public function store(Request $request)
-    {
-        $request->validate([
-            'title' => 'required|string',
-            'store' => 'required|string',
-            'pages' => 'present|array',
-            'status' => 'required|string'
-        ]);
-
-        try {
-            $userId = Auth::id() ?? 1;
-
-            $leaflet = null;
-            if ($request->has('id') && $request->id) {
-                $leaflet = Leaflet::find($request->id);
-            }
-
-            $contentJson = json_encode($request->pages);
-
-            if ($leaflet) {
-                $leaflet->update([
-                    'name' => $request->title,
-                    'store_name' => $request->store,
-                    'content' => $contentJson,
-                    'status' => $request->status
-                ]);
-            } else {
-                $leaflet = Leaflet::create([
-                    'name' => $request->title,
-                    'store_name' => $request->store,
-                    'content' => $contentJson,
-                    'status' => $request->status,
-                    'user_id' => $userId
-                ]);
-            }
-
-            return response()->json(['success' => true, 'data' => $leaflet]);
-
-        } catch (\Exception $e) {
-            Log::error('Leaflet Save Error: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Gagal menyimpan: ' . $e->getMessage()], 500);
-        }
     }
 
     public function generateDraft(Request $request)
@@ -347,7 +258,6 @@ class LeafletController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Generate Error: ' . $e->getMessage());
-            Log::error($e->getTraceAsString());
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage()
@@ -357,91 +267,135 @@ class LeafletController extends Controller
 
     public function generateLayout(Request $request)
     {
-        try {
-            $inputData = $request->all();
-            $knownRegions = ['JAWA', 'SUM', 'KAL', 'SUL', 'MALUKU'];
-
-            $isBatch = false;
-            foreach ($knownRegions as $region) {
-                if (isset($inputData[$region]) && is_array($inputData[$region])) {
-                    $isBatch = true;
-                    break;
-                }
-            }
-
-            if ($isBatch) {
-                $responseData = [];
-                $templateId = $request->input('template_id', null);
-
-                foreach ($knownRegions as $region) {
-                    if (isset($inputData[$region])) {
-                        $regionData = $inputData[$region];
-
-                        if (empty($regionData['pages'])) continue;
-
-                        try {
-                            $images = $this->composerService->generateDebugLayout(
-                                $regionData['pages'],
-                                $templateId,
-                                $regionData['period_text'] ?? ''
-                            );
-                            $responseData[$region] = $images;
-                        } catch (\Exception $e) {
-                            $responseData[$region] = ['error' => $e->getMessage()];
-                            Log::error("Layout Error for $region: " . $e->getMessage());
-                        }
-                    }
-                }
-
-                return response()->json([
-                    'status' => 'success',
-                    'message' => 'Layouts generated for multiple regions',
-                    'data' => $responseData
-                ]);
-
-            } else {
-                $request->validate([
-                    'pages' => 'required|array',
-                    'pages.*.id' => 'required',
-                    'pages.*.layout_type' => 'required|string',
-                    'pages.*.items' => 'present|array',
-                ]);
-
-                $imageUrls = $this->composerService->generateDebugLayout(
-                    $request->input('pages'),
-                    $request->input('template_id'),
-                    $request->input('period_text') ?? ''
-                );
-
-                return response()->json([
-                    'status' => 'success',
-                    'message' => 'Layout generated successfully',
-                    'images' => $imageUrls
-                ]);
-            }
-
-        } catch (\Exception $e) {
-            Log::error('Leaflet Layout Generation Error: ' . $e->getMessage());
-            Log::error($e->getTraceAsString());
-
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to generate layout',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Layout handled by frontend'
+        ]);
     }
 
     public function uploadAndGetRegions(Request $request)
     {
+        return response()->json([
+            'success' => true,
+            'data' => ['ALL', 'JAWA', 'SUM', 'KAL', 'SUL', 'MALUKU']
+        ]);
+    }
+
+    public function index()
+    {
         try {
-            $configuredRegions = ['JAWA', 'SUM', 'KAL', 'SUL', 'MALUKU'];
-            return response()->json([
-                'success' => true,
-                'data' => $configuredRegions
-            ]);
+            $leaflets = Leaflet::orderBy('updated_at', 'desc')->get();
+
+            $formatted = $leaflets->map(function ($item) {
+                // Perbaikan: Cek tipe data content sebelum decode
+                $content = $item->content;
+                if (is_string($content)) {
+                    $pages = json_decode($content, true);
+                } else {
+                    $pages = $content;
+                }
+                $pages = $pages ?? [];
+
+                return [
+                    'id' => $item->id,
+                    'title' => $item->name,
+                    'store' => $item->store_name ?? 'Unknown',
+                    'date' => $item->updated_at->format('d M Y H:i'),
+                    'status' => $item->status ?? 'draft',
+                    'pageCount' => count($pages),
+                    'thumbnailUrl' => null
+                ];
+            });
+
+            return response()->json(['success' => true, 'data' => $formatted]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function show($id)
+    {
+        try {
+            $leaflet = Leaflet::findOrFail($id);
+
+            // Perbaikan: Cek tipe data content sebelum decode
+            $content = $leaflet->content;
+            if (is_string($content)) {
+                $decodedContent = json_decode($content, true);
+            } else {
+                $decodedContent = $content;
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'leaflet_name' => $leaflet->name,
+                    'store' => $leaflet->store_name,
+                    'pages' => $decodedContent,
+                    'id' => $leaflet->id
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Leaflet not found'], 404);
+        }
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'title' => 'required|string',
+            'store' => 'required|string',
+            'pages' => 'present|array',
+            'status' => 'required|string'
+        ]);
+
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                $user = User::first();
+                if (!$user) {
+                     $user = User::create([
+                        'name' => 'Admin',
+                        'email' => 'admin@leafgen.com',
+                        'password' => Hash::make('password'),
+                        'role' => 'admin'
+                     ]);
+                }
+            }
+            $userId = $user->id;
+
+            $leaflet = null;
+            if ($request->has('id') && $request->id) {
+                $leaflet = Leaflet::find($request->id);
+            }
+
+            // Jika $casts di model sudah 'array', tidak perlu json_encode manual
+            // Namun untuk amannya kita kirim array langsung, biarkan model handle atau encode jika perlu
+            // Disini kita biarkan array karena API mengharapkan JSON
+            $contentData = $request->pages;
+
+            if ($leaflet) {
+                $leaflet->update([
+                    'name' => $request->title,
+                    'store_name' => $request->store,
+                    'content' => $contentData,
+                    'status' => $request->status
+                ]);
+            } else {
+                $leaflet = Leaflet::create([
+                    'name' => $request->title,
+                    'store_name' => $request->store,
+                    'content' => $contentData,
+                    'status' => $request->status,
+                    'user_id' => $userId
+                ]);
+            }
+
+            return response()->json(['success' => true, 'data' => $leaflet]);
+
+        } catch (\Exception $e) {
+            Log::error('Leaflet Save Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Gagal menyimpan: ' . $e->getMessage()], 500);
         }
     }
 }
