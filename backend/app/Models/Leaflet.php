@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Leaflet extends Model
 {
@@ -12,20 +13,16 @@ class Leaflet extends Model
     protected $fillable = [
         'name',
         'store_name',
-        'promotion_start_date',
-        'promotion_end_date',
         'content',
         'status',
-        'user_id'
+        'user_id',
     ];
 
     protected $casts = [
         'content' => 'array',
-        'promotion_start_date' => 'date',
-        'promotion_end_date' => 'date',
     ];
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }

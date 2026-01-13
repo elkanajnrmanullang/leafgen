@@ -14,6 +14,7 @@ import BankGambarPage from "./pages/BankGambarPage";
 import ManajemenAkunPage from "./pages/ManajemenAkunPage";
 import BuatLeafletPage from "./pages/BuatLeafletPage";
 import PilihTemplatePage from "./pages/PilihTemplatePage";
+import ManajemenTemplatePage from "./pages/ManajemenTemplatePage";
 import EditorPage from "./pages/EditorPage";
 import HistoryPage from "./pages/HistoryPage";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -83,8 +84,10 @@ const router = createBrowserRouter([
           { path: "bank-gambar", element: <BankGambarPage /> },
           { path: "manajemen-akun", element: <ManajemenAkunPage /> },
           { path: "buat-leaflet", element: <BuatLeafletPage /> },
-          // Pastikan path ini sesuai
+          // Halaman khusus untuk memilih template saat wizard
           { path: "pilih-template", element: <PilihTemplatePage /> },
+          // Halaman manajemen template yang bisa diakses dari sidebar
+          { path: "manajemen-template", element: <ManajemenTemplatePage /> },
           { path: "history", element: <HistoryPage /> },
         ],
       },

@@ -228,7 +228,7 @@ class LeafletParserService
             $txtCoret = $coretData['show'] ? number_format($coretData['value'], 0, ',', '.') : '';
 
             $mapped[] = [
-                'id' => 'item-' . $index . '-' . uniqid(),
+                'id' => 'item-' . $pageNumber . '-' . $index . '-' . uniqid(),
                 'type' => 'product_card',
                 'plu' => $plu,
                 'component_name' => 'card_cover_master',

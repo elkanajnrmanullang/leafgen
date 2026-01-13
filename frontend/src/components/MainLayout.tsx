@@ -66,7 +66,7 @@ const MainLayout = () => {
       { to: "/buat-leaflet", label: "Buat Leaflet", icon: FilePlus2 },
       { to: "/bank-gambar", label: "Bank Gambar", icon: Archive },
       {
-        to: "/pilih-template", // Path ini harus sama persis dengan App.tsx
+        to: "/manajemen-template", // Updated link to point to the management page
         label: "Template Desain",
         icon: LayoutTemplate,
       },

@@ -287,7 +287,6 @@ class LeafletController extends Controller
             $leaflets = Leaflet::orderBy('updated_at', 'desc')->get();
 
             $formatted = $leaflets->map(function ($item) {
-                // Perbaikan: Cek tipe data content sebelum decode
                 $content = $item->content;
                 if (is_string($content)) {
                     $pages = json_decode($content, true);
@@ -318,7 +317,6 @@ class LeafletController extends Controller
         try {
             $leaflet = Leaflet::findOrFail($id);
 
-            // Perbaikan: Cek tipe data content sebelum decode
             $content = $leaflet->content;
             if (is_string($content)) {
                 $decodedContent = json_decode($content, true);
@@ -369,9 +367,6 @@ class LeafletController extends Controller
                 $leaflet = Leaflet::find($request->id);
             }
 
-            // Jika $casts di model sudah 'array', tidak perlu json_encode manual
-            // Namun untuk amannya kita kirim array langsung, biarkan model handle atau encode jika perlu
-            // Disini kita biarkan array karena API mengharapkan JSON
             $contentData = $request->pages;
 
             if ($leaflet) {
