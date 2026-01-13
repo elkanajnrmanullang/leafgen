@@ -22,37 +22,31 @@ import {
   Loader2,
   Download,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  RefreshCw
 } from "lucide-react";
 import type {
   LeafletPage,
   EditorItem,
-  BackendLeafletResponse,
   BackendPage,
   BackendItem,
 } from "../types";
 
 const processAssetUrl = (url: string | null | undefined): string => {
   if (!url) return "";
-  
-  if (url.startsWith('http')) {
-    return url; 
-  }
-  
-  if (!url.startsWith('/') && !url.startsWith('assets') && !url.startsWith('storage')) {
-      return `/assets/${url}`;
-  }
-  
-  if (!url.startsWith('/')) {
-      return `/${url}`;
-  }
-
+  if (url.startsWith('http')) return url;
+  if (!url.startsWith('/') && !url.startsWith('assets') && !url.startsWith('storage')) return `/assets/${url}`;
+  if (!url.startsWith('/')) return `/${url}`;
   return url;
 };
 
 const EditorPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Refs for scrolling logic
+  const mainContainerRef = useRef<HTMLDivElement>(null);
+  const pageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   const [pages, setPages] = useState<LeafletPage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,14 +69,15 @@ const EditorPage = () => {
   const [dragActivePageId, setDragActivePageId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  const pageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const [generatedBadges, setGeneratedBadges] = useState<Record<string, string>>({});
+  const [generatingBadges, setGeneratingBadges] = useState<Record<string, boolean>>({});
+
   const downloadMenuRef = useRef<HTMLDivElement>(null);
   const autoSaveTimerRef = useRef<number | null>(null);
 
   const saveData = useCallback(
     async (status: "draft" | "exported") => {
       if (pages.length === 0) return;
-
       setSaveStatus("saving");
       try {
         const response = await LeafletService.saveLeaflet({
@@ -92,10 +87,7 @@ const EditorPage = () => {
           pages: pages,
           status: status,
         });
-
-        if (response && response.id) {
-          setLeafletId(response.id);
-        }
+        if (response && response.id) setLeafletId(response.id);
         setSaveStatus("saved");
       } catch (error) {
         console.error("Auto-save failed", error);
@@ -112,20 +104,14 @@ const EditorPage = () => {
     const storeFromNav = location.state?.storeName;
     const templateUrl = location.state?.templateUrl;
 
-    if (templateUrl) {
-        setPageBackground(processAssetUrl(templateUrl));
-    }
+    if (templateUrl) setPageBackground(processAssetUrl(templateUrl));
 
     if (backendData) {
       let dataToUse = backendData;
-
       if (!backendData.pages) {
           const keys = Object.keys(backendData);
-          if (keys.length > 0) {
-              const firstKey = keys[0]; 
-              if (backendData[firstKey]?.pages) {
-                  dataToUse = backendData[firstKey];
-              }
+          if (keys.length > 0 && backendData[keys[0]]?.pages) {
+              dataToUse = backendData[keys[0]];
           }
       }
 
@@ -140,28 +126,17 @@ const EditorPage = () => {
             pageNumber: page.page_number,
             items: (page.items || []).map((item: BackendItem) => {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const raw = (item as any).data || (item as any).content || {}; 
-                
+                const raw = (item as any).data || (item as any).content || {};
                 return {
                     id: item.id,
                     plu: item.plu,
                     type: item.type,
+                    component_name: item.component_name || "card_cover_master",
                     content: {
-                    name: raw.txt_name || raw.name || "Nama Barang",
-                    price_display: raw.txt_price || raw.price_display || "",
-                    price_original: raw.price_original || 0,
-                    show_coret: !!raw.show_coret || (raw.txt_coret && raw.txt_coret !== ""),
-                    
-                    image_url: processAssetUrl(raw.img_product || raw.image_url || "placeholder.png"),
-                    
-                    is_bbmu: !!raw.img_badge_bbmu || !!raw.is_bbmu,
-                    
-                    badge_bbmu_url: processAssetUrl(raw.img_badge_bbmu || raw.badge_bbmu_url), 
-                    badge_spi_url: processAssetUrl(raw.img_logo_spi || raw.badge_spi_url),
-                    badge_promo_url: processAssetUrl(raw.img_bg_label_promo || raw.badge_promo_url),
-                    badge_igr_url: processAssetUrl(raw.img_bg_poin_igr || raw.badge_igr_url),
-                    
-                    ...raw
+                        ...raw,
+                        name: raw.txt_name || raw.name || "Nama Barang",
+                        price_display: raw.txt_price || raw.price_display || "",
+                        image_url: processAssetUrl(raw.img_product || raw.image_url || "placeholder.png"),
                     },
                     needs_manual_image: item.needs_manual_image,
                     layout: {
@@ -174,7 +149,6 @@ const EditorPage = () => {
             }),
             })
         );
-
         setPages(mappedPages);
         if (mappedPages.length > 0) setSelectedPageId(mappedPages[0].id);
       } else {
@@ -186,6 +160,47 @@ const EditorPage = () => {
       setLoading(false);
     }
   }, [location.state]);
+
+  const generateBadgeForItem = async (item: EditorItem) => {
+      if (generatingBadges[item.id] || generatedBadges[item.id]) return;
+      
+      setGeneratingBadges(prev => ({...prev, [item.id]: true}));
+      
+      try {
+          const apiData = {
+              ...item.content,
+              txt_name: item.content.name,
+              txt_price: item.content.price_display,
+              img_product: item.content.image_url
+          };
+
+          const url = await LeafletService.generateBadge(
+              item.component_name || "card_cover_master",
+              apiData
+          );
+          
+          const fullUrl = processAssetUrl(url);
+          setGeneratedBadges(prev => ({...prev, [item.id]: fullUrl}));
+      } catch (e) {
+          console.error("Failed to generate badge for item", item.id, e);
+      } finally {
+          setGeneratingBadges(prev => {
+              const newState = {...prev};
+              delete newState[item.id];
+              return newState;
+          });
+      }
+  };
+
+  useEffect(() => {
+      pages.forEach(page => {
+          page.items.forEach(item => {
+              if (item.type === 'product_card' && !generatedBadges[item.id] && !generatingBadges[item.id]) {
+                  generateBadgeForItem(item);
+              }
+          });
+      });
+  }, [pages]);
 
   useEffect(() => {
     if (loading) return;
@@ -205,12 +220,37 @@ const EditorPage = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // NEW: Function to scroll to item when clicked in sidebar
+  const scrollToItem = (item: EditorItem, pageId: string) => {
+    setSelectedItemId(item.id);
+    setSelectedPageId(pageId);
+
+    const pageElement = pageRefs.current[pageId];
+    if (pageElement && mainContainerRef.current) {
+        // Find the page's position relative to the scroll container
+        const pageRect = pageElement.getBoundingClientRect();
+        const containerRect = mainContainerRef.current.getBoundingClientRect();
+        
+        // Calculate offset (scrolltop)
+        // Add item.y * zoom to scroll exactly to item inside page
+        const relativeY = (item.layout.y * zoom);
+        
+        // Current scroll + Page top relative to container + item relative Y - some padding
+        const newScrollTop = mainContainerRef.current.scrollTop + (pageRect.top - containerRect.top) + relativeY - 100;
+
+        mainContainerRef.current.scrollTo({
+            top: newScrollTop,
+            behavior: 'smooth'
+        });
+    }
+  };
+
   const handleDownload = async () => {
     setIsDownloadMenuOpen(false);
     setIsDownloading(true);
     const originalZoom = zoom;
     setZoom(1);
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     try {
       if (selectedFormat === "PDF") {
@@ -220,7 +260,7 @@ const EditorPage = () => {
           const element = pageRefs.current[page.id];
           if (element) {
             if (i > 0) doc.addPage();
-            const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+            const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false });
             const imgData = canvas.toDataURL("image/jpeg", 0.9);
             const imgWidth = 210;
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
@@ -232,7 +272,7 @@ const EditorPage = () => {
         const targetPageId = selectedPageId || pages[0].id;
         const element = pageRefs.current[targetPageId];
         if (element) {
-          const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+          const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false });
           const link = document.createElement("a");
           link.download = `${designName}-Page.${selectedFormat.toLowerCase()}`;
           link.href = canvas.toDataURL(`image/${selectedFormat.toLowerCase()}`, 0.9);
@@ -311,6 +351,7 @@ const EditorPage = () => {
     setPages((prev) => prev.map((p) => p.id === pageId ? { ...p, items: [...p.items, newItem] } : p));
     setSelectedItemId(newItem.id);
     setSelectedPageId(pageId);
+    setGeneratedBadges(prev => ({...prev, [newItem.id]: generatedBadges[droppedItem.id] || ""}));
   };
 
   const handleAddText = () => {
@@ -426,6 +467,15 @@ const EditorPage = () => {
     );
   };
 
+  const refreshBadge = (item: EditorItem) => {
+      setGeneratedBadges(prev => {
+          const newState = {...prev};
+          delete newState[item.id];
+          return newState;
+      });
+      generateBadgeForItem(item);
+  };
+
   const getSelectedItem = () => {
     if (!selectedPageId || !selectedItemId) return null;
     return pages.find((p) => p.id === selectedPageId)?.items.find((i) => i.id === selectedItemId);
@@ -497,16 +547,28 @@ const EditorPage = () => {
           <div className="p-4 border-b border-slate-100"><h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-2"><Layers size={14} /> Daftar Item</h3></div>
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {loading ? (<div className="text-center py-10 text-slate-400 text-sm">Memuat aset...</div>) : (
-              (pages.find((p) => p.id === selectedPageId)?.items || []).map((item: EditorItem) => (
-                  <div key={`sidebar-${item.id}`} draggable={true} onDragStart={(e) => handleSidebarDragStart(e, item)} className="flex gap-3 p-2 rounded-lg border border-slate-200 hover:border-blue-400 cursor-grab active:cursor-grabbing bg-white transition-all select-none group">
-                    <div className="w-12 h-12 bg-slate-50 rounded border border-slate-100 flex-shrink-0 flex items-center justify-center overflow-hidden"><img src={item.content?.image_url || "/assets/placeholder.png"} className="w-10 h-10 object-contain mix-blend-multiply" /></div>
-                    <div className="min-w-0 flex flex-col justify-center"><p className="text-xs font-bold text-slate-700 truncate">{item.content?.name || "Tanpa Nama"}</p><p className="text-[10px] font-mono text-blue-600 font-bold mt-1">{item.content?.price_display}</p></div>
-                  </div>
-              ))
+                pages.flatMap(page => page.items.map((item: EditorItem) => (
+                    <div 
+                        key={`sidebar-${item.id}`} 
+                        draggable={true} 
+                        onDragStart={(e) => handleSidebarDragStart(e, item)} 
+                        onClick={() => scrollToItem(item, page.id)} // CLICK TO SCROLL
+                        className="flex gap-3 p-2 rounded-lg border border-slate-200 hover:border-blue-400 cursor-pointer bg-white transition-all select-none group active:bg-blue-50"
+                    >
+                        <div className="w-12 h-12 bg-slate-50 rounded border border-slate-100 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                            <img src={generatedBadges[item.id] || item.content?.image_url || "/assets/placeholder.png"} className="w-10 h-10 object-contain mix-blend-multiply" />
+                        </div>
+                        <div className="min-w-0 flex flex-col justify-center">
+                            <p className="text-xs font-bold text-slate-700 truncate">{item.content?.name || "Tanpa Nama"}</p>
+                            <p className="text-[10px] font-mono text-blue-600 font-bold mt-1">{item.content?.price_display}</p>
+                            <p className="text-[8px] text-slate-400 mt-0.5">Page {page.pageNumber}</p>
+                        </div>
+                    </div>
+                )))
             )}
           </div>
         </aside>
-        <main className="flex-1 relative flex flex-col min-w-0 overflow-auto items-center py-10">
+        <main className="flex-1 relative flex flex-col min-w-0 overflow-auto items-center py-10" ref={mainContainerRef}>
           {!loading && pages.map((page: LeafletPage) => (
               <div key={page.id} className="group flex flex-col gap-2 items-center mb-10">
                 <div className="flex items-center justify-between px-2 transition-all" style={{ width: 2480 * zoom }}>
@@ -520,24 +582,22 @@ const EditorPage = () => {
                   <div ref={(el) => { pageRefs.current[page.id] = el; }} className={`bg-white overflow-hidden origin-top-left absolute top-0 left-0 ${selectedPageId === page.id ? "ring-4 ring-blue-500/20" : ""}`} onDragOver={handleCanvasDragOver} onDrop={(e) => handleCanvasDrop(e, page.id)} onClick={() => setSelectedPageId(page.id)} style={{ width: "2480px", height: "3508px", transform: `scale(${zoom})`, backgroundImage: pageBackground ? `url(${pageBackground})` : undefined, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat' }}>
                     {isGridEnabled && <div className="absolute inset-0 grid grid-cols-4 grid-rows-4 divide-x divide-y divide-blue-500/20 pointer-events-none z-50 border border-blue-500/20">{[...Array(16)].map((_, i) => <div key={i}></div>)}</div>}
                     {page.items.map((item: EditorItem) => (
-                      <div key={item.id} onMouseDown={(e) => handleMouseDown(e, item, page.id)} className={`absolute bg-white select-none group/item cursor-move flex flex-col border border-slate-100 ${selectedItemId === item.id ? "ring-2 ring-blue-500 z-40 shadow-xl" : "hover:ring-1 hover:ring-blue-300 z-10"}`} style={{ left: item.layout.x, top: item.layout.y, width: item.layout.w, height: item.layout.h }}>
-                        <div className="h-[55%] w-full p-2 flex items-center justify-center bg-white relative overflow-visible">
-                          {item.content?.image_url ? <img src={item.content.image_url} className="max-h-full max-w-full object-contain mix-blend-multiply" /> : <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-300">No Image</div>}
-                          {item.content?.is_bbmu && <div className="absolute top-0 right-0 bg-yellow-400 text-xs font-bold px-2 py-1 rounded-bl">BBMU</div>}
-                          {item.content?.badge_bbmu_url && <img src={item.content.badge_bbmu_url} className="absolute top-0 right-0 h-12 w-auto z-20" alt="BBMU" />}
-                          {item.content?.badge_spi_url && <img src={item.content.badge_spi_url} className="absolute top-0 left-0 h-10 w-auto z-20" alt="SPI" />}
-                          <div className="absolute bottom-0 w-full flex flex-col gap-1 items-center z-20">
-                             {item.content?.badge_promo_url && <img src={item.content.badge_promo_url} className="w-full h-auto" alt="Promo" />}
-                             {item.content?.badge_igr_url && <img src={item.content.badge_igr_url} className="w-full h-auto" alt="IGR" />}
-                          </div>
-                        </div>
-                        <div className="h-[45%] w-full p-2 flex flex-col justify-between bg-white">
-                          <h3 className="text-[24px] font-bold text-center leading-tight text-slate-800 line-clamp-2">{item.content?.name}</h3>
-                          <div className="text-center">
-                            {item.content?.show_coret && <div className="text-[18px] text-red-500 line-through decoration-2">Rp {item.content.price_original?.toLocaleString("id-ID")}</div>}
-                            <div className="text-[48px] font-black text-blue-700 leading-none tracking-tight">{typeof item.content?.price_display === "number" ? `Rp ${item.content.price_display.toLocaleString("id-ID")}` : item.content?.price_display}</div>
-                          </div>
-                        </div>
+                      <div key={item.id} onMouseDown={(e) => handleMouseDown(e, item, page.id)} className={`absolute select-none group/item cursor-move flex flex-col ${selectedItemId === item.id ? "ring-2 ring-blue-500 z-40 shadow-xl" : "hover:ring-1 hover:ring-blue-300 z-10"}`} style={{ left: item.layout.x, top: item.layout.y, width: item.layout.w, height: item.layout.h }}>
+                          {item.type === 'product_card' ? (
+                                generatedBadges[item.id] ? (
+                                    <img src={generatedBadges[item.id]} className="w-full h-full object-contain" alt={item.content?.name} draggable={false} />
+                                ) : (
+                                    <div className="w-full h-full bg-slate-50 border border-slate-200 flex flex-col items-center justify-center animate-pulse">
+                                        <Loader2 className="animate-spin text-slate-300 mb-2" />
+                                        <span className="text-xs text-slate-400">Generating Badge...</span>
+                                    </div>
+                                )
+                          ) : (
+                                <div className="w-full h-full bg-white border border-slate-200 flex items-center justify-center relative">
+                                    {item.content?.image_url && <img src={item.content.image_url} className="max-w-full max-h-full object-contain" />}
+                                    {item.type === 'text' && <p className="p-2 text-center">{item.content?.name}</p>}
+                                </div>
+                          )}
                       </div>
                     ))}
                   </div>
@@ -557,6 +617,8 @@ const EditorPage = () => {
                 <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase">Harga Tampil</label><input type="text" className="w-full text-xs border border-slate-300 rounded p-2 bg-white" value={activeItem.content?.price_display ?? ""} onChange={(e) => updateItemContent('price_display', e.target.value)} /></div>
                 <div className="pt-4 border-t border-slate-200 space-y-3">
                     <h4 className="text-xs font-bold text-slate-700">Komponen Badge</h4>
+                    <button onClick={() => refreshBadge(activeItem)} className="w-full py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 flex items-center justify-center gap-2 mb-2"><RefreshCw size={14} /> Refresh Gambar</button>
+                    
                     <div className="flex items-center justify-between"><span className="text-xs text-slate-600">Harga Coret</span><button onClick={() => toggleItemProperty('show_coret')} className={`text-slate-400 hover:text-blue-600 ${activeItem.content?.show_coret ? 'text-blue-600' : ''}`}>{activeItem.content?.show_coret ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}</button></div>
                     {activeItem.content?.show_coret && <input type="number" placeholder="Harga Asli" className="w-full text-xs border p-2 rounded" value={activeItem.content?.price_original} onChange={(e) => updateItemContent('price_original', parseFloat(e.target.value))} />}
                     <div className="flex items-center justify-between"><span className="text-xs text-slate-600">Badge BBMU</span><button onClick={() => toggleItemProperty('is_bbmu')} className={`text-slate-400 hover:text-blue-600 ${activeItem.content?.is_bbmu ? 'text-blue-600' : ''}`}>{activeItem.content?.is_bbmu ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}</button></div>

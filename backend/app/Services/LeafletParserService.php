@@ -27,6 +27,11 @@ class LeafletParserService
         $layoutCover = $this->loadLayoutStructure('layout_cover.json');
         $layoutInner = $this->loadLayoutStructure('layout_inner.json');
 
+        if (empty($layoutCover)) {
+            Log::error("Layout Cover slots not found or empty.");
+            return [];
+        }
+
         return $this->distributeToPages($sortedItems, $layoutCover, $layoutInner);
     }
 
@@ -61,10 +66,8 @@ class LeafletParserService
             }
 
             if (str_contains($storeString, 'NAS') || str_contains($storeString, 'ALL') || str_contains($storeString, 'SEMUA')) {
-                if (str_contains($storeString, 'LUAR JAWA')) {
-                    if ($targetRegion === 'JAWA') {
-                        continue;
-                    }
+                if (str_contains($storeString, 'LUAR JAWA') && $targetRegion === 'JAWA') {
+                    continue;
                 }
                 $validItems[] = $row;
                 continue;
@@ -100,15 +103,8 @@ class LeafletParserService
 
         foreach ($items as $item) {
             $groupId = $item['group_id'] ?? null;
-            if (!empty($groupId)) {
-                $key = (string)$groupId;
-            } else {
-                $key = uniqid('single_');
-            }
-
-            if (!isset($groups[$key])) {
-                $groups[$key] = [];
-            }
+            $key = !empty($groupId) ? (string)$groupId : uniqid('single_');
+            if (!isset($groups[$key])) $groups[$key] = [];
             $groups[$key][] = $item;
         }
 
@@ -117,59 +113,10 @@ class LeafletParserService
         foreach ($groups as $group) {
             $representative = $group[0];
             $count = count($group);
-
             if ($count > 1) {
                 $firstItemName = strtoupper($group[0]['nama_barang']);
-                $sizeSuffix = '';
-                $baseNameRaw = $firstItemName;
-
-                if (preg_match('/(.*?)\s+((?:TPK|PCK|RCG|KLG|BTL|TUB|BOX|SACHET|CUP|BKS)\s+.*)$/i', $firstItemName, $matches)) {
-                    $baseNameRaw = trim($matches[1]);
-                    $sizeSuffix = trim($matches[2]);
-                } elseif (preg_match('/(.*?)\s+(\d+\s*(?:GR|GRAM|G|ML|L|KG|PCS).*)$/i', $firstItemName, $matches)) {
-                    $baseNameRaw = trim($matches[1]);
-                    $sizeSuffix = trim($matches[2]);
-                }
-
-                $commonWords = explode(' ', $baseNameRaw);
-
-                foreach ($group as $idx => $item) {
-                    if ($idx === 0) continue;
-
-                    $itemName = strtoupper($item['nama_barang']);
-                    $itemNameNoSize = str_replace($sizeSuffix, '', $itemName);
-
-                    $currentWords = explode(' ', trim($itemNameNoSize));
-                    $commonWords = array_intersect($commonWords, $currentWords);
-                }
-
-                $baseName = implode(' ', $commonWords);
-
-                if ($count > 2) {
-                    $finalName = trim($baseName . ' ' . $sizeSuffix);
-                } else {
-                    $variants = [];
-                    foreach ($group as $item) {
-                        $itemName = strtoupper($item['nama_barang']);
-                        $itemNameNoSize = str_replace($sizeSuffix, '', $itemName);
-
-                        $diff = str_replace(explode(' ', $baseName), '', $itemNameNoSize);
-                        $diff = trim(preg_replace('/\s+/', ' ', $diff));
-
-                        if (!empty($diff)) {
-                            $variants[] = $diff;
-                        }
-                    }
-
-                    $variants = array_unique($variants);
-                    $variantString = implode(' ', $variants);
-
-                    $finalName = trim($baseName . ' ' . $variantString . ' ' . $sizeSuffix);
-                }
-
-                $representative['nama_barang'] = preg_replace('/\s+/', ' ', $finalName);
+                $representative['nama_barang'] = $firstItemName . " (+" . ($count - 1) . " Varian)";
             }
-
             $result[] = $representative;
         }
 
@@ -202,17 +149,17 @@ class LeafletParserService
 
         foreach ($items as $index => $item) {
             $plu = (string)($item['unit'] ?? $item['plu'] ?? '0');
-
             $imagePath = $dbProducts[$plu] ?? null;
+
             $finalImage = $imagePath ? asset('storage/' . $imagePath) : asset('assets/placeholder.png');
             $needsManual = empty($imagePath);
 
-            $md = (float) ($item['promosi_h_jual_setting_md'] ?? $item['setting_md'] ?? 0);
-            $supp = (float) ($item['setting_pp_supp'] ?? $item['supp'] ?? 0);
-            $mkt = (float) ($item['setting_pp_mkt'] ?? $item['mkt'] ?? 0);
+            $md = (float)($item['promosi_h_jual_setting_md'] ?? $item['setting_md'] ?? 0);
+            $supp = (float)($item['setting_pp_supp'] ?? $item['supp'] ?? 0);
+            $mkt = (float)($item['setting_pp_mkt'] ?? $item['mkt'] ?? 0);
             $nett = $item['nett'] ?? $item['setting_net'] ?? 0;
             $keteranganRaw = $item['keteranganpembatasan'] ?? $item['keterangan'] ?? '';
-            $poinRaw = (float) ($item['poin'] ?? 0);
+            $poinRaw = (float)($item['poin'] ?? 0);
             $syaratBbmu = $item['syarat_bbmu'] ?? null;
             $satuan = $item['satuan'] ?? '';
 
@@ -237,33 +184,37 @@ class LeafletParserService
                     'txt_price' => $txtPrice,
                     'txt_satuan_price' => $satuan ? "/$satuan" : '',
                     'img_product' => $finalImage,
+
+                    // Background utama ada di root assets/
                     'img_card_bg' => asset('assets/' . $cardBg),
-                    'img_container_price' => asset('assets/img_container_price.png'),
+
+                    // Komponen UI ada di assets/components/
+                    'img_container_price' => asset('assets/components/img_container_price.png'),
 
                     'txt_coret' => $txtCoret,
-                    'img_container_coret' => $coretData['show'] ? asset('assets/img_container_coret.png') : null,
-                    'img_coret_line' => $coretData['show'] ? asset('assets/img_coret_line.png') : null,
+                    'img_container_coret' => $coretData['show'] ? asset('assets/components/img_container_coret.png') : null,
+                    'img_coret_line' => $coretData['show'] ? asset('assets/components/img_coret_line.png') : null,
 
                     'txt_keterangan' => $descText,
-                    'img_container_keterangan' => !empty($descText) ? asset('assets/img_container_keterangan.png') : null,
+                    'img_container_keterangan' => !empty($descText) ? asset('assets/components/img_container_keterangan.png') : null,
 
-                    'img_badge_bbmu' => !empty($bbmuBadgeUrl) ? asset('assets/' . $bbmuBadgeUrl) : null,
+                    'img_badge_bbmu' => !empty($bbmuBadgeUrl) ? asset('assets/components/' . $bbmuBadgeUrl) : null,
 
-                    'img_bg_label_promo' => $promoBadgeUrl ? asset('assets/img_bg_label_promo.png') : null,
-                    'img_container_ketPromo' => $promoBadgeUrl ? asset('assets/img_container_ketPromo.png') : null,
+                    'img_bg_label_promo' => $promoBadgeUrl ? asset('assets/components/img_bg_label_promo.png') : null,
+                    'img_container_ketPromo' => $promoBadgeUrl ? asset('assets/components/img_container_ketPromo.png') : null,
                     'txt_qty_promo' => $promoBadgeUrl['txt_qty_promo'] ?? null,
                     'txt_price_promo' => $promoBadgeUrl['txt_price_promo'] ?? null,
                     'txt_keterangan_promo' => $promoBadgeUrl['txt_keterangan_promo'] ?? null,
                     'txt_satuan' => $promoBadgeUrl['txt_satuan'] ?? null,
 
-                    'img_bg_poin_igr' => $igrBadgeUrl ? asset('assets/img_bg_poin_igr.png') : null,
-                    'img_container_igr' => $igrBadgeUrl ? asset('assets/img_container_igr.png') : null,
+                    'img_bg_poin_igr' => $igrBadgeUrl ? asset('assets/components/img_bg_poin_igr.png') : null,
+                    'img_container_igr' => $igrBadgeUrl ? asset('assets/components/img_container_igr.png') : null,
                     'txt_satuan_igr' => $igrBadgeUrl['txt_satuan_igr'] ?? null,
                     'txt_price_bonus_igr' => $igrBadgeUrl['txt_price_bonus_igr'] ?? null,
                     'txt_keterangan_qty_igr' => $igrBadgeUrl['txt_keterangan_qty_igr'] ?? null,
 
-                    'img_logo_spi' => $spiBadgeUrl ? asset('assets/img_logo_spi.png') : null,
-                    'img_container_spi' => $spiBadgeUrl ? asset('assets/img_container_spi.png') : null,
+                    'img_logo_spi' => $spiBadgeUrl ? asset('assets/components/img_logo_spi.png') : null,
+                    'img_container_spi' => $spiBadgeUrl ? asset('assets/components/img_container_spi.png') : null,
                     'txt_satuan_spi' => $spiBadgeUrl['txt_satuan_spi'] ?? null,
                     'txt_price_bonus_spi' => $spiBadgeUrl['txt_price_bonus_spi'] ?? null,
                     'txt_keterangan_qty_spi' => $spiBadgeUrl['txt_keterangan_qty_spi'] ?? null,
@@ -273,7 +224,6 @@ class LeafletParserService
                 'slot_id' => $item['slot_id'] ?? null
             ];
         }
-
         return $mapped;
     }
 
@@ -295,9 +245,7 @@ class LeafletParserService
 
         if (preg_match('/(?:MAX|MAKS|MAKSIMAL)\s*(\d+)\s*CTN\/.*\/HARI/i', $upperText, $matches)) {
             $qty = $matches[1];
-            if ($totalSubsidi < 1000) {
-                return "*Harga Setelah Potongan\n(Maksimal $qty Karton /member/hari)";
-            }
+            if ($totalSubsidi < 1000) return "*Harga Setelah Potongan\n(Maksimal $qty Karton /member/hari)";
             return null;
         }
 
@@ -306,50 +254,29 @@ class LeafletParserService
         }
 
         if (str_contains($upperText, 'BELI 1 RCG POTONGAN') || str_contains($upperText, 'BELI 1 CTN POTONGAN')) {
-             if ($supp < 1000 && $mkt < 1000) {
-                 return "*Harga Setelah Potongan";
-             }
+             if ($supp < 1000 && $mkt < 1000) return "*Harga Setelah Potongan";
              return null;
         }
-
         return null;
     }
 
     private function generateLabelPromo($text)
     {
         $upperText = strtoupper($text);
-        $isActive = str_contains($upperText, 'TOTAL POTONGAN') ||
-            str_contains($upperText, 'TOTAL DISC') ||
-            str_contains($upperText, 'TIAP PEMBELIAN') ||
-            (str_contains($upperText, 'BELI') && str_contains($upperText, 'DISC'));
-
+        $isActive = str_contains($upperText, 'TOTAL POTONGAN') || str_contains($upperText, 'TOTAL DISC') || str_contains($upperText, 'TIAP PEMBELIAN') || (str_contains($upperText, 'BELI') && str_contains($upperText, 'DISC'));
         if (!$isActive) return null;
 
-        $qty = '';
-        $satuan = '';
+        $qty = preg_match('/BELI\s+(\d+)/', $upperText, $m) ? "BELI " . $m[1] : "BELI 1";
         $maxPrice = 0;
-
         preg_match_all('/(?:POTONGAN|DISC|RP|POT)\.?\s*([\d\.,]+)/', $upperText, $priceMatches);
         if (!empty($priceMatches[1])) {
             foreach ($priceMatches[1] as $priceStr) {
                 $val = (float) str_replace(['.', ','], '', $priceStr);
-                if ($val > $maxPrice) {
-                    $maxPrice = $val;
-                }
+                if ($val > $maxPrice) $maxPrice = $val;
             }
         }
-
-        if (preg_match('/BELI\s+(\d+)/', $upperText, $qtyMatch)) {
-            $qty = "BELI " . $qtyMatch[1];
-        } else {
-            $qty = "BELI 1";
-        }
-
-        if (preg_match('/(?:CTN|KARTON|RCG|PCS)/', $upperText, $satuanMatch)) {
-            $satuan = $satuanMatch[0];
-        } else if (preg_match('/BELI\s+\d+\s+([A-Z]+)/', $upperText, $satuanMatch)) {
-            $satuan = $satuanMatch[1];
-        }
+        $satuan = 'PCS';
+        if (preg_match('/(?:CTN|KARTON|RCG|PCS)/', $upperText, $satuanMatch)) $satuan = $satuanMatch[0];
 
         return [
             'txt_qty_promo' => $qty,
@@ -361,25 +288,15 @@ class LeafletParserService
 
     private function generatePoinIGR($text)
     {
-        if (!str_contains(strtoupper($text), 'POIN IGR')) {
-            return null;
-        }
-
-        $qty = '';
-        $satuan = '';
-        $price = '';
-
+        if (!str_contains(strtoupper($text), 'POIN IGR')) return null;
         if (preg_match('/Beli\s+(\d+)\s+(\w+).*?dapat\s+([\d,\.]+)\s+Poin/i', $text, $matches)) {
-            $qty = "Setiap Pembelian " . $matches[1];
-            $satuan = ucfirst(strtolower($matches[2]));
-            $price = "BONUS " . $matches[3];
+            return [
+                'txt_keterangan_qty_igr' => "Setiap Pembelian " . $matches[1],
+                'txt_satuan_igr' => ucfirst(strtolower($matches[2])),
+                'txt_price_bonus_igr' => "BONUS " . $matches[3]
+            ];
         }
-
-        return [
-            'txt_keterangan_qty_igr' => $qty,
-            'txt_satuan_igr' => $satuan,
-            'txt_price_bonus_igr' => $price
-        ];
+        return null;
     }
 
     private function generatePoinSPI($poin, $satuan, $syaratBbmu)
@@ -387,14 +304,10 @@ class LeafletParserService
         if ($poin > 0) {
             $qty = '1';
             $unit = ucfirst(strtolower($satuan));
-
-            if (!empty($syaratBbmu)) {
-                if (preg_match('/(\d+)\s*(\w+)/', $syaratBbmu, $matches)) {
-                    $qty = $matches[1];
-                    $unit = ucfirst(strtolower($matches[2]));
-                }
+            if (!empty($syaratBbmu) && preg_match('/(\d+)\s*(\w+)/', $syaratBbmu, $matches)) {
+                $qty = $matches[1];
+                $unit = ucfirst(strtolower($matches[2]));
             }
-
             return [
                 'txt_price_bonus_spi' => 'Bonus ' . number_format($poin, 0, ',', '.'),
                 'txt_satuan_spi' => $unit,
@@ -406,45 +319,33 @@ class LeafletParserService
 
     private function getBadgeBBMU($val)
     {
-        if (!empty($val)) {
-            return 'img_badge_bbmu.png';
-        }
-        return null;
+        return !empty($val) ? 'img_badge_bbmu.png' : null;
     }
 
     private function loadLayoutStructure(string $filename)
     {
         $path = storage_path('app/master_templates/json/' . $filename);
-
         if (!file_exists($path)) {
             Log::warning("Layout JSON not found: " . $path);
             return [];
         }
-
-        $jsonContent = file_get_contents($path);
-        $data = json_decode($jsonContent, true);
-
+        $data = json_decode(file_get_contents($path), true);
         $slots = $this->findSlotsRecursively($data);
-
         usort($slots, function ($a, $b) {
             return strnatcmp($a['name'], $b['name']);
         });
-
         return $slots;
     }
 
     private function findSlotsRecursively($nodes)
     {
         $slots = [];
-
-        if (isset($nodes['id'])) {
-            $nodes = [$nodes];
-        }
+        if (isset($nodes['id'])) $nodes = [$nodes];
 
         foreach ($nodes as $node) {
             if (isset($node['name']) && str_starts_with($node['name'], 'slot_')) {
+                // Skala 4x untuk high-res A4 export dari Figma
                 $scale = 4;
-
                 $slots[] = [
                     'name' => $node['name'],
                     'x' => ($node['absoluteBoundingBox']['x'] ?? 0) * $scale,
@@ -453,13 +354,10 @@ class LeafletParserService
                     'h' => ($node['absoluteBoundingBox']['height'] ?? 0) * $scale,
                 ];
             }
-
             if (isset($node['children']) && is_array($node['children'])) {
-                $childSlots = $this->findSlotsRecursively($node['children']);
-                $slots = array_merge($slots, $childSlots);
+                $slots = array_merge($slots, $this->findSlotsRecursively($node['children']));
             }
         }
-
         return $slots;
     }
 
@@ -473,16 +371,18 @@ class LeafletParserService
         while ($itemIndex < $totalItems) {
             $currentSlots = ($pageNumber === 1) ? $coverSlots : $innerSlots;
 
+            // Fallback: Jika Inner Layout Kosong/Rusak, Gunakan Cover Slot
             if (empty($currentSlots) && !empty($coverSlots)) {
                 $currentSlots = $coverSlots;
             }
 
-            $slotsCount = count($currentSlots);
-
-            if ($slotsCount === 0) {
+            // Safety check
+            if (empty($currentSlots)) {
+                Log::error("No slots available for page $pageNumber. Stopping distribution.");
                 break;
             }
 
+            $slotsCount = count($currentSlots);
             $pageItemsRaw = [];
 
             for ($i = 0; $i < $slotsCount; $i++) {

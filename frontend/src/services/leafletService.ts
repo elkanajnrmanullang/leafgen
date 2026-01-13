@@ -83,7 +83,7 @@ export const LeafletService = {
         getUploadAuthHeader()
       );
       if (response.data.success) {
-        return response.data.data; 
+        return response.data.data;
       }
       throw new Error(response.data.message);
     } catch (error: any) {
@@ -108,6 +108,22 @@ export const LeafletService = {
 
     if (response.data.success) {
       return response.data.data;
+    }
+    throw new Error(response.data.message);
+  },
+
+  generateBadge: async (componentName: string, data: any) => {
+    const response = await axios.post(
+        `${API_URL}/generate-badge`,
+        {
+            component_name: componentName,
+            data: data
+        },
+        getJsonAuthHeader()
+    );
+
+    if (response.data.success) {
+        return response.data.data.url;
     }
     throw new Error(response.data.message);
   },
