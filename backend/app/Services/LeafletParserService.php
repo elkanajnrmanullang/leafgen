@@ -151,7 +151,8 @@ class LeafletParserService
             $plu = (string)($item['unit'] ?? $item['plu'] ?? '0');
             $imagePath = $dbProducts[$plu] ?? null;
 
-            $finalImage = $imagePath ? asset('storage/' . $imagePath) : asset('assets/placeholder.png');
+            // Image Produk: Gunakan path storage relatif, bukan asset() full URL
+            $finalImage = $imagePath ? 'storage/' . $imagePath : 'assets/placeholder.png';
             $needsManual = empty($imagePath);
 
             $md = (float)($item['promosi_h_jual_setting_md'] ?? $item['setting_md'] ?? 0);
@@ -185,33 +186,43 @@ class LeafletParserService
                     'txt_satuan_price' => $satuan ? "/$satuan" : '',
                     'img_product' => $finalImage,
 
-                    'img_card_bg' => asset('assets/' . $cardBg),
-                    'img_container_price' => asset('assets/components/img_container_price.png'),
+                    // Gunakan path relatif (string), BUKAN asset()
+                    'img_card_bg' => 'assets/' . $cardBg,
+
+                    'img_container_price' => 'assets/components/img_container_price.png',
 
                     'txt_coret' => $txtCoret,
-                    'img_container_coret' => $coretData['show'] ? asset('assets/components/img_container_coret.png') : null,
-                    'img_coret_line' => $coretData['show'] ? asset('assets/components/img_coret_line.png') : null,
+                    'img_container_coret' => $coretData['show'] ? 'assets/components/img_container_coret.png' : null,
+                    'img_coret_line' => $coretData['show'] ? 'assets/components/img_coret_line.png' : null,
 
                     'txt_keterangan' => $descText,
-                    'img_container_keterangan' => !empty($descText) ? asset('assets/components/img_container_keterangan.png') : null,
+                    'img_container_keterangan' => !empty($descText) ? 'assets/components/img_container_keterangan.png' : null,
 
-                    'img_badge_bbmu' => !empty($bbmuBadgeUrl) ? asset('assets/components/' . $bbmuBadgeUrl) : null,
+                    'img_badge_bbmu' => !empty($bbmuBadgeUrl) ? 'assets/components/' . $bbmuBadgeUrl : null,
 
-                    'img_bg_label_promo' => $promoBadgeUrl ? asset('assets/components/img_bg_label_promo.png') : null,
-                    'img_container_ketPromo' => $promoBadgeUrl ? asset('assets/components/img_container_ketPromo.png') : null,
+                    'img_bg_label_promo' => $promoBadgeUrl ? 'assets/components/img_bg_label_promo.png' : null,
+                    'img_container_ketPromo' => $promoBadgeUrl ? 'assets/components/img_container_ketPromo.png' : null,
                     'txt_qty_promo' => $promoBadgeUrl['txt_qty_promo'] ?? null,
                     'txt_price_promo' => $promoBadgeUrl['txt_price_promo'] ?? null,
                     'txt_keterangan_promo' => $promoBadgeUrl['txt_keterangan_promo'] ?? null,
                     'txt_satuan' => $promoBadgeUrl['txt_satuan'] ?? null,
 
-                    'img_bg_poin_igr' => $igrBadgeUrl ? asset('assets/components/img_bg_poin_igr.png') : null,
-                    'img_container_igr' => $igrBadgeUrl ? asset('assets/components/img_container_igr.png') : null,
+                    // Mapping untuk layer _alt (agar sama dengan standard)
+                    'img_bg_label_promo_alt' => $promoBadgeUrl ? 'assets/components/img_bg_label_promo.png' : null,
+                    'img_container_ketPromo_alt' => $promoBadgeUrl ? 'assets/components/img_container_ketPromo.png' : null,
+                    'txt_qty_promo_alt' => $promoBadgeUrl['txt_qty_promo'] ?? null,
+                    'txt_price_promo_alt' => $promoBadgeUrl['txt_price_promo'] ?? null,
+                    'txt_keterangan_promo_alt' => $promoBadgeUrl['txt_keterangan_promo'] ?? null,
+                    'txt_satuan_alt' => $promoBadgeUrl['txt_satuan'] ?? null,
+
+                    'img_bg_poin_igr' => $igrBadgeUrl ? 'assets/components/img_bg_poin_igr.png' : null,
+                    'img_container_igr' => $igrBadgeUrl ? 'assets/components/img_container_igr.png' : null,
                     'txt_satuan_igr' => $igrBadgeUrl['txt_satuan_igr'] ?? null,
                     'txt_price_bonus_igr' => $igrBadgeUrl['txt_price_bonus_igr'] ?? null,
                     'txt_keterangan_qty_igr' => $igrBadgeUrl['txt_keterangan_qty_igr'] ?? null,
 
-                    'img_logo_spi' => $spiBadgeUrl ? asset('assets/components/img_logo_spi.png') : null,
-                    'img_container_spi' => $spiBadgeUrl ? asset('assets/components/img_container_spi.png') : null,
+                    'img_logo_spi' => $spiBadgeUrl ? 'assets/components/img_logo_spi.png' : null,
+                    'img_container_spi' => $spiBadgeUrl ? 'assets/components/img_container_spi.png' : null,
                     'txt_satuan_spi' => $spiBadgeUrl['txt_satuan_spi'] ?? null,
                     'txt_price_bonus_spi' => $spiBadgeUrl['txt_price_bonus_spi'] ?? null,
                     'txt_keterangan_qty_spi' => $spiBadgeUrl['txt_keterangan_qty_spi'] ?? null,
@@ -332,18 +343,14 @@ class LeafletParserService
             return strnatcmp($a['name'], $b['name']);
         });
 
-        // NORMALISASI KOORDINAT
-        // Menggeser semua slot agar dimulai dari (0,0) relatif terhadap bounding box terluar
         if (!empty($slots)) {
             $minX = min(array_column($slots, 'x'));
             $minY = min(array_column($slots, 'y'));
-
             foreach ($slots as &$slot) {
                 $slot['x'] -= $minX;
                 $slot['y'] -= $minY;
             }
         }
-
         return $slots;
     }
 
@@ -354,7 +361,6 @@ class LeafletParserService
 
         foreach ($nodes as $node) {
             if (isset($node['name']) && str_starts_with($node['name'], 'slot_')) {
-                // Skala 4x untuk high-res A4
                 $scale = 4;
                 $slots[] = [
                     'name' => $node['name'],

@@ -15,12 +15,12 @@ return new class extends Migration
         $table->id();
         $table->string('name');
         $table->string('email')->unique();
-        $table->string('username')->unique(); // Tambahan
+        $table->string('username')->unique();
         $table->timestamp('email_verified_at')->nullable();
         $table->string('password');
-        $table->enum('role', ['manager', 'staff']); // Tambahan
-        $table->enum('status', ['active', 'inactive'])->default('active'); // Tambahan
-        $table->timestamp('password_changed_at')->nullable(); // Tambahan
+        $table->enum('role', ['manager', 'staff']);
+        $table->enum('status', ['active', 'inactive'])->default('active');
+        $table->timestamp('password_changed_at')->nullable();
         $table->rememberToken();
         $table->timestamps();
     });
