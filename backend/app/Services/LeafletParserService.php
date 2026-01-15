@@ -185,10 +185,7 @@ class LeafletParserService
                     'txt_satuan_price' => $satuan ? "/$satuan" : '',
                     'img_product' => $finalImage,
 
-                    // Background utama ada di root assets/
                     'img_card_bg' => asset('assets/' . $cardBg),
-
-                    // Komponen UI ada di assets/components/
                     'img_container_price' => asset('assets/components/img_container_price.png'),
 
                     'txt_coret' => $txtCoret,
@@ -334,6 +331,19 @@ class LeafletParserService
         usort($slots, function ($a, $b) {
             return strnatcmp($a['name'], $b['name']);
         });
+
+        // NORMALISASI KOORDINAT
+        // Menggeser semua slot agar dimulai dari (0,0) relatif terhadap bounding box terluar
+        if (!empty($slots)) {
+            $minX = min(array_column($slots, 'x'));
+            $minY = min(array_column($slots, 'y'));
+
+            foreach ($slots as &$slot) {
+                $slot['x'] -= $minX;
+                $slot['y'] -= $minY;
+            }
+        }
+
         return $slots;
     }
 
@@ -344,7 +354,7 @@ class LeafletParserService
 
         foreach ($nodes as $node) {
             if (isset($node['name']) && str_starts_with($node['name'], 'slot_')) {
-                // Scale 4x agar sesuai resolusi tinggi Figma -> Canvas
+                // Skala 4x untuk high-res A4
                 $scale = 4;
                 $slots[] = [
                     'name' => $node['name'],
@@ -371,7 +381,6 @@ class LeafletParserService
         while ($itemIndex < $totalItems) {
             $currentSlots = ($pageNumber === 1) ? $coverSlots : $innerSlots;
 
-            // Fallback: Jika Inner Layout Kosong/Rusak, Gunakan Cover Slot
             if (empty($currentSlots) && !empty($coverSlots)) {
                 $currentSlots = $coverSlots;
             }
