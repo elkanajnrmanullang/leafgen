@@ -127,11 +127,15 @@ const EditorPage = () => {
             items: (page.items || []).map((item: BackendItem) => {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const raw = (item as any).data || (item as any).content || {};
+                // Cast item to any to access potentially missing properties in type definition
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const componentName = (item as any).component_name || "card_cover_master";
+                
                 return {
                     id: item.id,
                     plu: item.plu,
                     type: item.type,
-                    component_name: item.component_name || "card_cover_master",
+                    component_name: componentName,
                     content: {
                         ...raw,
                         name: raw.txt_name || raw.name || "Nama Barang",
@@ -145,7 +149,7 @@ const EditorPage = () => {
                         w: Number(item.w) || 200,
                         h: Number(item.h) || 300,
                     },
-                };
+                } as EditorItem;
             }),
             })
         );
@@ -161,9 +165,14 @@ const EditorPage = () => {
     }
   }, [location.state]);
 
-  const generateBadgeForItem = async (item: EditorItem) => {
-      if (generatingBadges[item.id] || generatedBadges[item.id]) return;
-      
+  const generateBadgeForItem = useCallback(async (item: EditorItem) => {
+      // Cast item to any to access component_name if missing in type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const itemAny = item as any;
+      const compName = itemAny.component_name || "card_cover_master";
+
+      if (!item.content) return;
+
       setGeneratingBadges(prev => ({...prev, [item.id]: true}));
       
       try {
@@ -175,7 +184,7 @@ const EditorPage = () => {
           };
 
           const url = await LeafletService.generateBadge(
-              item.component_name || "card_cover_master",
+              compName,
               apiData
           );
           
@@ -190,7 +199,7 @@ const EditorPage = () => {
               return newState;
           });
       }
-  };
+  }, []);
 
   useEffect(() => {
       pages.forEach(page => {
@@ -200,7 +209,7 @@ const EditorPage = () => {
               }
           });
       });
-  }, [pages]);
+  }, [pages, generatedBadges, generatingBadges, generateBadgeForItem]);
 
   useEffect(() => {
     if (loading) return;
@@ -220,22 +229,15 @@ const EditorPage = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // NEW: Function to scroll to item when clicked in sidebar
   const scrollToItem = (item: EditorItem, pageId: string) => {
     setSelectedItemId(item.id);
     setSelectedPageId(pageId);
 
     const pageElement = pageRefs.current[pageId];
     if (pageElement && mainContainerRef.current) {
-        // Find the page's position relative to the scroll container
         const pageRect = pageElement.getBoundingClientRect();
         const containerRect = mainContainerRef.current.getBoundingClientRect();
-        
-        // Calculate offset (scrolltop)
-        // Add item.y * zoom to scroll exactly to item inside page
         const relativeY = (item.layout.y * zoom);
-        
-        // Current scroll + Page top relative to container + item relative Y - some padding
         const newScrollTop = mainContainerRef.current.scrollTop + (pageRect.top - containerRect.top) + relativeY - 100;
 
         mainContainerRef.current.scrollTo({
@@ -260,7 +262,8 @@ const EditorPage = () => {
           const element = pageRefs.current[page.id];
           if (element) {
             if (i > 0) doc.addPage();
-            const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false } as any);
             const imgData = canvas.toDataURL("image/jpeg", 0.9);
             const imgWidth = 210;
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
@@ -272,7 +275,8 @@ const EditorPage = () => {
         const targetPageId = selectedPageId || pages[0].id;
         const element = pageRefs.current[targetPageId];
         if (element) {
-          const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false } as any);
           const link = document.createElement("a");
           link.download = `${designName}-Page.${selectedFormat.toLowerCase()}`;
           link.href = canvas.toDataURL(`image/${selectedFormat.toLowerCase()}`, 0.9);

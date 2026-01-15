@@ -344,7 +344,7 @@ class LeafletParserService
 
         foreach ($nodes as $node) {
             if (isset($node['name']) && str_starts_with($node['name'], 'slot_')) {
-                // Skala 4x untuk high-res A4 export dari Figma
+                // Scale 4x agar sesuai resolusi tinggi Figma -> Canvas
                 $scale = 4;
                 $slots[] = [
                     'name' => $node['name'],
@@ -376,7 +376,6 @@ class LeafletParserService
                 $currentSlots = $coverSlots;
             }
 
-            // Safety check
             if (empty($currentSlots)) {
                 Log::error("No slots available for page $pageNumber. Stopping distribution.");
                 break;
