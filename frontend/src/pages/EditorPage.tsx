@@ -41,6 +41,12 @@ interface Product {
   image_path: string;
 }
 
+// Custom type untuk halaman dengan dimensi
+interface PageWithDimensions extends LeafletPage {
+  width?: number;
+  height?: number;
+}
+
 const processAssetUrl = (url: string | null | undefined): string => {
   if (!url) return "";
   if (url.startsWith('http')) return url;
@@ -56,7 +62,7 @@ const EditorPage = () => {
   const mainContainerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  const [pages, setPages] = useState<LeafletPage[]>([]);
+  const [pages, setPages] = useState<PageWithDimensions[]>([]);
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState(0.25);
   const [designName, setDesignName] = useState("Draft Otomatis");
@@ -80,7 +86,6 @@ const EditorPage = () => {
   const [generatedBadges, setGeneratedBadges] = useState<Record<string, string>>({});
   const [generatingBadges, setGeneratingBadges] = useState<Record<string, boolean>>({});
 
-  // Product Modal State
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [productToEdit, setProductToEdit] = useState<Product | undefined>(undefined);
 
@@ -132,10 +137,14 @@ const EditorPage = () => {
         setStoreName(storeFromNav || dataToUse.store || "Region");
         if (dataToUse.id) setLeafletId(dataToUse.id);
 
-        const mappedPages: LeafletPage[] = dataToUse.pages.map(
+        const mappedPages: PageWithDimensions[] = dataToUse.pages.map(
             (page: BackendPage) => ({
             id: page.id || `page-${page.page_number}`,
             pageNumber: page.page_number,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            width: (page as any).width || 2480, 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            height: (page as any).height || 3508,
             items: (page.items || []).map((item: BackendItem) => {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const raw = (item as any).data || (item as any).content || {};
@@ -167,11 +176,11 @@ const EditorPage = () => {
         setPages(mappedPages);
         if (mappedPages.length > 0) setSelectedPageId(mappedPages[0].id);
       } else {
-        setPages([{ id: "page-1", pageNumber: 1, items: [] }]);
+        setPages([{ id: "page-1", pageNumber: 1, width: 2480, height: 3508, items: [] }]);
       }
       setLoading(false);
     } else {
-      setPages([{ id: "page-1", pageNumber: 1, items: [] }]);
+      setPages([{ id: "page-1", pageNumber: 1, width: 2480, height: 3508, items: [] }]);
       setLoading(false);
     }
   }, [location.state]);
@@ -213,7 +222,7 @@ const EditorPage = () => {
 
   useEffect(() => {
       pages.forEach(page => {
-          page.items.forEach(item => {
+          page.items.forEach((item: EditorItem) => {
               if (item.type === 'product_card' && !generatedBadges[item.id] && !generatingBadges[item.id]) {
                   generateBadgeForItem(item);
               }
@@ -306,7 +315,7 @@ const EditorPage = () => {
 
   const handleAddPage = () => {
     const newPageId = `page-${Date.now()}`;
-    setPages((prev) => [...prev, { id: newPageId, pageNumber: prev.length + 1, items: [] }]);
+    setPages((prev) => [...prev, { id: newPageId, pageNumber: prev.length + 1, width: 2480, height: 3508, items: [] } as PageWithDimensions]);
   };
 
   const handleDeletePage = (pageId: string) => {
@@ -327,7 +336,13 @@ const EditorPage = () => {
     setPages((prev) => {
       const idx = prev.findIndex((p) => p.id === pageId);
       const newPages = [...prev];
-      newPages.splice(idx + 1, 0, { id: newPageId, pageNumber: 0, items: clonedItems });
+      newPages.splice(idx + 1, 0, { 
+        id: newPageId, 
+        pageNumber: 0, 
+        width: pageToClone.width, 
+        height: pageToClone.height, 
+        items: clonedItems 
+      } as PageWithDimensions);
       return newPages.map((p, i) => ({ ...p, pageNumber: i + 1 }));
     });
   };
@@ -362,7 +377,7 @@ const EditorPage = () => {
         h: droppedItem.layout.h || 400,
       },
     };
-    setPages((prev) => prev.map((p) => p.id === pageId ? { ...p, items: [...p.items, newItem] } : p));
+    setPages((prev) => prev.map((p) => p.id === pageId ? { ...p, items: [...p.items, newItem] } as PageWithDimensions : p));
     setSelectedItemId(newItem.id);
     setSelectedPageId(pageId);
     setGeneratedBadges(prev => ({...prev, [newItem.id]: generatedBadges[droppedItem.id] || ""}));
@@ -378,7 +393,7 @@ const EditorPage = () => {
       needs_manual_image: false,
       layout: { x: 100, y: 100, w: 600, h: 200 },
     };
-    setPages((prev) => prev.map((p) => p.id === targetPageId ? { ...p, items: [...p.items, newItem] } : p));
+    setPages((prev) => prev.map((p) => p.id === targetPageId ? { ...p, items: [...p.items, newItem] } as PageWithDimensions : p));
     setSelectedItemId(newItem.id);
   };
 
@@ -392,7 +407,7 @@ const EditorPage = () => {
       needs_manual_image: false,
       layout: { x: 100, y: 100, w: 400, h: 400 },
     };
-    setPages((prev) => prev.map((p) => p.id === targetPageId ? { ...p, items: [...p.items, newItem] } : p));
+    setPages((prev) => prev.map((p) => p.id === targetPageId ? { ...p, items: [...p.items, newItem] } as PageWithDimensions : p));
     setSelectedItemId(newItem.id);
   };
 
@@ -461,7 +476,7 @@ const EditorPage = () => {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 return { ...item, content: { ...item.content, [key]: !(item.content as any)[key] } };
             });
-            return { ...page, items: updatedItems as EditorItem[] };
+            return { ...page, items: updatedItems as EditorItem[] } as PageWithDimensions;
         })
     );
   };
@@ -476,7 +491,7 @@ const EditorPage = () => {
                 if (!item.content) return item;
                 return { ...item, content: { ...item.content, [key]: value } };
             });
-            return { ...page, items: updatedItems as EditorItem[] };
+            return { ...page, items: updatedItems as EditorItem[] } as PageWithDimensions;
         })
     );
   };
@@ -516,10 +531,13 @@ const EditorPage = () => {
 
   const getSelectedItem = () => {
     if (!selectedPageId || !selectedItemId) return null;
-    return pages.find((p) => p.id === selectedPageId)?.items.find((i) => i.id === selectedItemId);
+    return pages.find((p) => p.id === selectedPageId)?.items.find((i: EditorItem) => i.id === selectedItemId);
   };
 
   const activeItem = getSelectedItem();
+  
+  // Safe navigation with fallback for currentPage to avoid crash
+  const currentPage = pages.find(p => p.id === selectedPageId) || pages[0] || { width: 2480, height: 3508 };
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-100 h-screen w-screen overflow-hidden font-sans">
@@ -607,17 +625,17 @@ const EditorPage = () => {
           </div>
         </aside>
         <main className="flex-1 relative flex flex-col min-w-0 overflow-auto items-center py-10" ref={mainContainerRef}>
-          {!loading && pages.map((page: LeafletPage) => (
+          {!loading && pages.map((page: PageWithDimensions) => (
               <div key={page.id} className="group flex flex-col gap-2 items-center mb-10">
-                <div className="flex items-center justify-between px-2 transition-all" style={{ width: 2480 * zoom }}>
+                <div className="flex items-center justify-between px-2 transition-all" style={{ width: (page.width || 2480) * zoom }}>
                   <span className="text-xs font-bold text-slate-500 bg-white px-3 py-1 rounded shadow-sm border border-slate-200">Halaman {page.pageNumber}</span>
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => handleDuplicatePage(page.id)} className="p-1.5 bg-white hover:text-blue-600 rounded shadow-sm border text-slate-500"><Copy size={14} /></button>
                     <button onClick={() => handleDeletePage(page.id)} className="p-1.5 bg-white hover:text-red-600 rounded shadow-sm border text-slate-500"><Trash2 size={14} /></button>
                   </div>
                 </div>
-                <div style={{ width: 2480 * zoom, height: 3508 * zoom, position: "relative" }} className="bg-white shadow-2xl transition-all duration-200 ease-out">
-                  <div ref={(el) => { pageRefs.current[page.id] = el; }} className={`bg-white overflow-hidden origin-top-left absolute top-0 left-0 ${selectedPageId === page.id ? "ring-4 ring-blue-500/20" : ""}`} onDragOver={handleCanvasDragOver} onDrop={(e) => handleCanvasDrop(e, page.id)} onClick={() => setSelectedPageId(page.id)} style={{ width: "2480px", height: "3508px", transform: `scale(${zoom})`, backgroundImage: pageBackground ? `url(${pageBackground})` : undefined, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat' }}>
+                <div style={{ width: (page.width || 2480) * zoom, height: (page.height || 3508) * zoom, position: "relative" }} className="bg-white shadow-2xl transition-all duration-200 ease-out">
+                  <div ref={(el) => { pageRefs.current[page.id] = el; }} className={`bg-white overflow-hidden origin-top-left absolute top-0 left-0 ${selectedPageId === page.id ? "ring-4 ring-blue-500/20" : ""}`} onDragOver={handleCanvasDragOver} onDrop={(e) => handleCanvasDrop(e, page.id)} onClick={() => setSelectedPageId(page.id)} style={{ width: `${page.width || 2480}px`, height: `${page.height || 3508}px`, transform: `scale(${zoom})`, transformOrigin: 'top left', backgroundImage: pageBackground ? `url(${pageBackground})` : undefined, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat' }}>
                     {isGridEnabled && <div className="absolute inset-0 grid grid-cols-4 grid-rows-4 divide-x divide-y divide-blue-500/20 pointer-events-none z-50 border border-blue-500/20">{[...Array(16)].map((_, i) => <div key={i}></div>)}</div>}
                     {page.items.map((item: EditorItem) => (
                       <div key={item.id} onMouseDown={(e) => handleMouseDown(e, item, page.id)} className={`absolute select-none group/item cursor-move flex flex-col ${selectedItemId === item.id ? "ring-2 ring-blue-500 z-40 shadow-xl" : "hover:ring-1 hover:ring-blue-300 z-10"}`} style={{ left: item.layout.x, top: item.layout.y, width: item.layout.w, height: item.layout.h }}>
@@ -642,7 +660,7 @@ const EditorPage = () => {
                 </div>
               </div>
             ))}
-          <div className="transition-all pb-20" style={{ width: 2480 * zoom }}>
+          <div className="transition-all pb-20" style={{ width: (currentPage?.width || 2480) * zoom }}>
             <button onClick={handleAddPage} className="group flex items-center justify-center gap-3 w-full py-8 bg-slate-200/50 hover:bg-slate-200 border-2 border-dashed border-slate-300 rounded-xl transition-all text-slate-500"><div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform"><Plus size={20} /></div><span className="font-bold">Tambah Halaman</span></button>
           </div>
         </main>

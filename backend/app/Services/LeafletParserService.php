@@ -27,7 +27,7 @@ class LeafletParserService
         $layoutCover = $this->loadLayoutStructure('layout_cover.json');
         $layoutInner = $this->loadLayoutStructure('layout_inner.json');
 
-        if (empty($layoutCover)) {
+        if (empty($layoutCover['slots'])) {
             Log::error("Layout Cover slots not found or empty.");
             return [];
         }
@@ -37,6 +37,7 @@ class LeafletParserService
 
     private function filterItems(array $rows, string $targetRegion)
     {
+        // ... (Kode filterItems tetap sama) ...
         $validItems = [];
         $targetRegion = strtoupper(trim($targetRegion));
 
@@ -99,6 +100,7 @@ class LeafletParserService
 
     private function groupItemsByVariant(array $items)
     {
+        // ... (Kode groupItemsByVariant tetap sama) ...
         $groups = [];
 
         foreach ($items as $item) {
@@ -125,6 +127,7 @@ class LeafletParserService
 
     private function sortItems(array $items)
     {
+        // ... (Kode sortItems tetap sama) ...
         $sorted = [];
         foreach ($items as $item) {
             $isBbmu = !empty($item['syarat_bbmu']);
@@ -142,16 +145,14 @@ class LeafletParserService
     private function mapToVisualItems(array $items, int $pageNumber)
     {
         $mapped = [];
-        $pluList = array_map(fn($item) => (string)($item['unit'] ?? $item['plu'] ?? ''), $items);
+        $pluList = array_map(fn($item) => preg_replace('/[^0-9]/', '', (string)($item['plu'] ?? '')), $items);
         $dbProducts = Product::whereIn('plu_code', $pluList)->pluck('image_path', 'plu_code');
 
         $cardBg = ($pageNumber === 1) ? 'img_card_bg_master.png' : 'card_inner_master_bg.png';
 
         foreach ($items as $index => $item) {
-            $plu = (string)($item['unit'] ?? $item['plu'] ?? '0');
-            $imagePath = $dbProducts[$plu] ?? null;
-
-            // Image Produk: Gunakan path storage relatif, bukan asset() full URL
+            $cleanPlu = preg_replace('/[^0-9]/', '', (string)($item['plu'] ?? '0'));
+            $imagePath = $dbProducts[$cleanPlu] ?? null;
             $finalImage = $imagePath ? 'storage/' . $imagePath : 'assets/placeholder.png';
             $needsManual = empty($imagePath);
 
@@ -178,49 +179,41 @@ class LeafletParserService
             $mapped[] = [
                 'id' => 'item-' . $pageNumber . '-' . $index . '-' . uniqid(),
                 'type' => 'product_card',
-                'plu' => $plu,
+                'plu' => $cleanPlu,
                 'component_name' => 'card_cover_master',
                 'data' => [
                     'txt_name' => $item['nama_barang'] ?? 'Nama Barang',
                     'txt_price' => $txtPrice,
                     'txt_satuan_price' => $satuan ? "/$satuan" : '',
+
                     'img_product' => $finalImage,
 
-                    // Gunakan path relatif (string), BUKAN asset()
+                    // Path relatif agar lebih aman di berbagai environment
                     'img_card_bg' => 'assets/' . $cardBg,
-
                     'img_container_price' => 'assets/components/img_container_price.png',
-
                     'txt_coret' => $txtCoret,
                     'img_container_coret' => $coretData['show'] ? 'assets/components/img_container_coret.png' : null,
                     'img_coret_line' => $coretData['show'] ? 'assets/components/img_coret_line.png' : null,
-
                     'txt_keterangan' => $descText,
                     'img_container_keterangan' => !empty($descText) ? 'assets/components/img_container_keterangan.png' : null,
-
                     'img_badge_bbmu' => !empty($bbmuBadgeUrl) ? 'assets/components/' . $bbmuBadgeUrl : null,
-
                     'img_bg_label_promo' => $promoBadgeUrl ? 'assets/components/img_bg_label_promo.png' : null,
                     'img_container_ketPromo' => $promoBadgeUrl ? 'assets/components/img_container_ketPromo.png' : null,
                     'txt_qty_promo' => $promoBadgeUrl['txt_qty_promo'] ?? null,
                     'txt_price_promo' => $promoBadgeUrl['txt_price_promo'] ?? null,
                     'txt_keterangan_promo' => $promoBadgeUrl['txt_keterangan_promo'] ?? null,
                     'txt_satuan' => $promoBadgeUrl['txt_satuan'] ?? null,
-
-                    // Mapping untuk layer _alt (agar sama dengan standard)
                     'img_bg_label_promo_alt' => $promoBadgeUrl ? 'assets/components/img_bg_label_promo.png' : null,
                     'img_container_ketPromo_alt' => $promoBadgeUrl ? 'assets/components/img_container_ketPromo.png' : null,
                     'txt_qty_promo_alt' => $promoBadgeUrl['txt_qty_promo'] ?? null,
                     'txt_price_promo_alt' => $promoBadgeUrl['txt_price_promo'] ?? null,
                     'txt_keterangan_promo_alt' => $promoBadgeUrl['txt_keterangan_promo'] ?? null,
                     'txt_satuan_alt' => $promoBadgeUrl['txt_satuan'] ?? null,
-
                     'img_bg_poin_igr' => $igrBadgeUrl ? 'assets/components/img_bg_poin_igr.png' : null,
                     'img_container_igr' => $igrBadgeUrl ? 'assets/components/img_container_igr.png' : null,
                     'txt_satuan_igr' => $igrBadgeUrl['txt_satuan_igr'] ?? null,
                     'txt_price_bonus_igr' => $igrBadgeUrl['txt_price_bonus_igr'] ?? null,
                     'txt_keterangan_qty_igr' => $igrBadgeUrl['txt_keterangan_qty_igr'] ?? null,
-
                     'img_logo_spi' => $spiBadgeUrl ? 'assets/components/img_logo_spi.png' : null,
                     'img_container_spi' => $spiBadgeUrl ? 'assets/components/img_container_spi.png' : null,
                     'txt_satuan_spi' => $spiBadgeUrl['txt_satuan_spi'] ?? null,
@@ -237,6 +230,7 @@ class LeafletParserService
 
     private function calculateCoret($md, $supp, $mkt)
     {
+        // ... (Kode calculateCoret tetap sama) ...
         if ($md > 0) {
             $totalSubsidi = $supp + $mkt;
             if ($supp > 1000 || $mkt > 1000 || $totalSubsidi > 1000) {
@@ -248,6 +242,7 @@ class LeafletParserService
 
     private function processDescription($text, $supp, $mkt)
     {
+        // ... (Kode processDescription tetap sama) ...
         $upperText = strtoupper($text);
         $totalSubsidi = $supp + $mkt;
 
@@ -270,6 +265,7 @@ class LeafletParserService
 
     private function generateLabelPromo($text)
     {
+        // ... (Kode generateLabelPromo tetap sama) ...
         $upperText = strtoupper($text);
         $isActive = str_contains($upperText, 'TOTAL POTONGAN') || str_contains($upperText, 'TOTAL DISC') || str_contains($upperText, 'TIAP PEMBELIAN') || (str_contains($upperText, 'BELI') && str_contains($upperText, 'DISC'));
         if (!$isActive) return null;
@@ -296,6 +292,7 @@ class LeafletParserService
 
     private function generatePoinIGR($text)
     {
+        // ... (Kode generatePoinIGR tetap sama) ...
         if (!str_contains(strtoupper($text), 'POIN IGR')) return null;
         if (preg_match('/Beli\s+(\d+)\s+(\w+).*?dapat\s+([\d,\.]+)\s+Poin/i', $text, $matches)) {
             return [
@@ -309,6 +306,7 @@ class LeafletParserService
 
     private function generatePoinSPI($poin, $satuan, $syaratBbmu)
     {
+        // ... (Kode generatePoinSPI tetap sama) ...
         if ($poin > 0) {
             $qty = '1';
             $unit = ucfirst(strtolower($satuan));
@@ -335,9 +333,36 @@ class LeafletParserService
         $path = storage_path('app/master_templates/json/' . $filename);
         if (!file_exists($path)) {
             Log::warning("Layout JSON not found: " . $path);
-            return [];
+            return ['slots' => [], 'width' => 2480, 'height' => 3508];
         }
         $data = json_decode(file_get_contents($path), true);
+
+        // Ambil ukuran canvas dari root element
+        $width = 2480;
+        $height = 3508;
+
+        // Cek struktur JSON Figma, biasanya root element ada di level atas
+        // atau dibungkus dalam array/document
+        $root = $data;
+        if (isset($data['document']['children'][0]['children'])) {
+             // Jika format full API dump
+             foreach($data['document']['children'][0]['children'] as $node) {
+                 if(isset($node['absoluteBoundingBox'])) {
+                     $width = $node['absoluteBoundingBox']['width'] * 4; // Skala 4x
+                     $height = $node['absoluteBoundingBox']['height'] * 4;
+                     break;
+                 }
+             }
+        } elseif (isset($data['absoluteBoundingBox'])) {
+             // Jika format single node export
+             $width = $data['absoluteBoundingBox']['width'] * 4;
+             $height = $data['absoluteBoundingBox']['height'] * 4;
+        } elseif (is_array($data) && isset($data[0]['absoluteBoundingBox'])) {
+             // Jika array of nodes
+             $width = $data[0]['absoluteBoundingBox']['width'] * 4;
+             $height = $data[0]['absoluteBoundingBox']['height'] * 4;
+        }
+
         $slots = $this->findSlotsRecursively($data);
         usort($slots, function ($a, $b) {
             return strnatcmp($a['name'], $b['name']);
@@ -351,7 +376,12 @@ class LeafletParserService
                 $slot['y'] -= $minY;
             }
         }
-        return $slots;
+
+        return [
+            'slots' => $slots,
+            'width' => $width,
+            'height' => $height
+        ];
     }
 
     private function findSlotsRecursively($nodes)
@@ -377,7 +407,7 @@ class LeafletParserService
         return $slots;
     }
 
-    private function distributeToPages(array $rawItems, array $coverSlots, array $innerSlots)
+    private function distributeToPages(array $rawItems, array $coverLayout, array $innerLayout)
     {
         $pages = [];
         $itemIndex = 0;
@@ -385,11 +415,13 @@ class LeafletParserService
         $pageNumber = 1;
 
         while ($itemIndex < $totalItems) {
-            $currentSlots = ($pageNumber === 1) ? $coverSlots : $innerSlots;
+            $currentLayoutData = ($pageNumber === 1) ? $coverLayout : $innerLayout;
 
-            if (empty($currentSlots) && !empty($coverSlots)) {
-                $currentSlots = $coverSlots;
+            if (empty($currentLayoutData['slots']) && !empty($coverLayout['slots'])) {
+                $currentLayoutData = $coverLayout;
             }
+
+            $currentSlots = $currentLayoutData['slots'];
 
             if (empty($currentSlots)) {
                 Log::error("No slots available for page $pageNumber. Stopping distribution.");
@@ -421,6 +453,8 @@ class LeafletParserService
                 'id' => 'page-' . $pageNumber,
                 'page_number' => $pageNumber,
                 'layout_type' => ($pageNumber === 1) ? 'cover' : 'inner',
+                'width' => $currentLayoutData['width'],
+                'height' => $currentLayoutData['height'],
                 'items' => $visualItems
             ];
 
