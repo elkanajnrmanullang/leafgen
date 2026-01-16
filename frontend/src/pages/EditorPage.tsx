@@ -818,19 +818,21 @@ const EditorPage = () => {
      const item = getSelectedItem();
      
      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-     const realProductId = (item?.content as any)?.product_id;
+     const content = item?.content as any;
+     const realProductId = content?.product_id;
 
-     if(item && realProductId && realProductId !== 0) {
+     if (item) {
+         // Selalu isi productToEdit, meskipun ID-nya 0 (produk baru)
+         // agar form di modal terisi nama & PLU dari kartu
          setProductToEdit({
-             id: realProductId, 
-             plu_code: item.plu || "",
-             name: item.content?.name || "",
+             id: realProductId || 0, 
+             plu_code: item.plu || content?.plu || "",
+             name: content?.name || "",
              image_path: "" 
          } as Product);
-     } else {
-         setProductToEdit(undefined);
+         
+         setIsProductModalOpen(true);
      }
-     setIsProductModalOpen(true);
   };
 
   const handleCloseProductModal = () => {
