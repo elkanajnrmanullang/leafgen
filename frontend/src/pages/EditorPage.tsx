@@ -3,7 +3,9 @@ import { useNavigate, useLocation } from "react-router-dom";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { LeafletService } from "../services/leafletService";
-import ProductUploadModal from "../components/ProductUploadModal"; 
+import ProductUploadModal from "../components/ProductUploadModal";
+import layoutCoverJson from "../data/layout_cover.json";
+import layoutInnerJson from "../data/layout_inner.json";
 import {
   ZoomIn,
   ZoomOut,
@@ -27,12 +29,26 @@ import {
   RefreshCw,
   FolderOpen
 } from "lucide-react";
+
 import type {
   LeafletPage,
   EditorItem,
   BackendPage,
   BackendItem,
 } from "../types";
+
+interface FigmaNode {
+  id: string;
+  type: string;
+  name?: string;
+  visible?: boolean;
+  absoluteBoundingBox: { x: number; y: number; width: number; height: number };
+  children?: FigmaNode[];
+  characters?: string;
+  fills?: { type: string; color?: { r: number; g: number; b: number }; opacity?: number }[];
+  fontSize?: number;
+  opacity?: number;
+}
 
 interface Product {
   id: number;
@@ -41,11 +57,21 @@ interface Product {
   image_path: string;
 }
 
-// Custom type untuk halaman dengan dimensi
 interface PageWithDimensions extends LeafletPage {
   width?: number;
   height?: number;
+  items: (EditorItem & { component_name?: string })[]; 
 }
+
+interface Slot {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const LAYOUT_COVER = layoutCoverJson as unknown as FigmaNode[];
+const LAYOUT_INNER = layoutInnerJson as unknown as FigmaNode[];
 
 const processAssetUrl = (url: string | null | undefined): string => {
   if (!url) return "";
@@ -53,6 +79,170 @@ const processAssetUrl = (url: string | null | undefined): string => {
   if (!url.startsWith('/') && !url.startsWith('assets') && !url.startsWith('storage')) return `/assets/${url}`;
   if (!url.startsWith('/')) return `/${url}`;
   return url;
+};
+
+const extractSlots = (layoutData: FigmaNode[]): Slot[] => {
+    if (!layoutData || !layoutData[0]) return [];
+    
+    const parentBox = layoutData[0].absoluteBoundingBox;
+    
+    const flattenChildren = (nodes: FigmaNode[]): FigmaNode[] => {
+        let result: FigmaNode[] = [];
+        nodes.forEach(node => {
+            result.push(node);
+            if (node.children) {
+                result = result.concat(flattenChildren(node.children));
+            }
+        });
+        return result;
+    };
+
+    const allNodes = flattenChildren(layoutData[0].children || []);
+    const slots = allNodes.filter((child) => child.name && child.name.startsWith("slot_"));
+
+    slots.sort((a, b) => {
+        const numA = parseInt(a.name?.replace('slot_', '') || '0');
+        const numB = parseInt(b.name?.replace('slot_', '') || '0');
+        return numA - numB;
+    });
+
+    return slots.map((slot) => ({
+        x: slot.absoluteBoundingBox.x - parentBox.x,
+        y: slot.absoluteBoundingBox.y - parentBox.y,
+        w: slot.absoluteBoundingBox.width,
+        h: slot.absoluteBoundingBox.height
+    }));
+};
+
+const RenderStaticLayout = ({ 
+    layoutData, 
+    pageBackground, 
+    pageItems 
+}: { 
+    layoutData: FigmaNode[], 
+    pageBackground: string | null,
+    pageItems: EditorItem[]
+}) => {
+    if (!layoutData || !layoutData[0]) return null;
+
+    const parentBox = layoutData[0].absoluteBoundingBox;
+
+    const renderNode = (node: FigmaNode) => {
+        if (!node || node.visible === false) return null;
+
+        if (node.type === "GROUP" || node.type === "FRAME") {
+             return node.children?.map((child) => (
+                <React.Fragment key={child.id}>
+                    {renderNode(child)}
+                </React.Fragment>
+             ));
+        }
+
+        if (!node.absoluteBoundingBox) return null;
+
+        const left = node.absoluteBoundingBox.x - parentBox.x;
+        const top = node.absoluteBoundingBox.y - parentBox.y;
+        const width = node.absoluteBoundingBox.width;
+        const height = node.absoluteBoundingBox.height;
+
+        let content = null;
+
+        if (node.name?.startsWith("img_")) {
+            const isDynamicBg = node.name === "img_bg_layout_cover" || node.name === "img_bg_layout_inner";
+            const imgSrc = (isDynamicBg && pageBackground) ? pageBackground : `/assets/${node.name}.png`;
+
+            content = (
+                <img 
+                    src={imgSrc} 
+                    alt={node.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+            );
+        } else if (node.type === "TEXT") {
+                content = (
+                <div style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: node.fills?.[0]?.color ? `rgb(${Math.round(node.fills[0].color.r * 255)}, ${Math.round(node.fills[0].color.g * 255)}, ${Math.round(node.fills[0].color.b * 255)})` : '#000',
+                    fontSize: `${(node.fontSize || 40) * 0.8}px`,
+                    fontWeight: 'bold',
+                    textAlign: 'center'
+                }}>
+                    {node.characters || ""}
+                </div>
+            );
+        } else if (node.fills && node.fills.length > 0 && node.fills[0].type === "SOLID") {
+            const color = node.fills[0].color;
+            if(color) {
+                const r = Math.round(color.r * 255);
+                const g = Math.round(color.g * 255);
+                const b = Math.round(color.b * 255);
+                content = (
+                    <div style={{ 
+                        width: '100%', 
+                        height: '100%', 
+                        backgroundColor: `rgb(${r},${g},${b})`,
+                        opacity: node.opacity ?? 1
+                    }} />
+                );
+            }
+        }
+
+        if (node.name?.startsWith("slot_")) {
+            const isOccupied = pageItems.some(item => {
+                return Math.abs(item.layout.x - left) < 1 && Math.abs(item.layout.y - top) < 1;
+            });
+
+            if (isOccupied) return null;
+
+            return (
+                    <div 
+                    key={node.id}
+                    style={{
+                        position: 'absolute',
+                        left: `${left}px`,
+                        top: `${top}px`,
+                        width: `${width}px`,
+                        height: `${height}px`,
+                        border: '1px dashed #94a3b8',
+                        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                        zIndex: 5,
+                        pointerEvents: 'none' 
+                    }}
+                />
+            );
+        }
+
+        return (
+            <div 
+                key={node.id}
+                style={{
+                    position: 'absolute',
+                    left: `${left}px`,
+                    top: `${top}px`,
+                    width: `${width}px`,
+                    height: `${height}px`,
+                    zIndex: 0
+                }}
+            >
+                {content}
+            </div>
+        );
+    };
+
+    return (
+        <div className="absolute inset-0 pointer-events-none z-0">
+             {layoutData[0].children?.map((child) => (
+                 <React.Fragment key={child.id}>
+                    {renderNode(child)}
+                 </React.Fragment>
+             ))}
+        </div>
+    );
 };
 
 const EditorPage = () => {
@@ -137,44 +327,83 @@ const EditorPage = () => {
         setStoreName(storeFromNav || dataToUse.store || "Region");
         if (dataToUse.id) setLeafletId(dataToUse.id);
 
-        const mappedPages: PageWithDimensions[] = dataToUse.pages.map(
-            (page: BackendPage) => ({
-            id: page.id || `page-${page.page_number}`,
-            pageNumber: page.page_number,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            width: (page as any).width || 2480, 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            height: (page as any).height || 3508,
-            items: (page.items || []).map((item: BackendItem) => {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const raw = (item as any).data || (item as any).content || {};
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const componentName = (item as any).component_name || "card_cover_master";
-                
-                return {
-                    id: item.id,
-                    plu: item.plu,
-                    type: item.type,
+        const allProducts: BackendItem[] = [];
+        dataToUse.pages.forEach((p: BackendPage) => {
+             if (p.items) allProducts.push(...p.items);
+        });
+
+        const coverSlots = extractSlots(LAYOUT_COVER);
+        const innerSlots = extractSlots(LAYOUT_INNER);
+
+        const newPages: PageWithDimensions[] = [];
+        let productIndex = 0;
+        let pageCount = 1;
+
+        while (productIndex < allProducts.length) {
+             const isCover = pageCount === 1;
+             const currentSlots = isCover ? coverSlots : innerSlots;
+             const layoutRef = isCover ? LAYOUT_COVER : LAYOUT_INNER;
+             const pageWidth = layoutRef[0].absoluteBoundingBox.width;
+             const pageHeight = layoutRef[0].absoluteBoundingBox.height;
+
+             const pageItems: (EditorItem & { component_name?: string })[] = [];
+
+             for (let i = 0; i < currentSlots.length && productIndex < allProducts.length; i++) {
+                 const slot = currentSlots[i];
+                 const itemData = allProducts[productIndex];
+                 
+                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                 const raw = (itemData as any).data || (itemData as any).content || {};
+                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                 const componentName = (itemData as any).component_name || "card_cover_master";
+
+                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                 const productId = raw.product_id || (typeof raw.id === 'number' ? raw.id : undefined);
+
+                 pageItems.push({
+                    id: itemData.id || `auto-item-${productIndex}`,
+                    plu: itemData.plu,
+                    type: itemData.type || 'product_card',
                     component_name: componentName,
                     content: {
                         ...raw,
+                        product_id: productId,
                         name: raw.txt_name || raw.name || "Nama Barang",
                         price_display: raw.txt_price || raw.price_display || "",
                         image_url: processAssetUrl(raw.img_product || raw.image_url || "placeholder.png"),
                     },
-                    needs_manual_image: item.needs_manual_image,
+                    needs_manual_image: itemData.needs_manual_image,
                     layout: {
-                        x: Number(item.x) || 0,
-                        y: Number(item.y) || 0,
-                        w: Number(item.w) || 200,
-                        h: Number(item.h) || 300,
-                    },
-                } as EditorItem;
-            }),
-            })
-        );
-        setPages(mappedPages);
-        if (mappedPages.length > 0) setSelectedPageId(mappedPages[0].id);
+                        x: slot.x,
+                        y: slot.y,
+                        w: slot.w,
+                        h: slot.h
+                    }
+                 });
+
+                 productIndex++;
+             }
+
+             newPages.push({
+                 id: `page-${pageCount}`,
+                 pageNumber: pageCount,
+                 width: pageWidth,
+                 height: pageHeight,
+                 items: pageItems
+             });
+
+             pageCount++;
+        }
+
+        if (newPages.length === 0) {
+            const w = LAYOUT_COVER[0].absoluteBoundingBox.width;
+            const h = LAYOUT_COVER[0].absoluteBoundingBox.height;
+            newPages.push({ id: "page-1", pageNumber: 1, width: w, height: h, items: [] });
+        }
+
+        setPages(newPages);
+        if (newPages.length > 0) setSelectedPageId(newPages[0].id);
+
       } else {
         setPages([{ id: "page-1", pageNumber: 1, width: 2480, height: 3508, items: [] }]);
       }
@@ -185,10 +414,8 @@ const EditorPage = () => {
     }
   }, [location.state]);
 
-  const generateBadgeForItem = useCallback(async (item: EditorItem) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const itemAny = item as any;
-      const compName = itemAny.component_name || "card_cover_master";
+  const generateBadgeForItem = useCallback(async (item: EditorItem & { component_name?: string }) => {
+      const compName = item.component_name || "card_cover_master";
 
       if (!item.content) return;
 
@@ -222,7 +449,7 @@ const EditorPage = () => {
 
   useEffect(() => {
       pages.forEach(page => {
-          page.items.forEach((item: EditorItem) => {
+          page.items.forEach((item) => {
               if (item.type === 'product_card' && !generatedBadges[item.id] && !generatingBadges[item.id]) {
                   generateBadgeForItem(item);
               }
@@ -247,6 +474,34 @@ const EditorPage = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const getNearestSlot = (
+    dropX: number,
+    dropY: number,
+    pageNumber: number
+  ): { x: number; y: number; w: number; h: number } | null => {
+    const layout = pageNumber === 1 ? LAYOUT_COVER : LAYOUT_INNER;
+    const slots = extractSlots(layout);
+
+    let nearestSlot = null;
+    let minDistance = Infinity;
+
+    slots.forEach((slot) => {
+      const centerX = slot.x + slot.w / 2;
+      const centerY = slot.y + slot.h / 2;
+
+      const distance = Math.sqrt(
+        Math.pow(dropX - centerX, 2) + Math.pow(dropY - centerY, 2)
+      );
+
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestSlot = slot;
+      }
+    });
+    
+    return nearestSlot;
+  };
 
   const scrollToItem = (item: EditorItem, pageId: string) => {
     setSelectedItemId(item.id);
@@ -361,22 +616,44 @@ const EditorPage = () => {
     e.preventDefault();
     const jsonData = e.dataTransfer.getData("application/json");
     if (!jsonData) return;
+    
     const droppedItem = JSON.parse(jsonData) as EditorItem;
     const currentCanvas = pageRefs.current[pageId];
     if (!currentCanvas) return;
+    
     const canvasRect = currentCanvas.getBoundingClientRect();
     const mouseX = (e.clientX - canvasRect.left) / zoom;
     const mouseY = (e.clientY - canvasRect.top) / zoom;
+    
+    const targetPage = pages.find(p => p.id === pageId);
+    const pageNum = targetPage ? targetPage.pageNumber : 1;
+
+    const nearestSlot = getNearestSlot(mouseX, mouseY, pageNum);
+
+    let finalLayout;
+    
+    if (droppedItem.type === 'product_card' && nearestSlot) {
+        finalLayout = {
+            x: nearestSlot.x,
+            y: nearestSlot.y,
+            w: nearestSlot.w,
+            h: nearestSlot.h
+        };
+    } else {
+        finalLayout = {
+            x: mouseX - (droppedItem.layout.w || 400) / 2,
+            y: mouseY - (droppedItem.layout.h || 400) / 2,
+            w: droppedItem.layout.w || 400,
+            h: droppedItem.layout.h || 400,
+        };
+    }
+
     const newItem: EditorItem = {
       ...droppedItem,
       id: `item-${Date.now()}`,
-      layout: {
-        x: mouseX - (droppedItem.layout.w || 400) / 2,
-        y: mouseY - (droppedItem.layout.h || 400) / 2,
-        w: droppedItem.layout.w || 400,
-        h: droppedItem.layout.h || 400,
-      },
+      layout: finalLayout,
     };
+    
     setPages((prev) => prev.map((p) => p.id === pageId ? { ...p, items: [...p.items, newItem] } as PageWithDimensions : p));
     setSelectedItemId(newItem.id);
     setSelectedPageId(pageId);
@@ -433,22 +710,61 @@ const EditorPage = () => {
     const canvasRect = currentCanvas.getBoundingClientRect();
     const mouseX = (e.clientX - canvasRect.left) / zoom;
     const mouseY = (e.clientY - canvasRect.top) / zoom;
+    
     setPages((prevPages) =>
       prevPages.map((page: LeafletPage) => {
         if (page.id !== dragActivePageId) return page;
         return {
           ...page,
-          items: page.items.map((item: EditorItem) =>
-            item.id === draggingId
-              ? { ...item, layout: { ...item.layout, x: mouseX - dragOffset.x, y: mouseY - dragOffset.y } }
-              : item
-          ),
+          items: page.items.map((item: EditorItem) => {
+            if (item.id === draggingId) {
+                const newX = mouseX - dragOffset.x;
+                const newY = mouseY - dragOffset.y;
+                
+                return { ...item, layout: { ...item.layout, x: newX, y: newY } };
+            }
+            return item;
+          }),
         };
       })
     );
   };
 
   const handleMouseUp = () => {
+    if (draggingId && dragActivePageId) {
+        const page = pages.find(p => p.id === dragActivePageId);
+        const item = page?.items.find(i => i.id === draggingId);
+        
+        if (page && item && item.type === 'product_card') {
+            const centerItemX = item.layout.x + item.layout.w / 2;
+            const centerItemY = item.layout.y + item.layout.h / 2;
+            const nearestSlot = getNearestSlot(centerItemX, centerItemY, page.pageNumber);
+            
+            if (nearestSlot) {
+                 setPages((prev) => prev.map((p) => {
+                    if (p.id !== dragActivePageId) return p;
+                    return {
+                        ...p,
+                        items: p.items.map(i => {
+                            if (i.id === draggingId) {
+                                return {
+                                    ...i,
+                                    layout: {
+                                        x: nearestSlot.x,
+                                        y: nearestSlot.y,
+                                        w: nearestSlot.w,
+                                        h: nearestSlot.h
+                                    }
+                                }
+                            }
+                            return i;
+                        })
+                    } as PageWithDimensions;
+                 }));
+            }
+        }
+    }
+
     setDraggingId(null);
     setDragActivePageId(null);
   };
@@ -500,9 +816,13 @@ const EditorPage = () => {
      if (!selectedItemId || !selectedPageId) return;
      
      const item = getSelectedItem();
-     if(item) {
+     
+     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     const realProductId = (item?.content as any)?.product_id;
+
+     if(item && realProductId && realProductId !== 0) {
          setProductToEdit({
-             id: 0, 
+             id: realProductId, 
              plu_code: item.plu || "",
              name: item.content?.name || "",
              image_path: "" 
@@ -536,7 +856,6 @@ const EditorPage = () => {
 
   const activeItem = getSelectedItem();
   
-  // Safe navigation with fallback for currentPage to avoid crash
   const currentPage = pages.find(p => p.id === selectedPageId) || pages[0] || { width: 2480, height: 3508 };
 
   return (
@@ -550,11 +869,11 @@ const EditorPage = () => {
         </div>
         <div className="flex items-center gap-6">
           <div className="flex gap-1 items-center bg-slate-100 p-1 rounded-lg">
-             <button className="p-2 bg-white shadow-sm rounded-md text-blue-600 hover:text-blue-700" title="Select"><MousePointer2 size={18} /></button>
-             <button className="p-2 text-slate-600 hover:bg-white hover:shadow-sm hover:rounded-md transition-all" title="Move Canvas"><Move size={18} /></button>
-             <div className="w-px h-5 bg-slate-300 mx-1"></div>
-             <button onClick={handleAddImage} className="p-2 text-slate-600 hover:bg-white hover:shadow-sm hover:rounded-md transition-all" title="Add Image"><ImageIcon size={18} /></button>
-             <button onClick={handleAddText} className="p-2 text-slate-600 hover:bg-white hover:shadow-sm hover:rounded-md transition-all" title="Add Text"><Type size={18} /></button>
+              <button className="p-2 bg-white shadow-sm rounded-md text-blue-600 hover:text-blue-700" title="Select"><MousePointer2 size={18} /></button>
+              <button className="p-2 text-slate-600 hover:bg-white hover:shadow-sm hover:rounded-md transition-all" title="Move Canvas"><Move size={18} /></button>
+              <div className="w-px h-5 bg-slate-300 mx-1"></div>
+              <button onClick={handleAddImage} className="p-2 text-slate-600 hover:bg-white hover:shadow-sm hover:rounded-md transition-all" title="Add Image"><ImageIcon size={18} /></button>
+              <button onClick={handleAddText} className="p-2 text-slate-600 hover:bg-white hover:shadow-sm hover:rounded-md transition-all" title="Add Text"><Type size={18} /></button>
           </div>
           <div className="h-8 w-px bg-slate-200"></div>
           <div className="flex items-center gap-2">
@@ -608,7 +927,7 @@ const EditorPage = () => {
                         key={`sidebar-${item.id}`} 
                         draggable={true} 
                         onDragStart={(e) => handleSidebarDragStart(e, item)} 
-                        onClick={() => scrollToItem(item, page.id)} // CLICK TO SCROLL
+                        onClick={() => scrollToItem(item, page.id)} 
                         className="flex gap-3 p-2 rounded-lg border border-slate-200 hover:border-blue-400 cursor-pointer bg-white transition-all select-none group active:bg-blue-50"
                     >
                         <div className="w-12 h-12 bg-slate-50 rounded border border-slate-100 flex-shrink-0 flex items-center justify-center overflow-hidden">
@@ -636,6 +955,7 @@ const EditorPage = () => {
                 </div>
                 <div style={{ width: (page.width || 2480) * zoom, height: (page.height || 3508) * zoom, position: "relative" }} className="bg-white shadow-2xl transition-all duration-200 ease-out">
                   <div ref={(el) => { pageRefs.current[page.id] = el; }} className={`bg-white overflow-hidden origin-top-left absolute top-0 left-0 ${selectedPageId === page.id ? "ring-4 ring-blue-500/20" : ""}`} onDragOver={handleCanvasDragOver} onDrop={(e) => handleCanvasDrop(e, page.id)} onClick={() => setSelectedPageId(page.id)} style={{ width: `${page.width || 2480}px`, height: `${page.height || 3508}px`, transform: `scale(${zoom})`, transformOrigin: 'top left', backgroundImage: pageBackground ? `url(${pageBackground})` : undefined, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat' }}>
+                    <RenderStaticLayout layoutData={page.pageNumber === 1 ? LAYOUT_COVER : LAYOUT_INNER} pageBackground={pageBackground} pageItems={page.items} />
                     {isGridEnabled && <div className="absolute inset-0 grid grid-cols-4 grid-rows-4 divide-x divide-y divide-blue-500/20 pointer-events-none z-50 border border-blue-500/20">{[...Array(16)].map((_, i) => <div key={i}></div>)}</div>}
                     {page.items.map((item: EditorItem) => (
                       <div key={item.id} onMouseDown={(e) => handleMouseDown(e, item, page.id)} className={`absolute select-none group/item cursor-move flex flex-col ${selectedItemId === item.id ? "ring-2 ring-blue-500 z-40 shadow-xl" : "hover:ring-1 hover:ring-blue-300 z-10"}`} style={{ left: item.layout.x, top: item.layout.y, width: item.layout.w, height: item.layout.h }}>
