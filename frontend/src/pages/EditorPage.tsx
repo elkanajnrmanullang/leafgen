@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { LeafletService } from "../services/leafletService";
+import ProductUploadModal from "../components/ProductUploadModal"; 
 import {
   ZoomIn,
   ZoomOut,
@@ -23,7 +24,8 @@ import {
   Download,
   ToggleLeft,
   ToggleRight,
-  RefreshCw
+  RefreshCw,
+  FolderOpen
 } from "lucide-react";
 import type {
   LeafletPage,
@@ -31,6 +33,13 @@ import type {
   BackendPage,
   BackendItem,
 } from "../types";
+
+interface Product {
+  id: number;
+  plu_code: string;
+  name: string;
+  image_path: string;
+}
 
 const processAssetUrl = (url: string | null | undefined): string => {
   if (!url) return "";
@@ -44,7 +53,6 @@ const EditorPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Refs for scrolling logic
   const mainContainerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
@@ -71,6 +79,10 @@ const EditorPage = () => {
 
   const [generatedBadges, setGeneratedBadges] = useState<Record<string, string>>({});
   const [generatingBadges, setGeneratingBadges] = useState<Record<string, boolean>>({});
+
+  // Product Modal State
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [productToEdit, setProductToEdit] = useState<Product | undefined>(undefined);
 
   const downloadMenuRef = useRef<HTMLDivElement>(null);
   const autoSaveTimerRef = useRef<number | null>(null);
@@ -127,7 +139,6 @@ const EditorPage = () => {
             items: (page.items || []).map((item: BackendItem) => {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const raw = (item as any).data || (item as any).content || {};
-                // Cast item to any to access potentially missing properties in type definition
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const componentName = (item as any).component_name || "card_cover_master";
                 
@@ -166,7 +177,6 @@ const EditorPage = () => {
   }, [location.state]);
 
   const generateBadgeForItem = useCallback(async (item: EditorItem) => {
-      // Cast item to any to access component_name if missing in type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const itemAny = item as any;
       const compName = itemAny.component_name || "card_cover_master";
@@ -471,6 +481,30 @@ const EditorPage = () => {
     );
   };
 
+  const handleOpenBankGambar = () => {
+     if (!selectedItemId || !selectedPageId) return;
+     
+     const item = getSelectedItem();
+     if(item) {
+         setProductToEdit({
+             id: 0, 
+             plu_code: item.plu || "",
+             name: item.content?.name || "",
+             image_path: "" 
+         } as Product);
+     } else {
+         setProductToEdit(undefined);
+     }
+     setIsProductModalOpen(true);
+  };
+
+  const handleCloseProductModal = () => {
+      setIsProductModalOpen(false);
+      setProductToEdit(undefined);
+      const item = getSelectedItem();
+      if (item) refreshBadge(item);
+  };
+
   const refreshBadge = (item: EditorItem) => {
       setGeneratedBadges(prev => {
           const newState = {...prev};
@@ -619,6 +653,15 @@ const EditorPage = () => {
               <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-200">
                 <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase">Nama Produk</label><input type="text" className="w-full text-xs border border-slate-300 rounded p-2 bg-white" value={activeItem.content?.name ?? ""} onChange={(e) => updateItemContent('name', e.target.value)} /></div>
                 <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase">Harga Tampil</label><input type="text" className="w-full text-xs border border-slate-300 rounded p-2 bg-white" value={activeItem.content?.price_display ?? ""} onChange={(e) => updateItemContent('price_display', e.target.value)} /></div>
+                
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Ganti Gambar Produk</label>
+                    <button onClick={handleOpenBankGambar} className="w-full flex items-center justify-center px-4 py-2 border border-slate-300 rounded-lg shadow-sm text-xs font-medium text-slate-700 bg-white hover:bg-slate-50">
+                        <FolderOpen className="w-4 h-4 mr-2" /> Ganti dari Bank Gambar
+                    </button>
+                    <p className="text-[10px] text-slate-400 mt-1 text-center">Gambar akan otomatis terupdate di Bank Gambar</p>
+                </div>
+
                 <div className="pt-4 border-t border-slate-200 space-y-3">
                     <h4 className="text-xs font-bold text-slate-700">Komponen Badge</h4>
                     <button onClick={() => refreshBadge(activeItem)} className="w-full py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 flex items-center justify-center gap-2 mb-2"><RefreshCw size={14} /> Refresh Gambar</button>
@@ -637,6 +680,12 @@ const EditorPage = () => {
           </div>
         </aside>
       </div>
+
+      <ProductUploadModal
+        isOpen={isProductModalOpen}
+        onClose={handleCloseProductModal}
+        productToEdit={productToEdit}
+      />
     </div>
   );
 };
