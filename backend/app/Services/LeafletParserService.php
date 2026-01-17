@@ -37,7 +37,6 @@ class LeafletParserService
 
     private function filterItems(array $rows, string $targetRegion)
     {
-        // ... (Kode filterItems tetap sama) ...
         $validItems = [];
         $targetRegion = strtoupper(trim($targetRegion));
 
@@ -100,7 +99,6 @@ class LeafletParserService
 
     private function groupItemsByVariant(array $items)
     {
-        // ... (Kode groupItemsByVariant tetap sama) ...
         $groups = [];
 
         foreach ($items as $item) {
@@ -127,7 +125,6 @@ class LeafletParserService
 
     private function sortItems(array $items)
     {
-        // ... (Kode sortItems tetap sama) ...
         $sorted = [];
         foreach ($items as $item) {
             $isBbmu = !empty($item['syarat_bbmu']);
@@ -145,15 +142,31 @@ class LeafletParserService
     private function mapToVisualItems(array $items, int $pageNumber)
     {
         $mapped = [];
-        $pluList = array_map(fn($item) => preg_replace('/[^0-9]/', '', (string)($item['plu'] ?? '')), $items);
+
+        $pluList = array_map(function($item) {
+            return preg_replace('/[^0-9]/', '', (string)($item['plu'] ?? ''));
+        }, $items);
+
         $dbProducts = Product::whereIn('plu_code', $pluList)->pluck('image_path', 'plu_code');
 
         $cardBg = ($pageNumber === 1) ? 'img_card_bg_master.png' : 'card_inner_master_bg.png';
 
         foreach ($items as $index => $item) {
             $cleanPlu = preg_replace('/[^0-9]/', '', (string)($item['plu'] ?? '0'));
+
+            // LOGIC FIX: Pastikan URL lengkap
             $imagePath = $dbProducts[$cleanPlu] ?? null;
-            $finalImage = $imagePath ? 'storage/' . $imagePath : 'assets/placeholder.png';
+
+            if ($imagePath) {
+                if (str_starts_with($imagePath, 'http')) {
+                    $finalImage = $imagePath;
+                } else {
+                    $finalImage = url('storage/' . $imagePath);
+                }
+            } else {
+                $finalImage = url('assets/placeholder.png');
+            }
+
             $needsManual = empty($imagePath);
 
             $md = (float)($item['promosi_h_jual_setting_md'] ?? $item['setting_md'] ?? 0);
@@ -186,9 +199,9 @@ class LeafletParserService
                     'txt_price' => $txtPrice,
                     'txt_satuan_price' => $satuan ? "/$satuan" : '',
 
+                    // INI KEY YANG WAJIB ADA untuk JSON Figma
                     'img_product' => $finalImage,
 
-                    // Path relatif agar lebih aman di berbagai environment
                     'img_card_bg' => 'assets/' . $cardBg,
                     'img_container_price' => 'assets/components/img_container_price.png',
                     'txt_coret' => $txtCoret,
@@ -230,7 +243,6 @@ class LeafletParserService
 
     private function calculateCoret($md, $supp, $mkt)
     {
-        // ... (Kode calculateCoret tetap sama) ...
         if ($md > 0) {
             $totalSubsidi = $supp + $mkt;
             if ($supp > 1000 || $mkt > 1000 || $totalSubsidi > 1000) {
@@ -242,7 +254,6 @@ class LeafletParserService
 
     private function processDescription($text, $supp, $mkt)
     {
-        // ... (Kode processDescription tetap sama) ...
         $upperText = strtoupper($text);
         $totalSubsidi = $supp + $mkt;
 
@@ -265,7 +276,6 @@ class LeafletParserService
 
     private function generateLabelPromo($text)
     {
-        // ... (Kode generateLabelPromo tetap sama) ...
         $upperText = strtoupper($text);
         $isActive = str_contains($upperText, 'TOTAL POTONGAN') || str_contains($upperText, 'TOTAL DISC') || str_contains($upperText, 'TIAP PEMBELIAN') || (str_contains($upperText, 'BELI') && str_contains($upperText, 'DISC'));
         if (!$isActive) return null;
@@ -292,7 +302,6 @@ class LeafletParserService
 
     private function generatePoinIGR($text)
     {
-        // ... (Kode generatePoinIGR tetap sama) ...
         if (!str_contains(strtoupper($text), 'POIN IGR')) return null;
         if (preg_match('/Beli\s+(\d+)\s+(\w+).*?dapat\s+([\d,\.]+)\s+Poin/i', $text, $matches)) {
             return [
@@ -306,7 +315,6 @@ class LeafletParserService
 
     private function generatePoinSPI($poin, $satuan, $syaratBbmu)
     {
-        // ... (Kode generatePoinSPI tetap sama) ...
         if ($poin > 0) {
             $qty = '1';
             $unit = ucfirst(strtolower($satuan));
@@ -337,28 +345,22 @@ class LeafletParserService
         }
         $data = json_decode(file_get_contents($path), true);
 
-        // Ambil ukuran canvas dari root element
         $width = 2480;
         $height = 3508;
 
-        // Cek struktur JSON Figma, biasanya root element ada di level atas
-        // atau dibungkus dalam array/document
         $root = $data;
         if (isset($data['document']['children'][0]['children'])) {
-             // Jika format full API dump
              foreach($data['document']['children'][0]['children'] as $node) {
                  if(isset($node['absoluteBoundingBox'])) {
-                     $width = $node['absoluteBoundingBox']['width'] * 4; // Skala 4x
+                     $width = $node['absoluteBoundingBox']['width'] * 4;
                      $height = $node['absoluteBoundingBox']['height'] * 4;
                      break;
                  }
              }
         } elseif (isset($data['absoluteBoundingBox'])) {
-             // Jika format single node export
              $width = $data['absoluteBoundingBox']['width'] * 4;
              $height = $data['absoluteBoundingBox']['height'] * 4;
         } elseif (is_array($data) && isset($data[0]['absoluteBoundingBox'])) {
-             // Jika array of nodes
              $width = $data[0]['absoluteBoundingBox']['width'] * 4;
              $height = $data[0]['absoluteBoundingBox']['height'] * 4;
         }

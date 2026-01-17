@@ -6,6 +6,7 @@ import { LeafletService } from "../services/leafletService";
 import ProductUploadModal from "../components/ProductUploadModal";
 import layoutCoverJson from "../data/layout_cover.json";
 import layoutInnerJson from "../data/layout_inner.json";
+import { getProducts } from "../services/productService";
 import {
   ZoomIn,
   ZoomOut,
@@ -70,12 +71,32 @@ interface Slot {
   h: number;
 }
 
+interface ItemContent {
+    plu_code?: string;
+    product_id?: number;
+    name?: string;
+    price_display?: string;
+    image_url?: string;
+    price_original?: number;
+    show_coret?: boolean;
+    is_bbmu?: boolean;
+    [key: string]: unknown;
+}
+
 const LAYOUT_COVER = layoutCoverJson as unknown as FigmaNode[];
 const LAYOUT_INNER = layoutInnerJson as unknown as FigmaNode[];
 
 const processAssetUrl = (url: string | null | undefined): string => {
   if (!url) return "";
   if (url.startsWith('http')) return url;
+  
+  const BACKEND_URL = "http://127.0.0.1:8000";
+  if (url.startsWith('products/') || url.includes('storage/')) {
+      const cleanPath = url.replace('public/', '').replace(/^\/+/, '');
+      if (cleanPath.startsWith('storage')) return `${BACKEND_URL}/${cleanPath}`;
+      return `${BACKEND_URL}/storage/${cleanPath}`;
+  }
+
   if (!url.startsWith('/') && !url.startsWith('assets') && !url.startsWith('storage')) return `/assets/${url}`;
   if (!url.startsWith('/')) return `/${url}`;
   return url;
@@ -194,7 +215,7 @@ const RenderStaticLayout = ({
 
         if (node.name?.startsWith("slot_")) {
             const isOccupied = pageItems.some(item => {
-                return Math.abs(item.layout.x - left) < 1 && Math.abs(item.layout.y - top) < 1;
+                return Math.abs(item.layout.x - left) < 5 && Math.abs(item.layout.y - top) < 5;
             });
 
             if (isOccupied) return null;
@@ -305,113 +326,198 @@ const EditorPage = () => {
   );
 
   useEffect(() => {
+    const handleProductUpdated = (event: Event) => {
+        const customEvent = event as CustomEvent;
+        const { plu_code, image_url } = customEvent.detail;
+        
+        // Add timestamp to bust cache
+        const newImageUrl = `${processAssetUrl(image_url)}?t=${Date.now()}`;
+        
+        const itemsToUpdate: string[] = [];
+
+        setPages(prevPages => prevPages.map(page => ({
+            ...page,
+            items: page.items.map(item => {
+                const content = item.content as ItemContent;
+                if (item.plu === plu_code || content?.plu_code === plu_code) {
+                    itemsToUpdate.push(item.id);
+                    return {
+                        ...item,
+                        content: {
+                            ...item.content,
+                            image_url: newImageUrl,
+                            img_product: newImageUrl // Ensure this key is also updated for backend consistency
+                        },
+                        needs_manual_image: false
+                    };
+                }
+                return item;
+            })
+        } as PageWithDimensions)));
+
+        // Force badge regeneration for affected items
+        setGeneratedBadges(prev => {
+            const newState = { ...prev };
+            itemsToUpdate.forEach(id => delete newState[id]);
+            return newState;
+        });
+    };
+
+    window.addEventListener("productUpdated", handleProductUpdated);
+
+    return () => {
+        window.removeEventListener("productUpdated", handleProductUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const backendData = location.state?.leafletData as any;
     const initialName = location.state?.leafletName;
     const storeFromNav = location.state?.storeName;
     const templateUrl = location.state?.templateUrl;
 
-    if (templateUrl) setPageBackground(processAssetUrl(templateUrl));
+    const initEditor = async () => {
+        if (templateUrl) setPageBackground(processAssetUrl(templateUrl));
 
-    if (backendData) {
-      let dataToUse = backendData;
-      if (!backendData.pages) {
-          const keys = Object.keys(backendData);
-          if (keys.length > 0 && backendData[keys[0]]?.pages) {
-              dataToUse = backendData[keys[0]];
-          }
-      }
+        const currentProductsMap: Record<string, Product> = {};
+        try {
+            const productsData = await getProducts();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if (productsData && Array.isArray(productsData.data)) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                productsData.data.forEach((p: any) => {
+                    currentProductsMap[p.plu_code] = {
+                        id: p.id,
+                        plu_code: p.plu_code,
+                        name: p.name,
+                        image_path: p.image_path
+                    };
+                });
+            }
+        } catch (error) {
+            console.error("Gagal memuat bank gambar:", error);
+        }
 
-      if (dataToUse && dataToUse.pages) {
-        setDesignName(initialName || dataToUse.leaflet_name || "New Leaflet");
-        setStoreName(storeFromNav || dataToUse.store || "Region");
-        if (dataToUse.id) setLeafletId(dataToUse.id);
+        if (backendData) {
+            let dataToUse = backendData;
+            if (!backendData.pages) {
+                const keys = Object.keys(backendData);
+                if (keys.length > 0 && backendData[keys[0]]?.pages) {
+                    dataToUse = backendData[keys[0]];
+                }
+            }
 
-        const allProducts: BackendItem[] = [];
-        dataToUse.pages.forEach((p: BackendPage) => {
-             if (p.items) allProducts.push(...p.items);
-        });
+            if (dataToUse && dataToUse.pages) {
+                setDesignName(initialName || dataToUse.leaflet_name || "New Leaflet");
+                setStoreName(storeFromNav || dataToUse.store || "Region");
+                if (dataToUse.id) setLeafletId(dataToUse.id);
 
-        const coverSlots = extractSlots(LAYOUT_COVER);
-        const innerSlots = extractSlots(LAYOUT_INNER);
+                const allProducts: BackendItem[] = [];
+                dataToUse.pages.forEach((p: BackendPage) => {
+                    if (p.items) allProducts.push(...p.items);
+                });
 
-        const newPages: PageWithDimensions[] = [];
-        let productIndex = 0;
-        let pageCount = 1;
+                const coverSlots = extractSlots(LAYOUT_COVER);
+                const innerSlots = extractSlots(LAYOUT_INNER);
 
-        while (productIndex < allProducts.length) {
-             const isCover = pageCount === 1;
-             const currentSlots = isCover ? coverSlots : innerSlots;
-             const layoutRef = isCover ? LAYOUT_COVER : LAYOUT_INNER;
-             const pageWidth = layoutRef[0].absoluteBoundingBox.width;
-             const pageHeight = layoutRef[0].absoluteBoundingBox.height;
+                const newPages: PageWithDimensions[] = [];
+                let productIndex = 0;
+                let pageCount = 1;
 
-             const pageItems: (EditorItem & { component_name?: string })[] = [];
+                while (productIndex < allProducts.length) {
+                    const isCover = pageCount === 1;
+                    const currentSlots = isCover ? coverSlots : innerSlots;
+                    const layoutRef = isCover ? LAYOUT_COVER : LAYOUT_INNER;
+                    const pageWidth = layoutRef[0].absoluteBoundingBox.width;
+                    const pageHeight = layoutRef[0].absoluteBoundingBox.height;
 
-             for (let i = 0; i < currentSlots.length && productIndex < allProducts.length; i++) {
-                 const slot = currentSlots[i];
-                 const itemData = allProducts[productIndex];
-                 
-                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                 const raw = (itemData as any).data || (itemData as any).content || {};
-                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                 const componentName = (itemData as any).component_name || "card_cover_master";
+                    const pageItems: (EditorItem & { component_name?: string })[] = [];
 
-                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                 const productId = raw.product_id || (typeof raw.id === 'number' ? raw.id : undefined);
+                    for (let i = 0; i < currentSlots.length && productIndex < allProducts.length; i++) {
+                        const slot = currentSlots[i];
+                        const itemData = allProducts[productIndex];
+                        
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const raw = (itemData as any).data || (itemData as any).content || {};
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const componentName = (itemData as any).component_name || "card_cover_master";
 
-                 pageItems.push({
-                    id: itemData.id || `auto-item-${productIndex}`,
-                    plu: itemData.plu,
-                    type: itemData.type || 'product_card',
-                    component_name: componentName,
-                    content: {
-                        ...raw,
-                        product_id: productId,
-                        name: raw.txt_name || raw.name || "Nama Barang",
-                        price_display: raw.txt_price || raw.price_display || "",
-                        image_url: processAssetUrl(raw.img_product || raw.image_url || "placeholder.png"),
-                    },
-                    needs_manual_image: itemData.needs_manual_image,
-                    layout: {
-                        x: slot.x,
-                        y: slot.y,
-                        w: slot.w,
-                        h: slot.h
+                        const plu = itemData.plu || raw.plu_code || "";
+                        
+                        const existingProduct = currentProductsMap[plu];
+                        
+                        let imgUrl = "placeholder.png";
+                        let productId = undefined;
+
+                        if (existingProduct) {
+                            imgUrl = existingProduct.image_path;
+                            productId = existingProduct.id;
+                        } else {
+                            imgUrl = raw.img_product || raw.image_url || "placeholder.png";
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            productId = raw.product_id || (typeof raw.id === 'number' ? raw.id : undefined);
+                        }
+
+                        if (productId === 0) productId = undefined;
+
+                        pageItems.push({
+                            id: itemData.id || `auto-item-${productIndex}`,
+                            plu: plu,
+                            type: itemData.type || 'product_card',
+                            component_name: componentName,
+                            content: {
+                                ...raw,
+                                product_id: productId,
+                                name: existingProduct ? existingProduct.name : (raw.txt_name || raw.name || "Nama Barang"),
+                                price_display: raw.txt_price || raw.price_display || "",
+                                image_url: processAssetUrl(imgUrl),
+                                // Backend often expects img_product key
+                                img_product: processAssetUrl(imgUrl)
+                            },
+                            needs_manual_image: !existingProduct,
+                            layout: {
+                                x: slot.x,
+                                y: slot.y,
+                                w: slot.w,
+                                h: slot.h
+                            }
+                        });
+
+                        productIndex++;
                     }
-                 });
 
-                 productIndex++;
-             }
+                    newPages.push({
+                        id: `page-${pageCount}`,
+                        pageNumber: pageCount,
+                        width: pageWidth,
+                        height: pageHeight,
+                        items: pageItems
+                    });
 
-             newPages.push({
-                 id: `page-${pageCount}`,
-                 pageNumber: pageCount,
-                 width: pageWidth,
-                 height: pageHeight,
-                 items: pageItems
-             });
+                    pageCount++;
+                }
 
-             pageCount++;
+                if (newPages.length === 0) {
+                    const w = LAYOUT_COVER[0].absoluteBoundingBox.width;
+                    const h = LAYOUT_COVER[0].absoluteBoundingBox.height;
+                    newPages.push({ id: "page-1", pageNumber: 1, width: w, height: h, items: [] });
+                }
+
+                setPages(newPages);
+                if (newPages.length > 0) setSelectedPageId(newPages[0].id);
+
+            } else {
+                setPages([{ id: "page-1", pageNumber: 1, width: 2480, height: 3508, items: [] }]);
+            }
+            setLoading(false);
+        } else {
+            setPages([{ id: "page-1", pageNumber: 1, width: 2480, height: 3508, items: [] }]);
+            setLoading(false);
         }
+    };
 
-        if (newPages.length === 0) {
-            const w = LAYOUT_COVER[0].absoluteBoundingBox.width;
-            const h = LAYOUT_COVER[0].absoluteBoundingBox.height;
-            newPages.push({ id: "page-1", pageNumber: 1, width: w, height: h, items: [] });
-        }
-
-        setPages(newPages);
-        if (newPages.length > 0) setSelectedPageId(newPages[0].id);
-
-      } else {
-        setPages([{ id: "page-1", pageNumber: 1, width: 2480, height: 3508, items: [] }]);
-      }
-      setLoading(false);
-    } else {
-      setPages([{ id: "page-1", pageNumber: 1, width: 2480, height: 3508, items: [] }]);
-      setLoading(false);
-    }
+    initEditor();
   }, [location.state]);
 
   const generateBadgeForItem = useCallback(async (item: EditorItem & { component_name?: string }) => {
@@ -426,7 +532,8 @@ const EditorPage = () => {
               ...item.content,
               txt_name: item.content.name,
               txt_price: item.content.price_display,
-              img_product: item.content.image_url
+              // Force image URL with timestamp to bust backend cache if necessary
+              img_product: item.content.image_url 
           };
 
           const url = await LeafletService.generateBadge(
@@ -434,7 +541,8 @@ const EditorPage = () => {
               apiData
           );
           
-          const fullUrl = processAssetUrl(url);
+          // Add timestamp to badge result to bust frontend cache
+          const fullUrl = `${processAssetUrl(url)}?t=${Date.now()}`;
           setGeneratedBadges(prev => ({...prev, [item.id]: fullUrl}));
       } catch (e) {
           console.error("Failed to generate badge for item", item.id, e);
@@ -817,16 +925,13 @@ const EditorPage = () => {
      
      const item = getSelectedItem();
      
-     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-     const content = item?.content as any;
+     const content = item?.content as ItemContent | undefined;
      const realProductId = content?.product_id;
 
      if (item) {
-         // Selalu isi productToEdit, meskipun ID-nya 0 (produk baru)
-         // agar form di modal terisi nama & PLU dari kartu
          setProductToEdit({
-             id: realProductId || 0, 
-             plu_code: item.plu || content?.plu || "",
+             id: (realProductId || 0) as number,
+             plu_code: item.plu || content?.plu_code || "",
              name: content?.name || "",
              image_path: "" 
          } as Product);
@@ -991,8 +1096,8 @@ const EditorPage = () => {
           <div className="flex-1 p-5 overflow-y-auto bg-slate-50/50">
             {activeItem ? (
               <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-200">
-                <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase">Nama Produk</label><input type="text" className="w-full text-xs border border-slate-300 rounded p-2 bg-white" value={activeItem.content?.name ?? ""} onChange={(e) => updateItemContent('name', e.target.value)} /></div>
-                <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase">Harga Tampil</label><input type="text" className="w-full text-xs border border-slate-300 rounded p-2 bg-white" value={activeItem.content?.price_display ?? ""} onChange={(e) => updateItemContent('price_display', e.target.value)} /></div>
+                <div className="space-y-1"><label htmlFor="item_name" className="text-[10px] font-bold text-slate-400 uppercase">Nama Produk</label><input id="item_name" type="text" className="w-full text-xs border border-slate-300 rounded p-2 bg-white" value={activeItem.content?.name ?? ""} onChange={(e) => updateItemContent('name', e.target.value)} /></div>
+                <div className="space-y-1"><label htmlFor="item_price" className="text-[10px] font-bold text-slate-400 uppercase">Harga Tampil</label><input id="item_price" type="text" className="w-full text-xs border border-slate-300 rounded p-2 bg-white" value={activeItem.content?.price_display ?? ""} onChange={(e) => updateItemContent('price_display', e.target.value)} /></div>
                 
                 <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase">Ganti Gambar Produk</label>
@@ -1007,12 +1112,12 @@ const EditorPage = () => {
                     <button onClick={() => refreshBadge(activeItem)} className="w-full py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 flex items-center justify-center gap-2 mb-2"><RefreshCw size={14} /> Refresh Gambar</button>
                     
                     <div className="flex items-center justify-between"><span className="text-xs text-slate-600">Harga Coret</span><button onClick={() => toggleItemProperty('show_coret')} className={`text-slate-400 hover:text-blue-600 ${activeItem.content?.show_coret ? 'text-blue-600' : ''}`}>{activeItem.content?.show_coret ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}</button></div>
-                    {activeItem.content?.show_coret && <input type="number" placeholder="Harga Asli" className="w-full text-xs border p-2 rounded" value={activeItem.content?.price_original} onChange={(e) => updateItemContent('price_original', parseFloat(e.target.value))} />}
+                    {activeItem.content?.show_coret && <input id="price_original" type="number" placeholder="Harga Asli" className="w-full text-xs border p-2 rounded" value={activeItem.content?.price_original} onChange={(e) => updateItemContent('price_original', parseFloat(e.target.value))} />}
                     <div className="flex items-center justify-between"><span className="text-xs text-slate-600">Badge BBMU</span><button onClick={() => toggleItemProperty('is_bbmu')} className={`text-slate-400 hover:text-blue-600 ${activeItem.content?.is_bbmu ? 'text-blue-600' : ''}`}>{activeItem.content?.is_bbmu ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}</button></div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 pt-4 border-t border-slate-200">
-                  <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase">X</label><input type="text" className="w-full text-xs border border-slate-300 rounded p-2 font-mono" value={Math.round(activeItem.layout.x)} readOnly /></div>
-                  <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase">Y</label><input type="text" className="w-full text-xs border border-slate-300 rounded p-2 font-mono" value={Math.round(activeItem.layout.y)} readOnly /></div>
+                  <div className="space-y-1"><label htmlFor="pos_x" className="text-[10px] font-bold text-slate-400 uppercase">X</label><input id="pos_x" type="text" className="w-full text-xs border border-slate-300 rounded p-2 font-mono" value={Math.round(activeItem.layout.x)} readOnly /></div>
+                  <div className="space-y-1"><label htmlFor="pos_y" className="text-[10px] font-bold text-slate-400 uppercase">Y</label><input id="pos_y" type="text" className="w-full text-xs border border-slate-300 rounded p-2 font-mono" value={Math.round(activeItem.layout.y)} readOnly /></div>
                 </div>
                 <div className="pt-4 border-t border-slate-200"><button onClick={handleDeleteItem} className="w-full py-2 bg-white text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-50 flex items-center justify-center gap-2"><Trash2 size={14} /> Hapus Item</button></div>
               </div>

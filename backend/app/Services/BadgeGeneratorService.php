@@ -73,7 +73,6 @@ class BadgeGeneratorService
         ];
 
         if (isset($frame['children'])) {
-
             $layers = $frame['children'];
 
             foreach ($layers as $layer) {
@@ -111,8 +110,8 @@ class BadgeGeneratorService
                         $targetW = $absW * $scaleX;
                         $targetH = $absH * $scaleY;
 
-                        if ($targetW <= 1) $targetW = 1;
-                        if ($targetH <= 1) $targetH = 1;
+                        if ($targetW < 1) $targetW = 1;
+                        if ($targetH < 1) $targetH = 1;
 
                         if ($baseName === 'img_product') {
                             $imgToInsert->scale((int)$targetW, (int)$targetH);
@@ -160,7 +159,7 @@ class BadgeGeneratorService
                 $r = $layer['fills'][0]['color']['r'] ?? 0;
                 $g = $layer['fills'][0]['color']['g'] ?? 0;
                 $b = $layer['fills'][0]['color']['b'] ?? 0;
-                $fontColor = $this->rgbToHex(['r'=>$r, 'g'=>$g, 'b'=>$b]);
+                $fontColor = $this->rgbToHex(['r' => $r, 'g' => $g, 'b' => $b]);
 
                 $fontFamily = $layer['fontName']['family'] ?? 'Poppins';
                 $fontStyle = $layer['fontName']['style'] ?? 'Regular';
@@ -174,7 +173,7 @@ class BadgeGeneratorService
                 $finalX = ($absX - $rootX) * $scaleX;
                 $finalY = ($absY - $rootY) * $scaleY;
                 $finalW = $absW * $scaleX;
-                $finalH = $absH * $scaleY; 
+                $finalH = $absH * $scaleY;
 
                 $textAlign = $layer['textAlignHorizontal'] ?? 'LEFT';
                 $alignMap = ['LEFT' => 'left', 'CENTER' => 'center', 'RIGHT' => 'right', 'JUSTIFIED' => 'left'];
@@ -198,7 +197,6 @@ class BadgeGeneratorService
                     $fitFound = false;
                     for ($s = $startFontSize; $s >= $minFontSize; $s -= 0.5) {
                         $tempLines = $this->wrapText($value, $s, $fontFile, $finalW);
-
                         $totalHeight = count($tempLines) * ($s * 1.15);
 
                         if (count($tempLines) <= $maxLines && $totalHeight <= ($finalH + 5)) {
@@ -223,7 +221,7 @@ class BadgeGeneratorService
                 foreach ($lines as $index => $lineText) {
                     $currentY = $finalY + ($index * $lineHeight);
 
-                    $img->text($lineText, $drawX, $currentY, function(FontFactory $font) use ($fontFile, $finalFontSize, $fontColor, $align) {
+                    $img->text($lineText, $drawX, $currentY, function (FontFactory $font) use ($fontFile, $finalFontSize, $fontColor, $align) {
                         $font->filename($fontFile);
                         $font->size($finalFontSize);
                         $font->color($fontColor);
@@ -282,18 +280,36 @@ class BadgeGeneratorService
     private function findInsertImage($filenameOrPath)
     {
         if (filter_var($filenameOrPath, FILTER_VALIDATE_URL)) {
+            $parsed = parse_url($filenameOrPath);
+            $path = $parsed['path'] ?? '';
+
+            if (str_contains($filenameOrPath, request()->getHost()) || str_contains($filenameOrPath, '127.0.0.1') || str_contains($filenameOrPath, 'localhost')) {
+                if (str_contains($path, '/storage/')) {
+                    $cleanPath = str_replace('/storage/', '', $path);
+                    $localPath = storage_path('app/public/' . ltrim($cleanPath, '/'));
+                    if (file_exists($localPath)) {
+                        return $localPath;
+                    }
+                }
+            }
+
             return $filenameOrPath;
         }
 
         if (file_exists($filenameOrPath)) return $filenameOrPath;
 
+        $cleaned = basename($filenameOrPath);
+
         $candidates = [
-            "{$this->publicUploadPath}/{$filenameOrPath}",
-            "{$this->publicUploadPath}/uploads/{$filenameOrPath}",
+            storage_path("app/public/{$filenameOrPath}"),
+            storage_path("app/public/products/{$filenameOrPath}"),
+            storage_path("app/public/products/{$cleaned}"),
+            storage_path("app/public/uploads/{$filenameOrPath}"),
             "{$this->basePath}/assets/components/{$filenameOrPath}",
             "{$this->basePath}/assets/components/{$filenameOrPath}.png",
             "{$this->basePath}/assets/{$filenameOrPath}",
-            "{$this->basePath}/assets/{$filenameOrPath}.png"
+            "{$this->basePath}/assets/{$filenameOrPath}.png",
+            storage_path("app/public/{$cleaned}"),
         ];
 
         foreach ($candidates as $path) {
@@ -348,8 +364,8 @@ class BadgeGeneratorService
         if (file_exists($fallbackPath)) return $fallbackPath;
 
         if (str_contains(strtolower($style), 'bold')) {
-             $boldPath = "{$this->fontPath}/Poppins-Bold.ttf";
-             if (file_exists($boldPath)) return $boldPath;
+            $boldPath = "{$this->fontPath}/Poppins-Bold.ttf";
+            if (file_exists($boldPath)) return $boldPath;
         }
 
         return "{$this->fontPath}/Poppins-Regular.ttf";
