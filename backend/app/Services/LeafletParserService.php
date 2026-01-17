@@ -154,7 +154,6 @@ class LeafletParserService
         foreach ($items as $index => $item) {
             $cleanPlu = preg_replace('/[^0-9]/', '', (string)($item['plu'] ?? '0'));
 
-            // LOGIC FIX: Pastikan URL lengkap
             $imagePath = $dbProducts[$cleanPlu] ?? null;
 
             if ($imagePath) {
@@ -195,38 +194,71 @@ class LeafletParserService
                 'plu' => $cleanPlu,
                 'component_name' => 'card_cover_master',
                 'data' => [
+                    // Core Data
                     'txt_name' => $item['nama_barang'] ?? 'Nama Barang',
                     'txt_price' => $txtPrice,
                     'txt_satuan_price' => $satuan ? "/$satuan" : '',
-
-                    // INI KEY YANG WAJIB ADA untuk JSON Figma
                     'img_product' => $finalImage,
 
+                    // Visual Components Assets
                     'img_card_bg' => 'assets/' . $cardBg,
                     'img_container_price' => 'assets/components/img_container_price.png',
-                    'txt_coret' => $txtCoret,
                     'img_container_coret' => $coretData['show'] ? 'assets/components/img_container_coret.png' : null,
                     'img_coret_line' => $coretData['show'] ? 'assets/components/img_coret_line.png' : null,
-                    'txt_keterangan' => $descText,
                     'img_container_keterangan' => !empty($descText) ? 'assets/components/img_container_keterangan.png' : null,
+
+                    // Core Text Data for Frontend Editing
+                    'txt_coret' => $txtCoret,
+                    'txt_keterangan' => $descText,
+                    'show_coret' => $coretData['show'],
+
+                    // BBMU
+                    'is_bbmu' => !empty($bbmuBadgeUrl),
                     'img_badge_bbmu' => !empty($bbmuBadgeUrl) ? 'assets/components/' . $bbmuBadgeUrl : null,
+
+                    // Promo Badge Data
+                    'badge_promo' => $promoBadgeUrl ? [
+                        'active' => true,
+                        'txt_qty_promo' => $promoBadgeUrl['txt_qty_promo'],
+                        'txt_price_promo' => $promoBadgeUrl['txt_price_promo'],
+                        'txt_keterangan_promo' => $promoBadgeUrl['txt_keterangan_promo'],
+                        'txt_satuan' => $promoBadgeUrl['txt_satuan'],
+                    ] : null,
                     'img_bg_label_promo' => $promoBadgeUrl ? 'assets/components/img_bg_label_promo.png' : null,
                     'img_container_ketPromo' => $promoBadgeUrl ? 'assets/components/img_container_ketPromo.png' : null,
                     'txt_qty_promo' => $promoBadgeUrl['txt_qty_promo'] ?? null,
                     'txt_price_promo' => $promoBadgeUrl['txt_price_promo'] ?? null,
                     'txt_keterangan_promo' => $promoBadgeUrl['txt_keterangan_promo'] ?? null,
                     'txt_satuan' => $promoBadgeUrl['txt_satuan'] ?? null,
+
+                    // Alt Promo
                     'img_bg_label_promo_alt' => $promoBadgeUrl ? 'assets/components/img_bg_label_promo.png' : null,
                     'img_container_ketPromo_alt' => $promoBadgeUrl ? 'assets/components/img_container_ketPromo.png' : null,
                     'txt_qty_promo_alt' => $promoBadgeUrl['txt_qty_promo'] ?? null,
                     'txt_price_promo_alt' => $promoBadgeUrl['txt_price_promo'] ?? null,
                     'txt_keterangan_promo_alt' => $promoBadgeUrl['txt_keterangan_promo'] ?? null,
                     'txt_satuan_alt' => $promoBadgeUrl['txt_satuan'] ?? null,
+
+                    // IGR Badge Data
+                    'badge_igr' => $igrBadgeUrl ? [
+                         'active' => true,
+                         'txt_keterangan_qty_igr' => $igrBadgeUrl['txt_keterangan_qty_igr'],
+                         'txt_satuan_igr' => $igrBadgeUrl['txt_satuan_igr'],
+                         'txt_price_bonus_igr' => $igrBadgeUrl['txt_price_bonus_igr'],
+                    ] : null,
                     'img_bg_poin_igr' => $igrBadgeUrl ? 'assets/components/img_bg_poin_igr.png' : null,
                     'img_container_igr' => $igrBadgeUrl ? 'assets/components/img_container_igr.png' : null,
                     'txt_satuan_igr' => $igrBadgeUrl['txt_satuan_igr'] ?? null,
                     'txt_price_bonus_igr' => $igrBadgeUrl['txt_price_bonus_igr'] ?? null,
                     'txt_keterangan_qty_igr' => $igrBadgeUrl['txt_keterangan_qty_igr'] ?? null,
+
+                    // SPI Badge Data
+                    'badge_spi' => $spiBadgeUrl ? [
+                        'active' => true,
+                        'txt_price_bonus_spi' => $spiBadgeUrl['txt_price_bonus_spi'],
+                        'txt_satuan_spi' => $spiBadgeUrl['txt_satuan_spi'],
+                        'txt_keterangan_qty_spi' => $spiBadgeUrl['txt_keterangan_qty_spi']
+                    ] : null,
                     'img_logo_spi' => $spiBadgeUrl ? 'assets/components/img_logo_spi.png' : null,
                     'img_container_spi' => $spiBadgeUrl ? 'assets/components/img_container_spi.png' : null,
                     'txt_satuan_spi' => $spiBadgeUrl['txt_satuan_spi'] ?? null,

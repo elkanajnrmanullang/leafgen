@@ -59,40 +59,108 @@ class BadgeGeneratorService
         $rootX = $frame['absoluteBoundingBox']['x'] ?? 0;
         $rootY = $frame['absoluteBoundingBox']['y'] ?? 0;
 
-        $hasCoret = !empty($dataReplacement['txt_coret']);
-        $hasPromo = !empty($dataReplacement['img_bg_label_promo']);
+        // --- Logic Status Aktif Komponen (Toggle Switch) ---
+
+        // 1. Cek Coret (Default: Active if text exists, unless explicitly set to false)
+        $hasCoret = false;
+        if (isset($dataReplacement['show_coret'])) {
+             $hasCoret = filter_var($dataReplacement['show_coret'], FILTER_VALIDATE_BOOLEAN);
+        } elseif (!empty($dataReplacement['txt_coret'])) {
+             $hasCoret = true;
+        }
+
+        // 2. Cek Keterangan
+        $hasKeterangan = false;
+        if (isset($dataReplacement['show_keterangan'])) {
+            $hasKeterangan = filter_var($dataReplacement['show_keterangan'], FILTER_VALIDATE_BOOLEAN);
+        } elseif (!empty($dataReplacement['txt_keterangan'])) {
+            $hasKeterangan = true;
+        }
+
+        // 3. Cek Promo
+        $hasPromo = false;
+        if (isset($dataReplacement['badge_promo']['active'])) {
+             $hasPromo = filter_var($dataReplacement['badge_promo']['active'], FILTER_VALIDATE_BOOLEAN);
+        } elseif (!empty($dataReplacement['img_bg_label_promo'])) {
+             $hasPromo = true;
+        }
+
+        // 4. Cek BBMU
+        $hasBbmu = false;
+        if (isset($dataReplacement['is_bbmu'])) {
+            $hasBbmu = filter_var($dataReplacement['is_bbmu'], FILTER_VALIDATE_BOOLEAN);
+        } elseif (!empty($dataReplacement['img_badge_bbmu'])) {
+            $hasBbmu = true;
+        }
+
+        // 5. Cek IGR
+        $hasIgr = false;
+        if (isset($dataReplacement['badge_igr']['active'])) {
+            $hasIgr = filter_var($dataReplacement['badge_igr']['active'], FILTER_VALIDATE_BOOLEAN);
+        } elseif (!empty($dataReplacement['img_bg_poin_igr'])) {
+            $hasIgr = true;
+        }
+
+        // 6. Cek SPI
+        $hasSpi = false;
+        if (isset($dataReplacement['badge_spi']['active'])) {
+            $hasSpi = filter_var($dataReplacement['badge_spi']['active'], FILTER_VALIDATE_BOOLEAN);
+        } elseif (!empty($dataReplacement['img_logo_spi'])) {
+            $hasSpi = true;
+        }
+
+        // Logic Layout Khusus (Jika Promo dan Coret aktif bersamaan)
         $useAltLayout = $hasCoret && $hasPromo;
 
+        // Group Keys untuk filtering layer
         $promoKeys = [
-            'img_bg_label_promo',
-            'img_container_ketPromo',
-            'txt_qty_promo',
-            'txt_price_promo',
-            'txt_keterangan_promo',
-            'txt_satuan'
+            'img_bg_label_promo', 'img_container_ketPromo',
+            'txt_qty_promo', 'txt_price_promo', 'txt_keterangan_promo', 'txt_satuan'
         ];
+        $coretKeys = ['img_container_coret', 'img_coret_line', 'txt_coret'];
+        $keteranganKeys = ['img_container_keterangan', 'txt_keterangan'];
+        $bbmuKeys = ['img_badge_bbmu'];
+        $igrKeys = ['img_bg_poin_igr', 'img_container_igr', 'txt_satuan_igr', 'txt_price_bonus_igr', 'txt_keterangan_qty_igr'];
+        $spiKeys = ['img_logo_spi', 'img_container_spi', 'txt_satuan_spi', 'txt_price_bonus_spi', 'txt_keterangan_qty_spi'];
 
         if (isset($frame['children'])) {
             $layers = $frame['children'];
 
+            // --- PROSES GAMBAR (Image Layers) ---
             foreach ($layers as $layer) {
                 $layerName = $layer['name'];
 
                 $isAltLayer = str_ends_with($layerName, '_alt');
                 $baseName = $isAltLayer ? substr($layerName, 0, -4) : $layerName;
-                $isPromoLayer = in_array($baseName, $promoKeys);
 
+                // --- Global Filter: Matikan layer jika toggle OFF ---
+                if (in_array($baseName, $promoKeys) && !$hasPromo) continue;
+                if (in_array($baseName, $coretKeys) && !$hasCoret) continue;
+                if (in_array($baseName, $keteranganKeys) && !$hasKeterangan) continue;
+                if (in_array($baseName, $bbmuKeys) && !$hasBbmu) continue;
+                if (in_array($baseName, $igrKeys) && !$hasIgr) continue;
+                if (in_array($baseName, $spiKeys) && !$hasSpi) continue;
+
+                // --- Layout Logic: Promo vs Coret ---
+                $isPromoLayer = in_array($baseName, $promoKeys);
                 if ($useAltLayout) {
+                    // Jika Keduannya aktif, Promo pakai layout _alt (biasanya lebih kecil/geser)
                     if ($isPromoLayer && !$isAltLayer) continue;
                 } else {
+                    // Jika cuma satu aktif, pakai layout standar (bukan _alt)
                     if ($isAltLayer) continue;
                 }
 
                 if (!str_starts_with($baseName, 'img_')) continue;
-                if (!array_key_exists($baseName, $dataReplacement)) continue;
 
-                $value = $dataReplacement[$baseName];
-                if (empty($value)) continue;
+                // Cari value gambar
+                $value = $dataReplacement[$baseName] ?? null;
+
+                // Fallback: Jika value kosong tapi status aktif (ON), cari gambar default sesuai nama layer
+                if (empty($value)) {
+                     if ($baseName === 'img_product') continue; // Produk wajib ada
+                     $value = $baseName . ".png";
+                }
 
                 $insertPath = $this->findInsertImage($value);
 
@@ -115,13 +183,10 @@ class BadgeGeneratorService
 
                         if ($baseName === 'img_product') {
                             $imgToInsert->scale((int)$targetW, (int)$targetH);
-
                             $newW = $imgToInsert->width();
                             $newH = $imgToInsert->height();
-
                             $offsetX = ($targetW - $newW) / 2;
                             $offsetY = ($targetH - $newH) / 2;
-
                             $img->place($imgToInsert, 'top-left', (int)($finalX + $offsetX), (int)($finalY + $offsetY));
                         } else {
                             $imgToInsert->resize((int)$targetW, (int)$targetH);
@@ -133,13 +198,22 @@ class BadgeGeneratorService
                 }
             }
 
+            // --- PROSES TEKS (Text Layers) ---
             foreach ($layers as $layer) {
                 $layerName = $layer['name'];
 
                 $isAltLayer = str_ends_with($layerName, '_alt');
                 $baseName = $isAltLayer ? substr($layerName, 0, -4) : $layerName;
-                $isPromoLayer = in_array($baseName, $promoKeys);
 
+                // --- Global Filter: Matikan layer jika toggle OFF ---
+                if (in_array($baseName, $promoKeys) && !$hasPromo) continue;
+                if (in_array($baseName, $coretKeys) && !$hasCoret) continue;
+                if (in_array($baseName, $keteranganKeys) && !$hasKeterangan) continue;
+                if (in_array($baseName, $bbmuKeys) && !$hasBbmu) continue;
+                if (in_array($baseName, $igrKeys) && !$hasIgr) continue;
+                if (in_array($baseName, $spiKeys) && !$hasSpi) continue;
+
+                $isPromoLayer = in_array($baseName, $promoKeys);
                 if ($useAltLayout) {
                     if ($isPromoLayer && !$isAltLayer) continue;
                 } else {
@@ -147,10 +221,22 @@ class BadgeGeneratorService
                 }
 
                 if ($layer['type'] !== 'TEXT') continue;
-                if (!array_key_exists($baseName, $dataReplacement)) continue;
 
-                $value = $dataReplacement[$baseName];
-                if (empty($value)) continue;
+                // Ambil value teks
+                $value = $dataReplacement[$baseName] ?? '';
+
+                // Cek override value dari nested object badge_*
+                if (empty($value) && $hasIgr && isset($dataReplacement['badge_igr'][$baseName])) {
+                    $value = $dataReplacement['badge_igr'][$baseName];
+                }
+                if (empty($value) && $hasSpi && isset($dataReplacement['badge_spi'][$baseName])) {
+                    $value = $dataReplacement['badge_spi'][$baseName];
+                }
+                if (empty($value) && $hasPromo && isset($dataReplacement['badge_promo'][$baseName])) {
+                    $value = $dataReplacement['badge_promo'][$baseName];
+                }
+
+                if (empty($value) && $value !== '0') continue;
 
                 $jsonFontSize = $layer['fontSize'] ?? 12;
                 $baseFontSize = is_numeric($jsonFontSize) ? (float)$jsonFontSize : 12.0;
@@ -292,7 +378,6 @@ class BadgeGeneratorService
                     }
                 }
             }
-
             return $filenameOrPath;
         }
 

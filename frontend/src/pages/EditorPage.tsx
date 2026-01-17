@@ -36,6 +36,7 @@ import type {
   EditorItem,
   BackendPage,
   BackendItem,
+  ItemContent
 } from "../types";
 
 interface FigmaNode {
@@ -69,18 +70,6 @@ interface Slot {
   y: number;
   w: number;
   h: number;
-}
-
-interface ItemContent {
-    plu_code?: string;
-    product_id?: number;
-    name?: string;
-    price_display?: string;
-    image_url?: string;
-    price_original?: number;
-    show_coret?: boolean;
-    is_bbmu?: boolean;
-    [key: string]: unknown;
 }
 
 const LAYOUT_COVER = layoutCoverJson as unknown as FigmaNode[];
@@ -293,6 +282,9 @@ const EditorPage = () => {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragActivePageId, setDragActivePageId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [resizeHandle, setResizeHandle] = useState<string | null>(null);
+  const [initialResizeLayout, setInitialResizeLayout] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [initialMousePos, setInitialMousePos] = useState<{ x: number; y: number } | null>(null);
 
   const [generatedBadges, setGeneratedBadges] = useState<Record<string, string>>({});
   const [generatingBadges, setGeneratingBadges] = useState<Record<string, boolean>>({});
@@ -329,10 +321,8 @@ const EditorPage = () => {
     const handleProductUpdated = (event: Event) => {
         const customEvent = event as CustomEvent;
         const { plu_code, image_url } = customEvent.detail;
-        
-        // Add timestamp to bust cache
         const newImageUrl = `${processAssetUrl(image_url)}?t=${Date.now()}`;
-        
+
         const itemsToUpdate: string[] = [];
 
         setPages(prevPages => prevPages.map(page => ({
@@ -346,7 +336,7 @@ const EditorPage = () => {
                         content: {
                             ...item.content,
                             image_url: newImageUrl,
-                            img_product: newImageUrl // Ensure this key is also updated for backend consistency
+                            img_product: newImageUrl
                         },
                         needs_manual_image: false
                     };
@@ -355,7 +345,6 @@ const EditorPage = () => {
             })
         } as PageWithDimensions)));
 
-        // Force badge regeneration for affected items
         setGeneratedBadges(prev => {
             const newState = { ...prev };
             itemsToUpdate.forEach(id => delete newState[id]);
@@ -461,6 +450,10 @@ const EditorPage = () => {
 
                         if (productId === 0) productId = undefined;
 
+                        // Ensure proper initialization of active states for existing items
+                        const hasCoret = raw.show_coret || (raw.txt_coret && raw.txt_coret !== '');
+                        const hasKeterangan = !!raw.txt_keterangan;
+
                         pageItems.push({
                             id: itemData.id || `auto-item-${productIndex}`,
                             plu: plu,
@@ -472,8 +465,9 @@ const EditorPage = () => {
                                 name: existingProduct ? existingProduct.name : (raw.txt_name || raw.name || "Nama Barang"),
                                 price_display: raw.txt_price || raw.price_display || "",
                                 image_url: processAssetUrl(imgUrl),
-                                // Backend often expects img_product key
-                                img_product: processAssetUrl(imgUrl)
+                                img_product: processAssetUrl(imgUrl),
+                                show_coret: hasCoret,
+                                show_keterangan: hasKeterangan
                             },
                             needs_manual_image: !existingProduct,
                             layout: {
@@ -528,20 +522,50 @@ const EditorPage = () => {
       setGeneratingBadges(prev => ({...prev, [item.id]: true}));
       
       try {
-          const apiData = {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const apiData: any = {
               ...item.content,
               txt_name: item.content.name,
               txt_price: item.content.price_display,
-              // Force image URL with timestamp to bust backend cache if necessary
-              img_product: item.content.image_url 
+              img_product: item.content.image_url,
+              // Pass boolean flags explicitly
+              show_coret: item.content.show_coret,
+              show_keterangan: item.content.show_keterangan,
+              is_bbmu: item.content.is_bbmu
           };
+          
+          // Flatten nested objects for API
+          if (item.content.badge_igr) {
+             apiData.badge_igr = item.content.badge_igr;
+             if (item.content.badge_igr.active) {
+                apiData.txt_keterangan_qty_igr = item.content.badge_igr.txt_keterangan_qty_igr;
+                apiData.txt_satuan_igr = item.content.badge_igr.txt_satuan_igr;
+                apiData.txt_price_bonus_igr = item.content.badge_igr.txt_price_bonus_igr;
+             }
+          }
+          if (item.content.badge_spi) {
+             apiData.badge_spi = item.content.badge_spi;
+             if (item.content.badge_spi.active) {
+                apiData.txt_keterangan_qty_spi = item.content.badge_spi.txt_keterangan_qty_spi;
+                apiData.txt_satuan_spi = item.content.badge_spi.txt_satuan_spi;
+                apiData.txt_price_bonus_spi = item.content.badge_spi.txt_price_bonus_spi;
+             }
+          }
+          if (item.content.badge_promo) {
+             apiData.badge_promo = item.content.badge_promo;
+             if (item.content.badge_promo.active) {
+                apiData.txt_qty_promo = item.content.badge_promo.txt_qty_promo;
+                apiData.txt_price_promo = item.content.badge_promo.txt_price_promo;
+                apiData.txt_keterangan_promo = item.content.badge_promo.txt_keterangan_promo;
+                apiData.txt_satuan = item.content.badge_promo.txt_satuan;
+             }
+          }
 
           const url = await LeafletService.generateBadge(
               compName,
               apiData
           );
           
-          // Add timestamp to badge result to bust frontend cache
           const fullUrl = `${processAssetUrl(url)}?t=${Date.now()}`;
           setGeneratedBadges(prev => ({...prev, [item.id]: fullUrl}));
       } catch (e) {
@@ -774,7 +798,7 @@ const EditorPage = () => {
       id: `text-${Date.now()}`,
       plu: "",
       type: "text",
-      content: { name: "Teks Baru", price_display: "Rp 0", price_original: 0, show_coret: false, image_url: "", is_bbmu: false, badge_spi_url: null },
+      content: { name: "Teks Baru", price_display: "Rp 0", price_original: 0, show_coret: false, image_url: "", is_bbmu: false, badge_spi: null },
       needs_manual_image: false,
       layout: { x: 100, y: 100, w: 600, h: 200 },
     };
@@ -788,7 +812,7 @@ const EditorPage = () => {
       id: `img-${Date.now()}`,
       plu: "",
       type: "image",
-      content: { name: "Gambar Baru", price_display: "", price_original: 0, show_coret: false, image_url: "/assets/placeholder.png", is_bbmu: false, badge_spi_url: null },
+      content: { name: "Gambar Baru", price_display: "", price_original: 0, show_coret: false, image_url: "/assets/placeholder.png", is_bbmu: false, badge_spi: null },
       needs_manual_image: false,
       layout: { x: 100, y: 100, w: 400, h: 400 },
     };
@@ -796,46 +820,95 @@ const EditorPage = () => {
     setSelectedItemId(newItem.id);
   };
 
-  const handleMouseDown = (e: React.MouseEvent, item: EditorItem, pageId: string) => {
+  const handleMouseDown = (e: React.MouseEvent, item: EditorItem, pageId: string, handle?: string) => {
     e.stopPropagation();
     const currentCanvas = pageRefs.current[pageId];
     if (!item.layout || !currentCanvas) return;
+    
     setSelectedItemId(item.id);
     setSelectedPageId(pageId);
-    setDraggingId(item.id);
-    setDragActivePageId(pageId);
+    
     const canvasRect = currentCanvas.getBoundingClientRect();
     const mouseX = (e.clientX - canvasRect.left) / zoom;
     const mouseY = (e.clientY - canvasRect.top) / zoom;
-    setDragOffset({ x: mouseX - item.layout.x, y: mouseY - item.layout.y });
+
+    if (handle) {
+      setResizeHandle(handle);
+      setInitialResizeLayout({ ...item.layout });
+      setInitialMousePos({ x: mouseX, y: mouseY });
+    } else {
+      setDraggingId(item.id);
+      setDragOffset({ x: mouseX - item.layout.x, y: mouseY - item.layout.y });
+    }
+    
+    setDragActivePageId(pageId);
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!draggingId || !dragActivePageId) return;
+    if (!dragActivePageId) return;
+    
     const currentCanvas = pageRefs.current[dragActivePageId];
     if (!currentCanvas) return;
+    
     e.preventDefault();
     const canvasRect = currentCanvas.getBoundingClientRect();
     const mouseX = (e.clientX - canvasRect.left) / zoom;
     const mouseY = (e.clientY - canvasRect.top) / zoom;
-    
-    setPages((prevPages) =>
-      prevPages.map((page: LeafletPage) => {
-        if (page.id !== dragActivePageId) return page;
-        return {
-          ...page,
-          items: page.items.map((item: EditorItem) => {
-            if (item.id === draggingId) {
+
+    if (draggingId) {
+      setPages((prevPages) =>
+        prevPages.map((page) => {
+          if (page.id !== dragActivePageId) return page;
+          return {
+            ...page,
+            items: page.items.map((item) => {
+              if (item.id === draggingId) {
                 const newX = mouseX - dragOffset.x;
                 const newY = mouseY - dragOffset.y;
-                
                 return { ...item, layout: { ...item.layout, x: newX, y: newY } };
-            }
-            return item;
-          }),
-        };
-      })
-    );
+              }
+              return item;
+            }),
+          };
+        })
+      );
+    } else if (resizeHandle && selectedItemId && initialResizeLayout && initialMousePos) {
+      const deltaX = mouseX - initialMousePos.x;
+      const deltaY = mouseY - initialMousePos.y;
+      
+      setPages((prevPages) =>
+        prevPages.map((page) => {
+          if (page.id !== dragActivePageId) return page;
+          return {
+            ...page,
+            items: page.items.map((item) => {
+              if (item.id === selectedItemId) {
+                let newX = initialResizeLayout.x;
+                let newY = initialResizeLayout.y;
+                let newW = initialResizeLayout.w;
+                let newH = initialResizeLayout.h;
+
+                if (resizeHandle.includes("e")) newW = Math.max(10, initialResizeLayout.w + deltaX);
+                if (resizeHandle.includes("s")) newH = Math.max(10, initialResizeLayout.h + deltaY);
+                if (resizeHandle.includes("w")) {
+                  const maxW = initialResizeLayout.x + initialResizeLayout.w;
+                  newW = Math.max(10, initialResizeLayout.w - deltaX);
+                  newX = maxW - newW;
+                }
+                if (resizeHandle.includes("n")) {
+                  const maxH = initialResizeLayout.y + initialResizeLayout.h;
+                  newH = Math.max(10, initialResizeLayout.h - deltaY);
+                  newY = maxH - newH;
+                }
+
+                return { ...item, layout: { x: newX, y: newY, w: newW, h: newH } };
+              }
+              return item;
+            }),
+          };
+        })
+      );
+    }
   };
 
   const handleMouseUp = () => {
@@ -874,6 +947,9 @@ const EditorPage = () => {
     }
 
     setDraggingId(null);
+    setResizeHandle(null);
+    setInitialResizeLayout(null);
+    setInitialMousePos(null);
     setDragActivePageId(null);
   };
 
@@ -889,7 +965,7 @@ const EditorPage = () => {
     setSelectedItemId(null);
   };
 
-  const toggleItemProperty = (key: string) => {
+  const toggleBooleanProperty = (key: string) => {
     if (!selectedPageId || !selectedItemId) return;
     setPages((prev) =>
         prev.map((page) => {
@@ -905,6 +981,63 @@ const EditorPage = () => {
     );
   };
 
+  const toggleBadge = (badgeKey: string) => {
+    if (!selectedPageId || !selectedItemId) return;
+    setPages((prev) =>
+        prev.map((page) => {
+            if (page.id !== selectedPageId) return page;
+            const updatedItems = page.items.map((item) => {
+                if (item.id !== selectedItemId) return item;
+                if (!item.content) return item;
+
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const currentBadge = (item.content as any)[badgeKey];
+                const isActive = currentBadge?.active;
+
+                const defaultBadgeIGR = {
+                    active: true,
+                    txt_keterangan_qty_igr: "Setiap Pembelian 1",
+                    txt_satuan_igr: "Pcs",
+                    txt_price_bonus_igr: "BONUS 100"
+                };
+
+                const defaultBadgeSPI = {
+                    active: true,
+                    txt_keterangan_qty_spi: "Setiap Pembelian 1",
+                    txt_satuan_spi: "Pcs",
+                    txt_price_bonus_spi: "Bonus 2.000"
+                };
+
+                const defaultBadgePromo = {
+                    active: true,
+                    txt_qty_promo: "BELI 2",
+                    txt_price_promo: "GRATIS",
+                    txt_keterangan_promo: "Produk Serupa",
+                    txt_satuan: "Pcs"
+                };
+
+                let newBadgeData;
+                if (!currentBadge) {
+                    if (badgeKey === 'badge_igr') newBadgeData = defaultBadgeIGR;
+                    else if (badgeKey === 'badge_spi') newBadgeData = defaultBadgeSPI;
+                    else if (badgeKey === 'badge_promo') newBadgeData = defaultBadgePromo;
+                } else {
+                    newBadgeData = { ...currentBadge, active: !isActive };
+                }
+
+                return { 
+                    ...item, 
+                    content: { 
+                        ...item.content, 
+                        [badgeKey]: newBadgeData 
+                    } 
+                };
+            });
+            return { ...page, items: updatedItems as EditorItem[] } as PageWithDimensions;
+        })
+    );
+  };
+
   const updateItemContent = (key: string, value: string | number | boolean | null) => {
     if (!selectedPageId || !selectedItemId) return;
     setPages((prev) =>
@@ -914,6 +1047,31 @@ const EditorPage = () => {
                 if (item.id !== selectedItemId) return item;
                 if (!item.content) return item;
                 return { ...item, content: { ...item.content, [key]: value } };
+            });
+            return { ...page, items: updatedItems as EditorItem[] } as PageWithDimensions;
+        })
+    );
+  };
+  
+  const updateNestedContent = (parentKey: string, childKey: string, value: string) => {
+    if (!selectedPageId || !selectedItemId) return;
+    setPages((prev) =>
+        prev.map((page) => {
+            if (page.id !== selectedPageId) return page;
+            const updatedItems = page.items.map((item) => {
+                if (item.id !== selectedItemId) return item;
+                if (!item.content) return item;
+                
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const parentObj = (item.content as any)[parentKey] || {};
+                
+                return { 
+                    ...item, 
+                    content: { 
+                        ...item.content, 
+                        [parentKey]: { ...parentObj, [childKey]: value } 
+                    } 
+                };
             });
             return { ...page, items: updatedItems as EditorItem[] } as PageWithDimensions;
         })
@@ -1081,6 +1239,21 @@ const EditorPage = () => {
                                     {item.type === 'text' && <p className="p-2 text-center">{item.content?.name}</p>}
                                 </div>
                           )}
+                          
+                          {/* Resize Handles - Only show when selected */}
+                          {selectedItemId === item.id && (
+                            <>
+                                <div className="absolute top-0 left-0 w-3 h-3 bg-blue-500 border border-white rounded-full -translate-x-1.5 -translate-y-1.5 cursor-nwse-resize z-50" onMouseDown={(e) => handleMouseDown(e, item, page.id, 'nw')} />
+                                <div className="absolute top-0 right-0 w-3 h-3 bg-blue-500 border border-white rounded-full translate-x-1.5 -translate-y-1.5 cursor-nesw-resize z-50" onMouseDown={(e) => handleMouseDown(e, item, page.id, 'ne')} />
+                                <div className="absolute bottom-0 left-0 w-3 h-3 bg-blue-500 border border-white rounded-full -translate-x-1.5 translate-y-1.5 cursor-nesw-resize z-50" onMouseDown={(e) => handleMouseDown(e, item, page.id, 'sw')} />
+                                <div className="absolute bottom-0 right-0 w-3 h-3 bg-blue-500 border border-white rounded-full translate-x-1.5 translate-y-1.5 cursor-nwse-resize z-50" onMouseDown={(e) => handleMouseDown(e, item, page.id, 'se')} />
+                                
+                                <div className="absolute top-0 left-1/2 w-3 h-3 bg-blue-500 border border-white rounded-full -translate-x-1.5 -translate-y-1.5 cursor-ns-resize z-50" onMouseDown={(e) => handleMouseDown(e, item, page.id, 'n')} />
+                                <div className="absolute bottom-0 left-1/2 w-3 h-3 bg-blue-500 border border-white rounded-full -translate-x-1.5 translate-y-1.5 cursor-ns-resize z-50" onMouseDown={(e) => handleMouseDown(e, item, page.id, 's')} />
+                                <div className="absolute top-1/2 left-0 w-3 h-3 bg-blue-500 border border-white rounded-full -translate-x-1.5 -translate-y-1.5 cursor-ew-resize z-50" onMouseDown={(e) => handleMouseDown(e, item, page.id, 'w')} />
+                                <div className="absolute top-1/2 right-0 w-3 h-3 bg-blue-500 border border-white rounded-full translate-x-1.5 -translate-y-1.5 cursor-ew-resize z-50" onMouseDown={(e) => handleMouseDown(e, item, page.id, 'e')} />
+                            </>
+                          )}
                       </div>
                     ))}
                   </div>
@@ -1111,13 +1284,81 @@ const EditorPage = () => {
                     <h4 className="text-xs font-bold text-slate-700">Komponen Badge</h4>
                     <button onClick={() => refreshBadge(activeItem)} className="w-full py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 flex items-center justify-center gap-2 mb-2"><RefreshCw size={14} /> Refresh Gambar</button>
                     
-                    <div className="flex items-center justify-between"><span className="text-xs text-slate-600">Harga Coret</span><button onClick={() => toggleItemProperty('show_coret')} className={`text-slate-400 hover:text-blue-600 ${activeItem.content?.show_coret ? 'text-blue-600' : ''}`}>{activeItem.content?.show_coret ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}</button></div>
-                    {activeItem.content?.show_coret && <input id="price_original" type="number" placeholder="Harga Asli" className="w-full text-xs border p-2 rounded" value={activeItem.content?.price_original} onChange={(e) => updateItemContent('price_original', parseFloat(e.target.value))} />}
-                    <div className="flex items-center justify-between"><span className="text-xs text-slate-600">Badge BBMU</span><button onClick={() => toggleItemProperty('is_bbmu')} className={`text-slate-400 hover:text-blue-600 ${activeItem.content?.is_bbmu ? 'text-blue-600' : ''}`}>{activeItem.content?.is_bbmu ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}</button></div>
+                    {/* Coret */}
+                    <div className="flex items-center justify-between"><span className="text-xs text-slate-600">Harga Coret</span><button onClick={() => toggleBooleanProperty('show_coret')} className={`text-slate-400 hover:text-blue-600 ${activeItem.content?.show_coret ? 'text-blue-600' : ''}`}>{activeItem.content?.show_coret ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}</button></div>
+                    {activeItem.content?.show_coret && (
+                        <div className="space-y-1 ml-2 pl-2 border-l-2 border-slate-200">
+                             <div className="space-y-1"><label className="text-[9px] text-slate-400">Harga Asli</label><input type="text" className="w-full text-xs border p-2 rounded" value={(activeItem.content?.txt_coret as string) ?? ""} onChange={(e) => updateItemContent('txt_coret', e.target.value)} /></div>
+                        </div>
+                    )}
+
+                    {/* Keterangan */}
+                    <div className="flex items-center justify-between mt-2">
+                        <span className="text-xs text-slate-600">Keterangan / Promo</span>
+                        <button onClick={() => toggleBooleanProperty('show_keterangan')} className={`text-slate-400 hover:text-blue-600 ${activeItem.content?.show_keterangan ? 'text-blue-600' : ''}`}>
+                            {activeItem.content?.show_keterangan ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
+                        </button>
+                    </div>
+                    {activeItem.content?.show_keterangan && (
+                        <div className="space-y-1 ml-2 pl-2 border-l-2 border-slate-200">
+                             <input type="text" className="w-full text-xs border p-2 rounded" value={(activeItem.content?.txt_keterangan as string) ?? ""} onChange={(e) => updateItemContent('txt_keterangan', e.target.value)} />
+                        </div>
+                    )}
+                    
+                    {/* Label Promo */}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                        <span className="text-xs text-slate-600 font-bold">Label Promo</span>
+                        <button onClick={() => toggleBadge('badge_promo')} className={`text-slate-400 hover:text-blue-600 ${activeItem.content?.badge_promo?.active ? 'text-blue-600' : ''}`}>
+                            {activeItem.content?.badge_promo?.active ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
+                        </button>
+                    </div>
+                    {activeItem.content?.badge_promo?.active && (
+                        <div className="grid grid-cols-1 gap-2 pl-2 border-l-2 border-yellow-100 mb-2">
+                            <input type="text" placeholder="Qty (Mis: BELI 2)" className="w-full text-xs border p-1 rounded" value={activeItem.content.badge_promo.txt_qty_promo || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_qty_promo', e.target.value)} />
+                            <input type="text" placeholder="Harga/Ket (Mis: GRATIS)" className="w-full text-xs border p-1 rounded font-bold" value={activeItem.content.badge_promo.txt_price_promo || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_price_promo', e.target.value)} />
+                             <input type="text" placeholder="Ket Bawah (Mis: Produk Serupa)" className="w-full text-xs border p-1 rounded" value={activeItem.content.badge_promo.txt_keterangan_promo || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_keterangan_promo', e.target.value)} />
+                             <input type="text" placeholder="Satuan (Mis: Pcs)" className="w-full text-xs border p-1 rounded" value={activeItem.content.badge_promo.txt_satuan || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_satuan', e.target.value)} />
+                        </div>
+                    )}
+
+                    {/* BBMU */}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100"><span className="text-xs text-slate-600">Badge BBMU</span><button onClick={() => toggleBooleanProperty('is_bbmu')} className={`text-slate-400 hover:text-blue-600 ${activeItem.content?.is_bbmu ? 'text-blue-600' : ''}`}>{activeItem.content?.is_bbmu ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}</button></div>
+
+                    {/* IGR */}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                        <span className="text-xs font-bold text-purple-600">Poin IGR</span>
+                        <button onClick={() => toggleBadge('badge_igr')} className={`text-slate-400 hover:text-purple-600 ${activeItem.content?.badge_igr?.active ? 'text-purple-600' : ''}`}>
+                            {activeItem.content?.badge_igr?.active ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
+                        </button>
+                    </div>
+                    {activeItem.content?.badge_igr?.active && (
+                         <div className="grid grid-cols-1 gap-2 pl-2 border-l-2 border-purple-100 mb-2">
+                                <input type="text" placeholder="Ket. Qty" className="w-full text-xs border p-1 rounded" value={activeItem.content.badge_igr.txt_keterangan_qty_igr || ""} onChange={(e) => updateNestedContent('badge_igr', 'txt_keterangan_qty_igr', e.target.value)} />
+                                <input type="text" placeholder="Satuan" className="w-full text-xs border p-1 rounded" value={activeItem.content.badge_igr.txt_satuan_igr || ""} onChange={(e) => updateNestedContent('badge_igr', 'txt_satuan_igr', e.target.value)} />
+                                <input type="text" placeholder="Bonus" className="w-full text-xs border p-1 rounded font-bold" value={activeItem.content.badge_igr.txt_price_bonus_igr || ""} onChange={(e) => updateNestedContent('badge_igr', 'txt_price_bonus_igr', e.target.value)} />
+                         </div>
+                    )}
+
+                    {/* SPI */}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                        <span className="text-xs font-bold text-orange-600">Poin SPI</span>
+                        <button onClick={() => toggleBadge('badge_spi')} className={`text-slate-400 hover:text-orange-600 ${activeItem.content?.badge_spi?.active ? 'text-orange-600' : ''}`}>
+                            {activeItem.content?.badge_spi?.active ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
+                        </button>
+                    </div>
+                    {activeItem.content?.badge_spi?.active && (
+                         <div className="grid grid-cols-1 gap-2 pl-2 border-l-2 border-orange-100">
+                                <input type="text" placeholder="Ket. Qty" className="w-full text-xs border p-1 rounded" value={activeItem.content.badge_spi.txt_keterangan_qty_spi || ""} onChange={(e) => updateNestedContent('badge_spi', 'txt_keterangan_qty_spi', e.target.value)} />
+                                <input type="text" placeholder="Satuan" className="w-full text-xs border p-1 rounded" value={activeItem.content.badge_spi.txt_satuan_spi || ""} onChange={(e) => updateNestedContent('badge_spi', 'txt_satuan_spi', e.target.value)} />
+                                <input type="text" placeholder="Bonus" className="w-full text-xs border p-1 rounded font-bold" value={activeItem.content.badge_spi.txt_price_bonus_spi || ""} onChange={(e) => updateNestedContent('badge_spi', 'txt_price_bonus_spi', e.target.value)} />
+                         </div>
+                    )}
                 </div>
                 <div className="grid grid-cols-2 gap-2 pt-4 border-t border-slate-200">
                   <div className="space-y-1"><label htmlFor="pos_x" className="text-[10px] font-bold text-slate-400 uppercase">X</label><input id="pos_x" type="text" className="w-full text-xs border border-slate-300 rounded p-2 font-mono" value={Math.round(activeItem.layout.x)} readOnly /></div>
                   <div className="space-y-1"><label htmlFor="pos_y" className="text-[10px] font-bold text-slate-400 uppercase">Y</label><input id="pos_y" type="text" className="w-full text-xs border border-slate-300 rounded p-2 font-mono" value={Math.round(activeItem.layout.y)} readOnly /></div>
+                  <div className="space-y-1"><label htmlFor="pos_w" className="text-[10px] font-bold text-slate-400 uppercase">W</label><input id="pos_w" type="text" className="w-full text-xs border border-slate-300 rounded p-2 font-mono" value={Math.round(activeItem.layout.w)} readOnly /></div>
+                  <div className="space-y-1"><label htmlFor="pos_h" className="text-[10px] font-bold text-slate-400 uppercase">H</label><input id="pos_h" type="text" className="w-full text-xs border border-slate-300 rounded p-2 font-mono" value={Math.round(activeItem.layout.h)} readOnly /></div>
                 </div>
                 <div className="pt-4 border-t border-slate-200"><button onClick={handleDeleteItem} className="w-full py-2 bg-white text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-50 flex items-center justify-center gap-2"><Trash2 size={14} /> Hapus Item</button></div>
               </div>
