@@ -29,6 +29,38 @@ class LeafletController extends Controller
         $this->composerService = $composerService;
     }
 
+    // --- NEW: Dashboard Stats Endpoint ---
+    public function getDashboardStats()
+    {
+        try {
+            // Hitung total leaflet yang statusnya 'exported' (selesai)
+            $totalLeaflets = Leaflet::where('status', 'exported')->count();
+
+            // Ambil 5 aktivitas terakhir (leaflet yang baru dibuat/diupdate)
+            $recentActivities = Leaflet::orderBy('updated_at', 'desc')
+                ->take(5)
+                ->get()
+                ->map(function ($leaflet) {
+                    return [
+                        'id' => $leaflet->id,
+                        'text' => "Leaflet '{$leaflet->name}' diperbarui.",
+                        'date' => $leaflet->updated_at->diffForHumans(),
+                        'type' => 'leaflet'
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'total_leaflets' => $totalLeaflets,
+                    'recent_activities' => $recentActivities
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function getTemplates()
     {
         try {

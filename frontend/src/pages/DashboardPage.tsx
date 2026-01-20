@@ -17,16 +17,18 @@ interface AppContext {
   openProductModal: () => void;
 }
 
+interface Activity {
+  id: number;
+  text: string;
+  date?: string;
+  type?: string;
+}
+
 const DashboardPage = () => {
   const { openProductModal } = useOutletContext<AppContext>();
 
-  // Inisialisasi semua stats dengan 0
   const [stats, setStats] = useState({ leaflet: 0, produk: 0, template: 0 });
-
-  const [activities] = useState([
-    { id: 1, icon: FilePlus2, text: "Leaflet baru LFG-002 dibuat." },
-    { id: 2, icon: Plus, text: "Produk baru Air Mineral ditambahkan." },
-  ]);
+  const [activities, setActivities] = useState<Activity[]>([]);
 
   const fetchStats = async () => {
     try {
@@ -36,15 +38,25 @@ const DashboardPage = () => {
       // 2. Fetch Templates
       const templates = await LeafletService.getTemplates();
 
-      // 3. Fetch Leaflets (History) - Jika ingin dinamis juga
-      // const leaflets = await LeafletService.getHistory();
+      // 3. Fetch Dashboard Stats (Total Finished Leaflet & Activities)
+      const dashboardData = await LeafletService.getDashboardStats();
 
-      setStats((prevStats) => ({
-        ...prevStats,
-        produk: products.length,
-        template: templates.length,
-        // leaflet: leaflets.length // Uncomment jika endpoint history sudah siap
-      }));
+      setStats({
+        produk: products ? products.length : 0,
+        template: templates ? templates.length : 0,
+        leaflet: dashboardData.total_leaflets || 0,
+      });
+
+      // Update Activities from Backend
+      if (dashboardData.recent_activities && dashboardData.recent_activities.length > 0) {
+         setActivities(dashboardData.recent_activities);
+      } else {
+         // Default dummy jika kosong
+         setActivities([
+            { id: 1, text: "Belum ada aktivitas leaflet terbaru.", type: 'system' }
+         ]);
+      }
+
     } catch (error) {
       console.error("Gagal mengambil statistik dashboard:", error);
     }
@@ -53,7 +65,6 @@ const DashboardPage = () => {
   useEffect(() => {
     fetchStats();
 
-    // Listener untuk update real-time jika ada penambahan produk
     const handleProductChange = () => fetchStats();
     window.addEventListener("productAdded", handleProductChange);
 
@@ -73,7 +84,7 @@ const DashboardPage = () => {
             </div>
             <div>
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                Total Leaflet
+                Total Leaflet Jadi
               </h3>
               <p className="text-3xl font-bold text-slate-800 mt-1">
                 {stats.leaflet}
@@ -96,7 +107,7 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          {/* Card Template (UPDATED: Data Real) */}
+          {/* Card Template */}
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 transition-transform hover:-translate-y-1">
             <div className="p-3 bg-amber-50 rounded-xl">
               <LayoutTemplate className="h-6 w-6 text-amber-600" />
@@ -118,7 +129,17 @@ const DashboardPage = () => {
           </h3>
           <ul className="space-y-0">
             {activities.map((activity, idx) => {
-              const Icon = activity.icon;
+              // Icon dinamis berdasarkan tipe aktivitas
+              let Icon = FilePlus2;
+              let bgClass = "bg-blue-50 border-blue-100";
+              let textClass = "text-blue-500";
+
+              if (activity.type === 'system') {
+                  Icon = Plus;
+                  bgClass = "bg-slate-50 border-slate-100";
+                  textClass = "text-slate-500";
+              }
+
               return (
                 <li
                   key={activity.id}
@@ -128,12 +149,17 @@ const DashboardPage = () => {
                       : ""
                   }`}
                 >
-                  <div className="p-2.5 bg-slate-50 rounded-full border border-slate-100">
-                    <Icon className="h-5 w-5 text-slate-500" />
+                  <div className={`p-2.5 rounded-full border ${bgClass}`}>
+                    <Icon className={`h-5 w-5 ${textClass}`} />
                   </div>
-                  <p className="text-sm font-medium text-slate-600">
-                    {activity.text}
-                  </p>
+                  <div>
+                      <p className="text-sm font-medium text-slate-700">
+                        {activity.text}
+                      </p>
+                      {activity.date && (
+                          <p className="text-xs text-slate-400 mt-0.5">{activity.date}</p>
+                      )}
+                  </div>
                 </li>
               );
             })}

@@ -165,4 +165,20 @@ export const LeafletService = {
     }
     throw new Error(response.data.message);
   },
+
+  // NEW: Get Dashboard Stats
+  getDashboardStats: async () => {
+    try {
+        const response = await axios.get(
+            `${API_URL}/dashboard-stats`,
+            getJsonAuthHeader()
+        );
+        if (response.data.success) {
+            return response.data.data;
+        }
+        return { total_leaflets: 0, recent_activities: [] };
+    } catch {
+        return { total_leaflets: 0, recent_activities: [] };
+    }
+  }
 };
