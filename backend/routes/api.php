@@ -31,6 +31,9 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     Route::post('/logout', [AuthController::class, 'logout']);
 
+    // --- PERBAIKAN DI SINI (Mengubah /dashboard/stats menjadi /dashboard-stats) ---
+    Route::get('/dashboard-stats', [LeafletController::class, 'getDashboardStats']);
+
     Route::get('/leaflet/templates', [LeafletController::class, 'getTemplates']);
     Route::post('/leaflet/templates', [LeafletController::class, 'storeTemplate']);
     Route::post('/leaflet/templates/{id}', [LeafletController::class, 'updateTemplate']);

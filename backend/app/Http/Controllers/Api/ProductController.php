@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Log;
 
@@ -43,6 +45,15 @@ class ProductController extends Controller
                 'image_path' => $path,
             ]);
 
+            $user = Auth::user();
+            $userName = $user ? $user->name : 'Sistem';
+
+            ActivityLog::create([
+                'user_id' => $user ? $user->id : null,
+                'type' => 'product',
+                'description' => "{$userName} mengupload produk baru ke Bank Gambar: {$validatedData['name']} ({$validatedData['plu_code']})"
+            ]);
+
             $product->full_image_url = url('storage/' . $path);
 
             return response()->json($product, 201);
@@ -78,6 +89,15 @@ class ProductController extends Controller
         $product->save();
         $product->full_image_url = url('storage/' . $product->image_path);
 
+        $user = Auth::user();
+        $userName = $user ? $user->name : 'Sistem';
+
+        ActivityLog::create([
+            'user_id' => $user ? $user->id : null,
+            'type' => 'product',
+            'description' => "{$userName} memperbarui produk di Bank Gambar: {$product->name}"
+        ]);
+
         return response()->json($product, 200);
     }
 
@@ -106,6 +126,15 @@ class ProductController extends Controller
             $product->save();
             $product->full_image_url = url('storage/' . $product->image_path);
 
+            $user = Auth::user();
+            $userName = $user ? $user->name : 'Sistem';
+
+            ActivityLog::create([
+                'user_id' => $user ? $user->id : null,
+                'type' => 'product',
+                'description' => "{$userName} mengedit data produk: {$product->name}"
+            ]);
+
             return response()->json($product);
 
         } catch (ValidationException $e) {
@@ -118,7 +147,18 @@ class ProductController extends Controller
         if ($product->image_path && Storage::disk('public')->exists($product->image_path)) {
             Storage::disk('public')->delete($product->image_path);
         }
+
+        $name = $product->name;
         $product->delete();
+
+        $user = Auth::user();
+        $userName = $user ? $user->name : 'Sistem';
+
+        ActivityLog::create([
+            'user_id' => $user ? $user->id : null,
+            'type' => 'product',
+            'description' => "{$userName} menghapus produk: {$name}"
+        ]);
 
         return response()->json(['message' => 'Produk berhasil dihapus.']);
     }

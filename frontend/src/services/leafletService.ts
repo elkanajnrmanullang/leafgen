@@ -166,7 +166,6 @@ export const LeafletService = {
     throw new Error(response.data.message);
   },
 
-  // NEW: Get Dashboard Stats
   getDashboardStats: async () => {
     try {
         const response = await axios.get(

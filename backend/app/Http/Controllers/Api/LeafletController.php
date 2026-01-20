@@ -11,6 +11,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Models\Leaflet;
 use App\Models\BackgroundTemplate;
 use App\Models\User;
+use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -29,23 +30,26 @@ class LeafletController extends Controller
         $this->composerService = $composerService;
     }
 
-    // --- NEW: Dashboard Stats Endpoint ---
     public function getDashboardStats()
     {
         try {
-            // Hitung total leaflet yang statusnya 'exported' (selesai)
-            $totalLeaflets = Leaflet::where('status', 'exported')->count();
+            $totalLeaflets = Leaflet::whereIn('status', [
+                'Selesai', 'selesai', 'SELESAI',
+                'exported', 'Exported',
+                'Done', 'done'
+            ])->count();
 
-            // Ambil 5 aktivitas terakhir (leaflet yang baru dibuat/diupdate)
-            $recentActivities = Leaflet::orderBy('updated_at', 'desc')
-                ->take(5)
+            $recentActivities = ActivityLog::with('user')
+                ->latest()
+                ->take(20)
                 ->get()
-                ->map(function ($leaflet) {
+                ->map(function ($log) {
                     return [
-                        'id' => $leaflet->id,
-                        'text' => "Leaflet '{$leaflet->name}' diperbarui.",
-                        'date' => $leaflet->updated_at->diffForHumans(),
-                        'type' => 'leaflet'
+                        'id' => $log->id,
+                        'text' => $log->description,
+                        'date' => $log->created_at->diffForHumans(),
+                        'type' => $log->type,
+                        'user' => $log->user ? $log->user->name : 'Sistem'
                     ];
                 });
 
@@ -108,6 +112,12 @@ class LeafletController extends Controller
                 'is_default' => false
             ]);
 
+            ActivityLog::create([
+                'user_id' => $userId,
+                'type' => 'template',
+                'description' => "{$user->name} mengupload template desain baru: {$request->title}"
+            ]);
+
             return response()->json([
                 'success' => true,
                 'data' => $template,
@@ -149,6 +159,13 @@ class LeafletController extends Controller
             }
 
             $template->update($data);
+
+            $user = Auth::user();
+            ActivityLog::create([
+                'user_id' => $user->id,
+                'type' => 'template',
+                'description' => "{$user->name} memperbarui template: {$request->title}"
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -383,14 +400,6 @@ class LeafletController extends Controller
             $user = Auth::user();
             if (!$user) {
                 $user = User::first();
-                if (!$user) {
-                     $user = User::create([
-                        'name' => 'Admin',
-                        'email' => 'admin@leafgen.com',
-                        'password' => Hash::make('password'),
-                        'role' => 'admin'
-                     ]);
-                }
             }
             $userId = $user->id;
 
@@ -400,6 +409,7 @@ class LeafletController extends Controller
             }
 
             $contentData = $request->pages;
+            $actionDescription = "";
 
             if ($leaflet) {
                 $leaflet->update([
@@ -408,6 +418,7 @@ class LeafletController extends Controller
                     'content' => $contentData,
                     'status' => $request->status
                 ]);
+                $actionDescription = "{$user->name} memperbarui/mengedit leaflet: {$request->title}";
             } else {
                 $leaflet = Leaflet::create([
                     'name' => $request->title,
@@ -416,7 +427,18 @@ class LeafletController extends Controller
                     'status' => $request->status,
                     'user_id' => $userId
                 ]);
+                $actionDescription = "{$user->name} membuat leaflet baru: {$request->title}";
             }
+
+            if ($request->status === 'Selesai') {
+                $actionDescription = "{$user->name} menyelesaikan leaflet: {$request->title}";
+            }
+
+            ActivityLog::create([
+                'user_id' => $userId,
+                'type' => 'leaflet',
+                'description' => $actionDescription
+            ]);
 
             return response()->json(['success' => true, 'data' => $leaflet]);
 

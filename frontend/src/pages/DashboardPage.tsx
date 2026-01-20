@@ -10,7 +10,9 @@ import {
   FileUp,
   PlusCircle,
   FilePlus2,
-  Plus,
+  Image as ImageIcon,
+  Layout,
+  History
 } from "lucide-react";
 
 interface AppContext {
@@ -22,6 +24,7 @@ interface Activity {
   text: string;
   date?: string;
   type?: string;
+  user?: string;
 }
 
 const DashboardPage = () => {
@@ -32,13 +35,8 @@ const DashboardPage = () => {
 
   const fetchStats = async () => {
     try {
-      // 1. Fetch Produk
       const products = await getProducts();
-
-      // 2. Fetch Templates
       const templates = await LeafletService.getTemplates();
-
-      // 3. Fetch Dashboard Stats (Total Finished Leaflet & Activities)
       const dashboardData = await LeafletService.getDashboardStats();
 
       setStats({
@@ -47,13 +45,11 @@ const DashboardPage = () => {
         leaflet: dashboardData.total_leaflets || 0,
       });
 
-      // Update Activities from Backend
       if (dashboardData.recent_activities && dashboardData.recent_activities.length > 0) {
          setActivities(dashboardData.recent_activities);
       } else {
-         // Default dummy jika kosong
          setActivities([
-            { id: 1, text: "Belum ada aktivitas leaflet terbaru.", type: 'system' }
+           { id: 0, text: "Belum ada aktivitas terbaru.", type: 'system' }
          ]);
       }
 
@@ -65,10 +61,15 @@ const DashboardPage = () => {
   useEffect(() => {
     fetchStats();
 
+    const intervalId = setInterval(() => {
+      fetchStats();
+    }, 5000);
+
     const handleProductChange = () => fetchStats();
     window.addEventListener("productAdded", handleProductChange);
 
     return () => {
+      clearInterval(intervalId);
       window.removeEventListener("productAdded", handleProductChange);
     };
   }, []);
@@ -77,14 +78,13 @@ const DashboardPage = () => {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2 space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card Leaflet */}
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 transition-transform hover:-translate-y-1">
             <div className="p-3 bg-blue-50 rounded-xl">
               <FileSpreadsheet className="h-6 w-6 text-blue-600" />
             </div>
             <div>
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                Total Leaflet Jadi
+                Total Leaflet Selesai
               </h3>
               <p className="text-3xl font-bold text-slate-800 mt-1">
                 {stats.leaflet}
@@ -92,7 +92,6 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          {/* Card Produk */}
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 transition-transform hover:-translate-y-1">
             <div className="p-3 bg-emerald-50 rounded-xl">
               <Archive className="h-6 w-6 text-emerald-600" />
@@ -107,7 +106,6 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          {/* Card Template */}
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 transition-transform hover:-translate-y-1">
             <div className="p-3 bg-amber-50 rounded-xl">
               <LayoutTemplate className="h-6 w-6 text-amber-600" />
@@ -123,47 +121,51 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <h3 className="text-lg font-bold text-slate-800 mb-6">
-            Aktivitas Terakhir
-          </h3>
-          <ul className="space-y-0">
-            {activities.map((activity, idx) => {
-              // Icon dinamis berdasarkan tipe aktivitas
-              let Icon = FilePlus2;
-              let bgClass = "bg-blue-50 border-blue-100";
-              let textClass = "text-blue-500";
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col max-h-[500px]">
+          <div className="p-6 border-b border-slate-100">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <History className="w-5 h-5 text-slate-500" />
+              Aktivitas Terakhir (Real-time)
+            </h3>
+          </div>
+          
+          <div className="p-6 pt-0 overflow-y-auto">
+            <ul className="space-y-0 divide-y divide-slate-100">
+              {activities.map((activity) => {
+                let Icon = FilePlus2;
+                let bgClass = "bg-blue-50 border-blue-100";
+                let textClass = "text-blue-500";
 
-              if (activity.type === 'system') {
-                  Icon = Plus;
-                  bgClass = "bg-slate-50 border-slate-100";
-                  textClass = "text-slate-500";
-              }
+                if (activity.type === 'product') {
+                    Icon = ImageIcon;
+                    bgClass = "bg-emerald-50 border-emerald-100";
+                    textClass = "text-emerald-500";
+                } else if (activity.type === 'template') {
+                    Icon = Layout;
+                    bgClass = "bg-amber-50 border-amber-100";
+                    textClass = "text-amber-500";
+                }
 
-              return (
-                <li
-                  key={activity.id}
-                  className={`flex items-center gap-4 py-4 ${
-                    idx !== activities.length - 1
-                      ? "border-b border-slate-100"
-                      : ""
-                  }`}
-                >
-                  <div className={`p-2.5 rounded-full border ${bgClass}`}>
-                    <Icon className={`h-5 w-5 ${textClass}`} />
-                  </div>
-                  <div>
-                      <p className="text-sm font-medium text-slate-700">
-                        {activity.text}
-                      </p>
-                      {activity.date && (
-                          <p className="text-xs text-slate-400 mt-0.5">{activity.date}</p>
-                      )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                return (
+                  <li key={activity.id} className="flex items-start gap-4 py-4">
+                    <div className={`p-2.5 rounded-full border shrink-0 ${bgClass}`}>
+                      <Icon className={`h-5 w-5 ${textClass}`} />
+                    </div>
+                    <div>
+                        <p className="text-sm font-medium text-slate-700 leading-snug">
+                          {activity.text}
+                        </p>
+                        {activity.date && (
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-slate-400">{activity.date}</span>
+                            </div>
+                        )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
       </div>
 
