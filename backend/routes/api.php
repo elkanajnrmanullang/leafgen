@@ -8,10 +8,13 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ForgotPasswordController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\BadgeController;
+use App\Http\Controllers\Api\MediaController;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail']);
 Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword']);
+
+Route::get('/media/{path}', [MediaController::class, 'show'])->where('path', '.*');
 
 Route::post('/leaflet/generate-draft', [LeafletController::class, 'generateDraft']);
 Route::post('/leaflet/generate-layout', [LeafletController::class, 'generateLayout']);
@@ -31,7 +34,6 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    // --- PERBAIKAN DI SINI (Mengubah /dashboard/stats menjadi /dashboard-stats) ---
     Route::get('/dashboard-stats', [LeafletController::class, 'getDashboardStats']);
 
     Route::get('/leaflet/templates', [LeafletController::class, 'getTemplates']);

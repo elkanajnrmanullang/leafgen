@@ -59,9 +59,6 @@ class BadgeGeneratorService
         $rootX = $frame['absoluteBoundingBox']['x'] ?? 0;
         $rootY = $frame['absoluteBoundingBox']['y'] ?? 0;
 
-        // --- Logic Status Aktif Komponen (Toggle Switch) ---
-
-        // 1. Cek Coret (Default: Active if text exists, unless explicitly set to false)
         $hasCoret = false;
         if (isset($dataReplacement['show_coret'])) {
              $hasCoret = filter_var($dataReplacement['show_coret'], FILTER_VALIDATE_BOOLEAN);
@@ -69,7 +66,6 @@ class BadgeGeneratorService
              $hasCoret = true;
         }
 
-        // 2. Cek Keterangan
         $hasKeterangan = false;
         if (isset($dataReplacement['show_keterangan'])) {
             $hasKeterangan = filter_var($dataReplacement['show_keterangan'], FILTER_VALIDATE_BOOLEAN);
@@ -77,7 +73,6 @@ class BadgeGeneratorService
             $hasKeterangan = true;
         }
 
-        // 3. Cek Promo
         $hasPromo = false;
         if (isset($dataReplacement['badge_promo']['active'])) {
              $hasPromo = filter_var($dataReplacement['badge_promo']['active'], FILTER_VALIDATE_BOOLEAN);
@@ -85,7 +80,6 @@ class BadgeGeneratorService
              $hasPromo = true;
         }
 
-        // 4. Cek BBMU
         $hasBbmu = false;
         if (isset($dataReplacement['is_bbmu'])) {
             $hasBbmu = filter_var($dataReplacement['is_bbmu'], FILTER_VALIDATE_BOOLEAN);
@@ -93,7 +87,6 @@ class BadgeGeneratorService
             $hasBbmu = true;
         }
 
-        // 5. Cek IGR
         $hasIgr = false;
         if (isset($dataReplacement['badge_igr']['active'])) {
             $hasIgr = filter_var($dataReplacement['badge_igr']['active'], FILTER_VALIDATE_BOOLEAN);
@@ -101,7 +94,6 @@ class BadgeGeneratorService
             $hasIgr = true;
         }
 
-        // 6. Cek SPI
         $hasSpi = false;
         if (isset($dataReplacement['badge_spi']['active'])) {
             $hasSpi = filter_var($dataReplacement['badge_spi']['active'], FILTER_VALIDATE_BOOLEAN);
@@ -109,10 +101,8 @@ class BadgeGeneratorService
             $hasSpi = true;
         }
 
-        // Logic Layout Khusus (Jika Promo dan Coret aktif bersamaan)
         $useAltLayout = $hasCoret && $hasPromo;
 
-        // Group Keys untuk filtering layer
         $promoKeys = [
             'img_bg_label_promo', 'img_container_ketPromo',
             'txt_qty_promo', 'txt_price_promo', 'txt_keterangan_promo', 'txt_satuan'
@@ -126,14 +116,12 @@ class BadgeGeneratorService
         if (isset($frame['children'])) {
             $layers = $frame['children'];
 
-            // --- PROSES GAMBAR (Image Layers) ---
             foreach ($layers as $layer) {
                 $layerName = $layer['name'];
 
                 $isAltLayer = str_ends_with($layerName, '_alt');
                 $baseName = $isAltLayer ? substr($layerName, 0, -4) : $layerName;
 
-                // --- Global Filter: Matikan layer jika toggle OFF ---
                 if (in_array($baseName, $promoKeys) && !$hasPromo) continue;
                 if (in_array($baseName, $coretKeys) && !$hasCoret) continue;
                 if (in_array($baseName, $keteranganKeys) && !$hasKeterangan) continue;
@@ -141,24 +129,19 @@ class BadgeGeneratorService
                 if (in_array($baseName, $igrKeys) && !$hasIgr) continue;
                 if (in_array($baseName, $spiKeys) && !$hasSpi) continue;
 
-                // --- Layout Logic: Promo vs Coret ---
                 $isPromoLayer = in_array($baseName, $promoKeys);
                 if ($useAltLayout) {
-                    // Jika Keduannya aktif, Promo pakai layout _alt (biasanya lebih kecil/geser)
                     if ($isPromoLayer && !$isAltLayer) continue;
                 } else {
-                    // Jika cuma satu aktif, pakai layout standar (bukan _alt)
                     if ($isAltLayer) continue;
                 }
 
                 if (!str_starts_with($baseName, 'img_')) continue;
 
-                // Cari value gambar
                 $value = $dataReplacement[$baseName] ?? null;
 
-                // Fallback: Jika value kosong tapi status aktif (ON), cari gambar default sesuai nama layer
                 if (empty($value)) {
-                     if ($baseName === 'img_product') continue; // Produk wajib ada
+                     if ($baseName === 'img_product') continue;
                      $value = $baseName . ".png";
                 }
 
@@ -198,14 +181,12 @@ class BadgeGeneratorService
                 }
             }
 
-            // --- PROSES TEKS (Text Layers) ---
             foreach ($layers as $layer) {
                 $layerName = $layer['name'];
 
                 $isAltLayer = str_ends_with($layerName, '_alt');
                 $baseName = $isAltLayer ? substr($layerName, 0, -4) : $layerName;
 
-                // --- Global Filter: Matikan layer jika toggle OFF ---
                 if (in_array($baseName, $promoKeys) && !$hasPromo) continue;
                 if (in_array($baseName, $coretKeys) && !$hasCoret) continue;
                 if (in_array($baseName, $keteranganKeys) && !$hasKeterangan) continue;
@@ -222,10 +203,8 @@ class BadgeGeneratorService
 
                 if ($layer['type'] !== 'TEXT') continue;
 
-                // Ambil value teks
                 $value = $dataReplacement[$baseName] ?? '';
 
-                // Cek override value dari nested object badge_*
                 if (empty($value) && $hasIgr && isset($dataReplacement['badge_igr'][$baseName])) {
                     $value = $dataReplacement['badge_igr'][$baseName];
                 }
@@ -325,7 +304,7 @@ class BadgeGeneratorService
 
         $img->save($savePath);
 
-        return asset("storage/temp/badges/{$filename}");
+        return url("api/media/temp/badges/{$filename}");
     }
 
     private function wrapText($text, $fontSize, $fontFile, $maxWidth)
@@ -370,6 +349,14 @@ class BadgeGeneratorService
             $path = $parsed['path'] ?? '';
 
             if (str_contains($filenameOrPath, request()->getHost()) || str_contains($filenameOrPath, '127.0.0.1') || str_contains($filenameOrPath, 'localhost')) {
+                if (str_contains($path, '/media/')) {
+                    $cleanPath = str_replace('/api/media/', '', $path);
+                    $cleanPath = str_replace('/media/', '', $cleanPath);
+                    $localPath = storage_path('app/public/' . ltrim($cleanPath, '/'));
+                    if (file_exists($localPath)) {
+                        return $localPath;
+                    }
+                }
                 if (str_contains($path, '/storage/')) {
                     $cleanPath = str_replace('/storage/', '', $path);
                     $localPath = storage_path('app/public/' . ltrim($cleanPath, '/'));
