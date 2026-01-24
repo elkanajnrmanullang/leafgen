@@ -11,6 +11,8 @@ interface Template {
   is_default: boolean;
 }
 
+const BACKEND_URL = "http://127.0.0.1:8000";
+
 const PilihTemplatePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -52,9 +54,8 @@ const PilihTemplatePage = () => {
     setIsProcessing(true);
     try {
         const selectedTemplate = templates.find(t => t.id === templateId);
-        const templateUrl = selectedTemplate 
-            ? `http://127.0.0.1:8000/storage/${selectedTemplate.image_path}` 
-            : null;
+        
+        const templateUrl = selectedTemplate ? selectedTemplate.image_path : null;
 
         const draftResult = await LeafletService.generateDraft(file, storeName, leafletName);
         
@@ -80,6 +81,7 @@ const PilihTemplatePage = () => {
             }
         });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
         alert(error.message || "Gagal memproses leaflet");
         setIsProcessing(false);
@@ -122,7 +124,7 @@ const PilihTemplatePage = () => {
       }
       setIsModalOpen(false);
       fetchTemplates();
-    } catch (error) {
+    } catch {
       alert("Gagal menyimpan template. Pastikan file sesuai.");
     } finally {
       setIsSubmitting(false);
@@ -135,7 +137,7 @@ const PilihTemplatePage = () => {
     try {
       await LeafletService.deleteTemplate(id);
       setTemplates((prev) => prev.filter((t) => t.id !== id));
-    } catch (error) {
+    } catch {
       alert("Gagal menghapus template.");
     }
   };
@@ -191,7 +193,10 @@ const PilihTemplatePage = () => {
               <div className="aspect-[3/4] bg-slate-100 relative overflow-hidden">
                 {template.image_path ? (
                   <img
-                    src={`http://127.0.0.1:8000/storage/${template.image_path}`}
+                    src={`${BACKEND_URL}/api/media/${template.image_path}`}
+                    onError={(e) => {
+                         e.currentTarget.src = `${BACKEND_URL}/storage/${template.image_path}`;
+                    }}
                     alt={template.title}
                     className="w-full h-full object-cover"
                   />
