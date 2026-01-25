@@ -7,6 +7,7 @@ interface Template {
   id: number;
   title: string;
   image_path: string;
+  image_url?: string;
   type: string;
 }
 
@@ -115,11 +116,6 @@ const ManajemenTemplatePage = () => {
     });
   };
 
-  const processImageUrl = (path: string) => {
-    if (path.startsWith("http")) return path;
-    return `http://127.0.0.1:8000/storage/${path}`;
-  };
-
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
@@ -145,7 +141,7 @@ const ManajemenTemplatePage = () => {
             Memuat template...
           </div>
         ) : templates.length === 0 ? (
-           <div className="text-center py-20 text-slate-400">
+          <div className="text-center py-20 text-slate-400">
             Belum ada template. Silakan upload template baru.
           </div>
         ) : (
@@ -157,12 +153,12 @@ const ManajemenTemplatePage = () => {
               >
                 <div className="relative aspect-[1/1.414] bg-slate-100 overflow-hidden">
                   <img
-                    src={processImageUrl(tpl.image_path)}
+                    src={tpl.image_url} 
                     alt={tpl.title}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                   <button
+                  <button
                     onClick={() => handleDeleteClick(tpl.id)}
                     className="absolute top-2 right-2 p-2 bg-white/90 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all z-10"
                     title="Hapus Template"
@@ -217,7 +213,7 @@ const ManajemenTemplatePage = () => {
                     required
                   />
                   <div className="p-3 bg-blue-50 text-blue-600 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                      <ImageIcon size={24} />
+                    <ImageIcon size={24} />
                   </div>
                   <span className="text-sm text-slate-600 font-medium px-2 truncate max-w-full">
                     {newFile ? newFile.name : "Klik untuk pilih gambar"}

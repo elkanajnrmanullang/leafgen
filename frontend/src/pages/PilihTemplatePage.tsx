@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Plus, Trash2, Layout, Loader2, X, Pencil, ArrowRight } from "lucide-react";
 import { LeafletService } from "../services/leafletService";
@@ -7,11 +7,10 @@ interface Template {
   id: number;
   title: string;
   image_path: string;
+  image_url?: string;
   type: string;
   is_default: boolean;
 }
-
-const BACKEND_URL = "http://127.0.0.1:8000";
 
 const PilihTemplatePage = () => {
   const navigate = useNavigate();
@@ -55,7 +54,8 @@ const PilihTemplatePage = () => {
     try {
         const selectedTemplate = templates.find(t => t.id === templateId);
         
-        const templateUrl = selectedTemplate ? selectedTemplate.image_path : null;
+        // Gunakan image_url yang sudah lengkap dari backend
+        const templateUrl = selectedTemplate ? selectedTemplate.image_url : null;
 
         const draftResult = await LeafletService.generateDraft(file, storeName, leafletName);
         
@@ -77,7 +77,7 @@ const PilihTemplatePage = () => {
                 leafletData: targetData, 
                 leafletName: leafletName,
                 storeName: storeName,
-                templateUrl: templateUrl 
+                templateUrl: templateUrl // Kirim URL lengkap ke editor
             }
         });
 
@@ -191,12 +191,9 @@ const PilihTemplatePage = () => {
               className="group relative bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-xl hover:border-indigo-300 transition-all duration-200 flex flex-col cursor-pointer"
             >
               <div className="aspect-[3/4] bg-slate-100 relative overflow-hidden">
-                {template.image_path ? (
+                {template.image_url ? (
                   <img
-                    src={`${BACKEND_URL}/api/media/${template.image_path}`}
-                    onError={(e) => {
-                         e.currentTarget.src = `${BACKEND_URL}/storage/${template.image_path}`;
-                    }}
+                    src={template.image_url}
                     alt={template.title}
                     className="w-full h-full object-cover"
                   />

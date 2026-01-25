@@ -14,7 +14,6 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail']);
 Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword']);
 
-// --- ROUTE KHUSUS MEDIA (CORS SAFE) ---
 Route::get('/media/{path}', [MediaController::class, 'show'])->where('path', '.*');
 
 Route::post('/leaflet/generate-draft', [LeafletController::class, 'generateDraft']);
