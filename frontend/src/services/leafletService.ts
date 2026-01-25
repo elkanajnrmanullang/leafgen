@@ -35,7 +35,7 @@ export const LeafletService = {
         return response.data.data;
       }
       return [];
-    } catch (error) {
+    } catch {
       return [];
     }
   },
@@ -86,11 +86,14 @@ export const LeafletService = {
         return response.data.data;
       }
       throw new Error(response.data.message);
-    } catch (error: any) {
-        if(error.response && error.response.status === 404) {
+    } catch (error) {
+        if(axios.isAxiosError(error) && error.response && error.response.status === 404) {
              return ["ALL", "JAWA", "SUM", "KAL", "SUL", "AMB", "BLI"];
         }
-      throw new Error(error.response?.data?.message || "Gagal membaca wilayah.");
+        if (axios.isAxiosError(error)) {
+            throw new Error(error.response?.data?.message || "Gagal membaca wilayah.");
+        }
+        throw new Error("Gagal membaca wilayah.");
     }
   },
 
@@ -112,7 +115,7 @@ export const LeafletService = {
     throw new Error(response.data.message);
   },
 
-  generateBadge: async (componentName: string, data: any) => {
+  generateBadge: async (componentName: string, data: Record<string, unknown>) => {
     const response = await axios.post(
         `${API_URL}/generate-badge`,
         {
@@ -128,7 +131,7 @@ export const LeafletService = {
     throw new Error(response.data.message);
   },
 
-  saveLeaflet: async (data: any) => {
+  saveLeaflet: async (data: Record<string, unknown>) => {
     const response = await axios.post(
       `${API_URL}/leaflets/save`,
       data,

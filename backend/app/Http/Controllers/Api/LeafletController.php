@@ -69,9 +69,15 @@ class LeafletController extends Controller
     {
         try {
             $templates = BackgroundTemplate::orderBy('created_at', 'desc')->get();
+
+            $formattedTemplates = $templates->map(function ($template) {
+                $template->image_url = url(Storage::url($template->image_path));
+                return $template;
+            });
+
             return response()->json([
                 'success' => true,
-                'data' => $templates
+                'data' => $formattedTemplates
             ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
@@ -117,6 +123,8 @@ class LeafletController extends Controller
                 'type' => 'template',
                 'description' => "{$user->name} mengupload template desain baru: {$request->title}"
             ]);
+
+            $template->image_url = url(Storage::url($template->image_path));
 
             return response()->json([
                 'success' => true,
@@ -166,6 +174,8 @@ class LeafletController extends Controller
                 'type' => 'template',
                 'description' => "{$user->name} memperbarui template: {$request->title}"
             ]);
+
+            $template->image_url = url(Storage::url($template->image_path));
 
             return response()->json([
                 'success' => true,
