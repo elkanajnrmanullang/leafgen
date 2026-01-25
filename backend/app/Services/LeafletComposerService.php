@@ -29,14 +29,16 @@ class LeafletComposerService
         'img_khusus_member'       => 'img_khusus_member.png',
         'img_namaLeaflet_inner'   => 'tema_leaflet.png',
         'img_khusus_member_inner' => 'img_khusus_member.png',
-        'img_badge_bbmu'          => 'img_badge_bbmu.png'
+        'img_badge_bbmu'          => 'img_badge_bbmu.png',
+        'layout_ui_cover'         => 'layout_ui_cover.png',
+        'layout_ui_inner'         => 'layout_ui_inner.png'
     ];
 
     public function __construct(BadgeGeneratorService $badgeService)
     {
         $this->manager = new ImageManager(new Driver());
         $this->badgeService = $badgeService;
-        $this->assetPath = storage_path('app/master_templates/assets');
+        $this->assetPath = public_path('assets');
         $this->jsonPath = storage_path('app/master_templates/json');
         $this->fontPath = storage_path('app/master_templates/fonts/Poppins-Bold.ttf');
         $this->outputPath = storage_path('app/public/layouts');
@@ -75,12 +77,7 @@ class LeafletComposerService
                     ? 'img_bg_layout_cover.png'
                     : 'img_bg_layout_inner.png';
 
-                $uiFrameFilename = ($layoutType === 'cover')
-                    ? 'layout_ui_cover.png'
-                    : 'layout_ui_inner.png';
-
                 $defaultBgPath = $this->assetPath . '/' . $defaultBgFilename;
-                $uiFramePath   = $this->assetPath . '/' . $uiFrameFilename;
 
                 $customBgPath = null;
                 if ($templateId) {
@@ -99,17 +96,14 @@ class LeafletComposerService
                     $canvas = $this->manager->create(self::CANVAS_W, self::CANVAS_H)->fill('ffffff');
                 }
 
-                if (file_exists($uiFramePath)) {
-                    $uiFrame = $this->manager->read($uiFramePath);
-                    $uiFrame->resize(self::CANVAS_W, self::CANVAS_H);
-                    $canvas->place($uiFrame, 'top-left', 0, 0);
-                }
-
                 if (!empty($layoutData)) {
                     $staticSlots = $this->findNodes($layoutData, array_keys($this->staticAssetMap));
 
                     foreach ($staticSlots as $slot) {
                         $layerName = $slot['name'];
+
+                        if (!isset($this->staticAssetMap[$layerName])) continue;
+
                         $imageFile = $this->staticAssetMap[$layerName];
                         $imagePath = $this->assetPath . '/' . $imageFile;
 
@@ -119,10 +113,13 @@ class LeafletComposerService
                             $sW = $slot['width'] * $scaleFactor;
                             $sH = $slot['height'] * $scaleFactor;
 
-                            $overlay = $this->manager->read($imagePath);
-
-                            $overlay->resize((int)$sW, (int)$sH);
-                            $canvas->place($overlay, 'top-left', (int)$sX, (int)$sY);
+                            if ($sW > 0 && $sH > 0) {
+                                $overlay = $this->manager->read($imagePath);
+                                $overlay->resize((int)$sW, (int)$sH);
+                                $canvas->place($overlay, 'top-left', (int)$sX, (int)$sY);
+                            }
+                        } else {
+                            Log::warning("Aset tidak ditemukan: {$imagePath}");
                         }
                     }
 
