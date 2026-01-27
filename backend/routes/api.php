@@ -9,12 +9,14 @@ use App\Http\Controllers\Api\ForgotPasswordController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\BadgeController;
 use App\Http\Controllers\Api\MediaController;
+use App\Http\Controllers\Api\AssetController;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail']);
 Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword']);
 
 Route::get('/media/{path}', [MediaController::class, 'show'])->where('path', '.*');
+Route::get('/asset-proxy/{path}', [AssetController::class, 'proxy'])->where('path', '.*');
 
 Route::post('/leaflet/generate-draft', [LeafletController::class, 'generateDraft']);
 Route::post('/leaflet/generate-layout', [LeafletController::class, 'generateLayout']);
