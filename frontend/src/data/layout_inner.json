@@ -60,6 +60,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -153,83 +160,411 @@
         "annotations": []
       },
       {
-      "id": "258:3",
-      "type": "RECTANGLE",
-      "parent": {
-        "id": "28:19",
-        "type": "FRAME"
-      },
-      "name": "layout_ui_inner",
-      "isAsset": false,
-      "detachedInfo": null,
-      "visible": true,
-      "locked": false,
-      "stuckNodes": [],
-      "attachedConnectors": [],
-      "componentPropertyReferences": null,
-      "variableConsumptionMap": {},
-      "boundVariables": {},
-      "resolvedVariableModes": {},
-      "inferredVariables": {},
-      "availableInferredVariables": {},
-      "explicitVariableModes": {},
-      "opacity": 1,
-      "blendMode": "PASS_THROUGH",
-      "isMask": false,
-      "maskType": "ALPHA",
-      "effects": [],
-      "effectStyleId": "",
-      "fills": [
-        {
-          "type": "IMAGE",
-          "visible": true,
-          "opacity": 1,
-          "blendMode": "NORMAL",
-          "scaleMode": "FILL",
-          "imageRef": "/storage/master_templates/assets/layout_ui_inner.png"
-        }
-      ],
-      "fillStyleId": "",
-      "strokes": [],
-      "strokeStyleId": "",
-      "strokeWeight": 1,
-      "strokeAlign": "INSIDE",
-      "strokeJoin": "MITER",
-      "dashPattern": [],
-      "strokeCap": "NONE",
-      "strokeMiterLimit": 4,
-      "relativeTransform": [
-        [1, 0, 1082],
-        [0, 1, 0]
-      ],
-      "absoluteTransform": [
-        [1, 0, 893],
-        [0, 1, 4594]
-      ],
-      "x": 1082,
-      "y": 0,
-      "width": 1341,
-      "height": 127,
-      "absoluteBoundingBox": {
-        "x": 893,
-        "y": 4594,
+        "id": "243:3",
+        "type": "GROUP",
+        "children": [
+          {
+            "id": "28:51",
+            "type": "RECTANGLE",
+            "parent": {
+              "id": "243:3",
+              "type": "RECTANGLE"
+            },
+            "name": "img_container_periode_inner",
+            "isAsset": false,
+            "detachedInfo": null,
+            "visible": true,
+            "locked": false,
+            "stuckNodes": [],
+            "attachedConnectors": [],
+            "componentPropertyReferences": null,
+            "variableConsumptionMap": {},
+            "boundVariables": {},
+            "resolvedVariableModes": {},
+            "inferredVariables": {},
+            "availableInferredVariables": {},
+            "explicitVariableModes": {},
+            "opacity": 1,
+            "blendMode": "PASS_THROUGH",
+            "isMask": false,
+            "maskType": "ALPHA",
+            "effects": [],
+            "effectStyleId": "",
+            "fills": [
+              {
+                "type": "SOLID",
+                "visible": true,
+                "opacity": 1,
+                "blendMode": "NORMAL",
+                "color": {
+                  "r": 0.4313725531101227,
+                  "g": 0.6274510025978088,
+                  "b": 0.1921568661928177
+                },
+                "boundVariables": {}
+              }
+            ],
+            "fillStyleId": "",
+            "strokes": [],
+            "strokeStyleId": "",
+            "strokeWeight": 1,
+            "strokeAlign": "INSIDE",
+            "strokeJoin": "MITER",
+            "dashPattern": [],
+            "strokeCap": "NONE",
+            "strokeMiterLimit": 4,
+            "fillGeometry": [
+              {
+                "windingRule": "NONZERO",
+                "data": "M0 0 L961 0 L961 125 L29 125 C12.9837 125 0 112.016 0 96 L0 0 Z"
+              }
+            ],
+            "strokeGeometry": [],
+            "variableWidthStrokeProperties": {
+              "widthProfile": "UNIFORM",
+              "variableWidthPoints": []
+            },
+            "complexStrokeProperties": {
+              "type": "BASIC"
+            },
+            "relativeTransform": [
+              [
+                1,
+                0,
+                1082
+              ],
+              [
+                0,
+                1,
+                0
+              ]
+            ],
+            "absoluteTransform": [
+              [
+                1,
+                0,
+                893
+              ],
+              [
+                0,
+                1,
+                4594
+              ]
+            ],
+            "x": 1082,
+            "y": 0,
+            "width": 961,
+            "height": 125,
+            "absoluteBoundingBox": {
+              "x": 893,
+              "y": 4594,
+              "width": 961,
+              "height": 125
+            },
+            "targetAspectRatio": null,
+            "gridRowSpan": 1,
+            "gridColumnSpan": 1,
+            "gridRowAnchorIndex": -1,
+            "gridColumnAnchorIndex": -1,
+            "gridChildHorizontalAlign": "AUTO",
+            "gridChildVerticalAlign": "AUTO",
+            "absoluteRenderBounds": {
+              "x": 893,
+              "y": 4594,
+              "width": 961,
+              "height": 125
+            },
+            "rotation": 0,
+            "layoutAlign": "INHERIT",
+            "constrainProportions": false,
+            "layoutGrow": 0,
+            "layoutPositioning": "AUTO",
+            "minWidth": null,
+            "minHeight": null,
+            "maxWidth": null,
+            "maxHeight": null,
+            "layoutSizingHorizontal": "FIXED",
+            "layoutSizingVertical": "FIXED",
+            "exportSettings": [
+              {
+                "format": "PNG",
+                "suffix": "",
+                "contentsOnly": true,
+                "colorProfile": "DOCUMENT",
+                "constraint": {
+                  "type": "SCALE",
+                  "value": 1
+                }
+              }
+            ],
+            "constraints": {
+              "horizontal": "MIN",
+              "vertical": "MIN"
+            },
+            "cornerRadius": "Mixed",
+            "cornerSmoothing": 0,
+            "topLeftRadius": 0,
+            "topRightRadius": 0,
+            "bottomLeftRadius": 29,
+            "bottomRightRadius": 0,
+            "reactions": [],
+            "strokeTopWeight": 1,
+            "strokeBottomWeight": 1,
+            "strokeLeftWeight": 1,
+            "strokeRightWeight": 1,
+            "playbackSettings": {
+              "autoplay": true,
+              "loop": true,
+              "muted": false
+            },
+            "annotations": []
+          },
+          {
+            "id": "28:53",
+            "type": "RECTANGLE",
+            "parent": {
+              "id": "243:3",
+              "type": "RECTANGLE"
+            },
+            "name": "img_container_member_inner",
+            "isAsset": false,
+            "detachedInfo": null,
+            "visible": true,
+            "locked": false,
+            "stuckNodes": [],
+            "attachedConnectors": [],
+            "componentPropertyReferences": null,
+            "variableConsumptionMap": {},
+            "boundVariables": {},
+            "resolvedVariableModes": {},
+            "inferredVariables": {},
+            "availableInferredVariables": {},
+            "explicitVariableModes": {},
+            "opacity": 1,
+            "blendMode": "PASS_THROUGH",
+            "isMask": false,
+            "maskType": "ALPHA",
+            "effects": [],
+            "effectStyleId": "",
+            "fills": [
+              {
+                "type": "SOLID",
+                "visible": true,
+                "opacity": 1,
+                "blendMode": "NORMAL",
+                "color": {
+                  "r": 0.9843137264251709,
+                  "g": 1,
+                  "b": 0.9803921580314636
+                },
+                "boundVariables": {}
+              }
+            ],
+            "fillStyleId": "",
+            "strokes": [],
+            "strokeStyleId": "",
+            "strokeWeight": 1,
+            "strokeAlign": "INSIDE",
+            "strokeJoin": "MITER",
+            "dashPattern": [],
+            "strokeCap": "NONE",
+            "strokeMiterLimit": 4,
+            "fillGeometry": [
+              {
+                "windingRule": "NONZERO",
+                "data": "M0 0 L528 0 L528 104 C528 116.703 517.703 127 505 127 L27 127 C12.0883 127 0 114.912 0 100 L0 0 Z"
+              }
+            ],
+            "strokeGeometry": [],
+            "variableWidthStrokeProperties": {
+              "widthProfile": "UNIFORM",
+              "variableWidthPoints": []
+            },
+            "complexStrokeProperties": {
+              "type": "BASIC"
+            },
+            "relativeTransform": [
+              [
+                1,
+                0,
+                1895
+              ],
+              [
+                0,
+                1,
+                0
+              ]
+            ],
+            "absoluteTransform": [
+              [
+                1,
+                0,
+                1706
+              ],
+              [
+                0,
+                1,
+                4594
+              ]
+            ],
+            "x": 1895,
+            "y": 0,
+            "width": 528,
+            "height": 127,
+            "absoluteBoundingBox": {
+              "x": 1706,
+              "y": 4594,
+              "width": 528,
+              "height": 127
+            },
+            "targetAspectRatio": null,
+            "gridRowSpan": 1,
+            "gridColumnSpan": 1,
+            "gridRowAnchorIndex": -1,
+            "gridColumnAnchorIndex": -1,
+            "gridChildHorizontalAlign": "AUTO",
+            "gridChildVerticalAlign": "AUTO",
+            "absoluteRenderBounds": {
+              "x": 1706,
+              "y": 4594,
+              "width": 528,
+              "height": 127
+            },
+            "rotation": 0,
+            "layoutAlign": "INHERIT",
+            "constrainProportions": false,
+            "layoutGrow": 0,
+            "layoutPositioning": "AUTO",
+            "minWidth": null,
+            "minHeight": null,
+            "maxWidth": null,
+            "maxHeight": null,
+            "layoutSizingHorizontal": "FIXED",
+            "layoutSizingVertical": "FIXED",
+            "exportSettings": [
+              {
+                "format": "PNG",
+                "suffix": "",
+                "contentsOnly": true,
+                "colorProfile": "DOCUMENT",
+                "constraint": {
+                  "type": "SCALE",
+                  "value": 1
+                }
+              }
+            ],
+            "constraints": {
+              "horizontal": "MIN",
+              "vertical": "MIN"
+            },
+            "cornerRadius": "Mixed",
+            "cornerSmoothing": 0,
+            "topLeftRadius": 0,
+            "topRightRadius": 0,
+            "bottomLeftRadius": 27,
+            "bottomRightRadius": 23,
+            "reactions": [],
+            "strokeTopWeight": 1,
+            "strokeBottomWeight": 1,
+            "strokeLeftWeight": 1,
+            "strokeRightWeight": 1,
+            "playbackSettings": {
+              "autoplay": true,
+              "loop": true,
+              "muted": false
+            },
+            "annotations": []
+          }
+        ],
+        "parent": {
+          "id": "28:19",
+          "type": "GROUP"
+        },
+        "name": "layout_ui_innner.png",
+        "isAsset": false,
+        "detachedInfo": null,
+        "visible": true,
+        "locked": false,
+        "stuckNodes": [],
+        "attachedConnectors": [],
+        "componentPropertyReferences": null,
+        "variableConsumptionMap": {},
+        "boundVariables": {},
+        "resolvedVariableModes": {},
+        "inferredVariables": {},
+        "availableInferredVariables": {},
+        "explicitVariableModes": {},
+        "opacity": 1,
+        "blendMode": "PASS_THROUGH",
+        "isMask": false,
+        "maskType": "ALPHA",
+        "effects": [],
+        "effectStyleId": "",
+        "relativeTransform": [
+          [
+            1,
+            0,
+            1082
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ],
+        "absoluteTransform": [
+          [
+            1,
+            0,
+            893
+          ],
+          [
+            0,
+            1,
+            4594
+          ]
+        ],
+        "x": 1082,
+        "y": 0,
         "width": 1341,
-        "height": 127
+        "height": 127,
+        "absoluteBoundingBox": {
+          "x": 893,
+          "y": 4594,
+          "width": 1341,
+          "height": 127
+        },
+        "targetAspectRatio": null,
+        "gridRowSpan": 1,
+        "gridColumnSpan": 1,
+        "gridRowAnchorIndex": -1,
+        "gridColumnAnchorIndex": -1,
+        "gridChildHorizontalAlign": "AUTO",
+        "gridChildVerticalAlign": "AUTO",
+        "absoluteRenderBounds": {
+          "x": 893,
+          "y": 4594,
+          "width": 1341,
+          "height": 127
+        },
+        "rotation": 0,
+        "layoutAlign": "INHERIT",
+        "constrainProportions": false,
+        "layoutGrow": 0,
+        "layoutPositioning": "AUTO",
+        "minWidth": null,
+        "minHeight": null,
+        "maxWidth": null,
+        "maxHeight": null,
+        "layoutSizingHorizontal": "FIXED",
+        "layoutSizingVertical": "FIXED",
+        "exportSettings": [],
+        "reactions": [],
+        "inferredAutoLayout": null,
+        "backgrounds": [],
+        "backgroundStyleId": "",
+        "expanded": false
       },
-      "constraints": {
-        "horizontal": "MIN",
-        "vertical": "MIN"
-      },
-      "cornerRadius": 0,
-      "cornerSmoothing": 0,
-      "reactions": [],
-      "playbackSettings": {
-        "autoplay": true,
-        "loop": true,
-        "muted": false
-      },
-      "annotations": []
-    },
       {
         "id": "28:50",
         "type": "RECTANGLE",
@@ -287,6 +622,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -425,6 +767,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -590,6 +939,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -748,6 +1104,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -906,6 +1269,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -1064,6 +1434,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -1222,6 +1599,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -1380,6 +1764,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -1538,6 +1929,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -1696,6 +2094,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -1854,6 +2259,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -2012,6 +2424,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -2170,6 +2589,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -2328,6 +2754,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -2486,6 +2919,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -2644,6 +3084,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -2802,6 +3249,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -2960,6 +3414,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -3118,6 +3579,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -3276,6 +3744,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -3434,6 +3909,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -3592,6 +4074,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -3750,6 +4239,13 @@
           }
         ],
         "strokeGeometry": [],
+        "variableWidthStrokeProperties": {
+          "widthProfile": "UNIFORM",
+          "variableWidthPoints": []
+        },
+        "complexStrokeProperties": {
+          "type": "BASIC"
+        },
         "relativeTransform": [
           [
             1,
@@ -3943,6 +4439,13 @@
       }
     ],
     "strokeGeometry": [],
+    "variableWidthStrokeProperties": {
+      "widthProfile": "UNIFORM",
+      "variableWidthPoints": []
+    },
+    "complexStrokeProperties": {
+      "type": "BASIC"
+    },
     "cornerRadius": 0,
     "cornerSmoothing": 0,
     "topLeftRadius": 0,
