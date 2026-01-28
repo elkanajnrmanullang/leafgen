@@ -10,18 +10,27 @@ export default defineConfig({
     },
   },
   server: {
+    host: '127.0.0.1',
+    port: 5173,
+    strictPort: true,
     proxy: {
+      // Proxy untuk request API
       '/api': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
+        secure: false,
       },
+      // Proxy KHUSUS untuk gambar/file storage 
       '/storage': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
+        secure: false,
       },
+      // Proxy untuk assets 
       '/assets': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
+        secure: false,
       }
     }
   }
