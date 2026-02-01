@@ -103,9 +103,16 @@ export interface BackendPage {
   items: BackendItem[];
 }
 
-export interface BackendLeafletResponse {
+// Single Leaflet Structure
+export interface SingleLeafletData {
+  id?: string;
   leaflet_name: string;
   store: string;
   pages: BackendPage[];
-  id?: string;
 }
+
+export interface LeafletMap {
+  [regionCode: string]: SingleLeafletData;
+}
+
+export type BackendLeafletResponse = SingleLeafletData | LeafletMap;

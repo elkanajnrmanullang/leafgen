@@ -288,8 +288,11 @@ class LeafletController extends Controller
             $finalResults = [];
 
             foreach ($targetRegions as $regionCode) {
+                // Ensure parsing happens for every region in the list
                 $pages = $this->parserService->parse($mappedData, $regionCode);
 
+                // Add to results even if pages are empty, to ensure the key exists
+                // (Though parser usually returns [] if empty, we might want to handle it)
                 if (!empty($pages)) {
                     $finalResults[$regionCode] = [
                         'leaflet_name' => $baseLeafletName . " " . $regionCode,
@@ -344,13 +347,29 @@ class LeafletController extends Controller
                 }
                 $pages = $pages ?? [];
 
+                // Helper to count total pages if structure is multi-region map or array
+                $pageCount = 0;
+                if (is_array($pages)) {
+                    if (isset($pages[0]) && isset($pages[0]['id'])) {
+                        // Standard array of pages
+                        $pageCount = count($pages);
+                    } else {
+                        // Multi-region map
+                        foreach ($pages as $regionData) {
+                            if (isset($regionData['pages']) && is_array($regionData['pages'])) {
+                                $pageCount += count($regionData['pages']);
+                            }
+                        }
+                    }
+                }
+
                 return [
                     'id' => $item->id,
                     'title' => $item->name,
                     'store' => $item->store_name ?? 'Unknown',
                     'date' => $item->updated_at->format('d M Y H:i'),
                     'status' => $item->status ?? 'draft',
-                    'pageCount' => count($pages),
+                    'pageCount' => $pageCount,
                     'thumbnailUrl' => null
                 ];
             });
@@ -392,7 +411,8 @@ class LeafletController extends Controller
         $request->validate([
             'title' => 'required|string',
             'store' => 'required|string',
-            'pages' => 'present|array',
+            'pages' => 'sometimes|array',
+            'regions_data' => 'sometimes|array',
             'status' => 'required|string'
         ]);
 
@@ -408,7 +428,12 @@ class LeafletController extends Controller
                 $leaflet = Leaflet::find($request->id);
             }
 
-            $contentData = $request->pages;
+            // Handle content from either single-region 'pages' or multi-region 'regions_data'
+            $contentData = $request->input('pages', []);
+            if ($request->has('regions_data')) {
+                $contentData = $request->input('regions_data');
+            }
+
             $actionDescription = "";
 
             if ($leaflet) {

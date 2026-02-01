@@ -53,10 +53,12 @@ class LeafletParserService
 
             if (empty($storeString)) continue;
 
+            // Cek Exclude Region Utama (Misal: EXCLD JAWA)
             if (preg_match('/(EXCLD|KEC|EXC)\s+.*' . preg_quote($targetRegion, '/') . '/', $storeString)) {
                 continue;
             }
 
+            // Cek Exclude Kota Spesifik dalam Region (Misal: EXCLD AMB saat target region MALUKU)
             if (isset($regionCities[$targetRegion])) {
                 foreach ($regionCities[$targetRegion] as $city) {
                     if (preg_match('/(EXCLD|KEC|EXC)\s+.*' . preg_quote($city, '/') . '/', $storeString)) {
@@ -65,7 +67,9 @@ class LeafletParserService
                 }
             }
 
+            // Logic NAS / ALL / SEMUA
             if (str_contains($storeString, 'NAS') || str_contains($storeString, 'ALL') || str_contains($storeString, 'SEMUA')) {
+                // Handle "LUAR JAWA" exclusion inside NAS
                 if (str_contains($storeString, 'LUAR JAWA') && $targetRegion === 'JAWA') {
                     continue;
                 }
@@ -73,6 +77,7 @@ class LeafletParserService
                 continue;
             }
 
+            // Logic LUAR JAWA
             if (str_contains($storeString, 'LUAR JAWA')) {
                 if ($targetRegion !== 'JAWA') {
                     $validItems[] = $row;
@@ -80,11 +85,13 @@ class LeafletParserService
                 continue;
             }
 
+            // Logic Match Region Code (JAWA, KAL, dll)
             if (str_contains($storeString, $targetRegion)) {
                 $validItems[] = $row;
                 continue;
             }
 
+            // Logic Match City Code (SBY, MEDAN, dll)
             if (isset($regionCities[$targetRegion])) {
                 foreach ($regionCities[$targetRegion] as $city) {
                     if (str_contains($storeString, $city)) {
@@ -168,11 +175,11 @@ class LeafletParserService
 
             $needsManual = empty($imagePath);
 
-            $md = (float)($item['promosi_h_jual_setting_md'] ?? $item['setting_md'] ?? 0);
-            $supp = (float)($item['setting_pp_supp'] ?? $item['supp'] ?? 0);
-            $mkt = (float)($item['setting_pp_mkt'] ?? $item['mkt'] ?? 0);
-            $nett = $item['nett'] ?? $item['setting_net'] ?? 0;
-            $keteranganRaw = $item['keteranganpembatasan'] ?? $item['keterangan'] ?? '';
+            $md = (float)($item['setting_md'] ?? 0);
+            $supp = (float)($item['supp'] ?? 0);
+            $mkt = (float)($item['mkt'] ?? 0);
+            $nett = $item['nett'] ?? 0;
+            $keteranganRaw = $item['keterangan'] ?? '';
             $poinRaw = (float)($item['poin'] ?? 0);
             $syaratBbmu = $item['syarat_bbmu'] ?? null;
             $satuan = $item['satuan'] ?? '';
@@ -211,6 +218,7 @@ class LeafletParserService
                     'txt_coret' => $txtCoret,
                     'txt_keterangan' => $descText,
                     'show_coret' => $coretData['show'],
+                    'show_keterangan' => !empty($descText),
 
                     // BBMU
                     'is_bbmu' => !empty($bbmuBadgeUrl),
@@ -226,18 +234,12 @@ class LeafletParserService
                     ] : null,
                     'img_bg_label_promo' => $promoBadgeUrl ? 'assets/components/img_bg_label_promo.png' : null,
                     'img_container_ketPromo' => $promoBadgeUrl ? 'assets/components/img_container_ketPromo.png' : null,
+
+                    // Fields for legacy/direct mapping
                     'txt_qty_promo' => $promoBadgeUrl['txt_qty_promo'] ?? null,
                     'txt_price_promo' => $promoBadgeUrl['txt_price_promo'] ?? null,
                     'txt_keterangan_promo' => $promoBadgeUrl['txt_keterangan_promo'] ?? null,
                     'txt_satuan' => $promoBadgeUrl['txt_satuan'] ?? null,
-
-                    // Alt Promo
-                    'img_bg_label_promo_alt' => $promoBadgeUrl ? 'assets/components/img_bg_label_promo.png' : null,
-                    'img_container_ketPromo_alt' => $promoBadgeUrl ? 'assets/components/img_container_ketPromo.png' : null,
-                    'txt_qty_promo_alt' => $promoBadgeUrl['txt_qty_promo'] ?? null,
-                    'txt_price_promo_alt' => $promoBadgeUrl['txt_price_promo'] ?? null,
-                    'txt_keterangan_promo_alt' => $promoBadgeUrl['txt_keterangan_promo'] ?? null,
-                    'txt_satuan_alt' => $promoBadgeUrl['txt_satuan'] ?? null,
 
                     // IGR Badge Data
                     'badge_igr' => $igrBadgeUrl ? [
@@ -326,7 +328,7 @@ class LeafletParserService
 
         return [
             'txt_qty_promo' => $qty,
-            'txt_price_promo' => $maxPrice > 0 ? number_format($maxPrice, 0, ',', '.') : '',
+            'txt_price_promo' => $maxPrice > 0 ? "Rp " . number_format($maxPrice, 0, ',', '.') : '',
             'txt_keterangan_promo' => 'Tambahan Potongan',
             'txt_satuan' => $satuan
         ];

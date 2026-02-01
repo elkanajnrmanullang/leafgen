@@ -28,7 +28,9 @@ import {
   ToggleLeft,
   ToggleRight,
   RefreshCw,
-  FolderOpen
+  FolderOpen,
+  Map as MapIcon,
+  Globe
 } from "lucide-react";
 
 import type {
@@ -36,7 +38,8 @@ import type {
   EditorItem,
   BackendPage,
   BackendItem,
-  ItemContent
+  ItemContent,
+  SingleLeafletData
 } from "../types";
 
 interface FigmaNode {
@@ -130,7 +133,7 @@ const RenderStaticLayout = ({
     pageItems 
 }: { 
     layoutData: FigmaNode[], 
-    pageBackground: string | null,
+    pageBackground: string | null, 
     pageItems: EditorItem[]
 }) => {
     if (!layoutData || !layoutData[0]) return null;
@@ -262,7 +265,22 @@ const EditorPage = () => {
   const mainContainerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  const [pages, setPages] = useState<PageWithDimensions[]>([]);
+  // -- STATE UNTUK MULTI-REGION --
+  const [leaflets, setLeaflets] = useState<Record<string, PageWithDimensions[]>>({});
+  const [activeRegion, setActiveRegion] = useState<string>("DEFAULT");
+  const [regionNames, setRegionNames] = useState<string[]>([]);
+  
+  // Helper to get/set pages for current active region to maintain compatibility
+  const pages = leaflets[activeRegion] || [];
+  
+  const setPages = (value: React.SetStateAction<PageWithDimensions[]>) => {
+    setLeaflets(prev => {
+        const currentPages = prev[activeRegion] || [];
+        const updatedPages = typeof value === 'function' ? value(currentPages) : value;
+        return { ...prev, [activeRegion]: updatedPages };
+    });
+  };
+
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState(0.25);
   const [designName, setDesignName] = useState("Draft Otomatis");
@@ -297,16 +315,33 @@ const EditorPage = () => {
 
   const saveData = useCallback(
     async (status: "draft" | "exported") => {
-      if (pages.length === 0) return;
+      if (Object.keys(leaflets).length === 0) return;
       setSaveStatus("saving");
+      
       try {
-        const response = await LeafletService.saveLeaflet({
-          id: leafletId,
-          title: designName,
-          store: storeName,
-          pages: pages,
-          status: status,
-        });
+        let payload;
+        // Logic to construct payload based on structure
+        if (regionNames.length === 1 && regionNames[0] === 'DEFAULT') {
+             payload = {
+                id: leafletId,
+                title: designName,
+                store: storeName,
+                pages: leaflets['DEFAULT'],
+                status: status,
+             };
+        } else {
+             // Saving multi-region state structure
+             payload = {
+                 id: leafletId,
+                 title: designName,
+                 store: storeName,
+                 regions_data: leaflets,
+                 status: status
+             };
+        }
+
+        const response = await LeafletService.saveLeaflet(payload);
+        
         if (response && response.id) setLeafletId(response.id);
         setSaveStatus("saved");
       } catch (error) {
@@ -314,7 +349,7 @@ const EditorPage = () => {
         setSaveStatus("unsaved");
       }
     },
-    [designName, storeName, pages, leafletId]
+    [designName, storeName, leaflets, leafletId, regionNames]
   );
 
   useEffect(() => {
@@ -325,25 +360,31 @@ const EditorPage = () => {
 
         const itemsToUpdate: string[] = [];
 
-        setPages(prevPages => prevPages.map(page => ({
-            ...page,
-            items: page.items.map(item => {
-                const content = item.content as ItemContent;
-                if (item.plu === plu_code || content?.plu_code === plu_code) {
-                    itemsToUpdate.push(item.id);
-                    return {
-                        ...item,
-                        content: {
-                            ...item.content,
-                            image_url: newImageUrl,
-                            img_product: newImageUrl
-                        },
-                        needs_manual_image: false
-                    };
-                }
-                return item;
-            })
-        } as PageWithDimensions)));
+        setLeaflets(prevLeaflets => {
+            const newLeaflets = { ...prevLeaflets };
+            Object.keys(newLeaflets).forEach(region => {
+                newLeaflets[region] = newLeaflets[region].map(page => ({
+                    ...page,
+                    items: page.items.map(item => {
+                        const content = item.content as ItemContent;
+                        if (item.plu === plu_code || content?.plu_code === plu_code) {
+                            itemsToUpdate.push(item.id);
+                            return {
+                                ...item,
+                                content: {
+                                    ...item.content,
+                                    image_url: newImageUrl,
+                                    img_product: newImageUrl
+                                },
+                                needs_manual_image: false
+                            };
+                        }
+                        return item;
+                    })
+                } as PageWithDimensions));
+            });
+            return newLeaflets;
+        });
 
         setGeneratedBadges(prev => {
             const newState = { ...prev };
@@ -359,6 +400,94 @@ const EditorPage = () => {
     };
   }, []);
 
+  const parsePagesFromBackend = (pagesData: BackendPage[]): PageWithDimensions[] => {
+      const coverSlots = extractSlots(LAYOUT_COVER);
+      const innerSlots = extractSlots(LAYOUT_INNER);
+      
+      const allProducts: BackendItem[] = [];
+      if (pagesData && Array.isArray(pagesData)) {
+          pagesData.forEach((p) => {
+              if (p.items) allProducts.push(...p.items);
+          });
+      }
+
+      const newPages: PageWithDimensions[] = [];
+      let productIndex = 0;
+      let pageCount = 1;
+
+      while (productIndex < allProducts.length) {
+          const isCover = pageCount === 1;
+          const currentSlots = isCover ? coverSlots : innerSlots;
+          const layoutRef = isCover ? LAYOUT_COVER : LAYOUT_INNER;
+          const pageWidth = layoutRef[0].absoluteBoundingBox.width;
+          const pageHeight = layoutRef[0].absoluteBoundingBox.height;
+
+          const pageItems: (EditorItem & { component_name?: string })[] = [];
+
+          for (let i = 0; i < currentSlots.length && productIndex < allProducts.length; i++) {
+              const slot = currentSlots[i];
+              const itemData = allProducts[productIndex];
+              
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const raw = (itemData as any).data || (itemData as any).content || {};
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const componentName = (itemData as any).component_name || "card_cover_master";
+
+              const plu = itemData.plu || raw.plu_code || "";
+              
+              const imgUrl = raw.img_product || raw.image_url || "placeholder.png";
+              const productId = raw.product_id || (typeof raw.id === 'number' ? raw.id : undefined);
+
+              const hasCoret = raw.show_coret || (raw.txt_coret && raw.txt_coret !== '');
+              const hasKeterangan = !!raw.txt_keterangan;
+
+              pageItems.push({
+                  id: itemData.id || `auto-item-${productIndex}-${Date.now()}`,
+                  plu: plu,
+                  type: itemData.type || 'product_card',
+                  component_name: componentName,
+                  content: {
+                      ...raw,
+                      product_id: productId,
+                      name: raw.txt_name || raw.name || "Nama Barang",
+                      price_display: raw.txt_price || raw.price_display || "",
+                      image_url: processAssetUrl(imgUrl),
+                      img_product: processAssetUrl(imgUrl),
+                      show_coret: hasCoret,
+                      show_keterangan: hasKeterangan
+                  },
+                  needs_manual_image: false, 
+                  layout: {
+                      x: slot.x,
+                      y: slot.y,
+                      w: slot.w,
+                      h: slot.h
+                  }
+              });
+
+              productIndex++;
+          }
+
+          newPages.push({
+              id: `page-${pageCount}-${Math.random()}`,
+              pageNumber: pageCount,
+              width: pageWidth,
+              height: pageHeight,
+              items: pageItems
+          });
+
+          pageCount++;
+      }
+
+      if (newPages.length === 0) {
+          const w = LAYOUT_COVER[0].absoluteBoundingBox.width;
+          const h = LAYOUT_COVER[0].absoluteBoundingBox.height;
+          newPages.push({ id: "page-1", pageNumber: 1, width: w, height: h, items: [] });
+      }
+      
+      return newPages;
+  };
+
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const backendData = location.state?.leafletData as any;
@@ -369,144 +498,64 @@ const EditorPage = () => {
     const initEditor = async () => {
         if (templateUrl) setPageBackground(processAssetUrl(templateUrl));
 
-        const currentProductsMap: Record<string, Product> = {};
         try {
-            const productsData = await getProducts();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            if (productsData && Array.isArray(productsData.data)) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                productsData.data.forEach((p: any) => {
-                    currentProductsMap[p.plu_code] = {
-                        id: p.id,
-                        plu_code: p.plu_code,
-                        name: p.name,
-                        image_path: p.image_path
-                    };
-                });
-            }
-        } catch (error) {
-            console.error("Gagal memuat bank gambar:", error);
-        }
+             await getProducts(); 
+        } catch (error) { console.error(error); }
 
         if (backendData) {
-            let dataToUse = backendData;
-            if (!backendData.pages) {
-                const keys = Object.keys(backendData);
-                if (keys.length > 0 && backendData[keys[0]]?.pages) {
-                    dataToUse = backendData[keys[0]];
-                }
-            }
+            // DETEKSI LOGIC YANG LEBIH KUAT UNTUK MULTI-REGION
+            // Cek apakah ada key wilayah di dalam object response
+            const rawKeys = Object.keys(backendData);
+            const knownRegions = ['JAWA', 'KAL', 'SUL', 'SUM', 'AMB', 'MALUKU', 'BALI'];
+            const regionKeys = rawKeys.filter(k => knownRegions.includes(k.toUpperCase()));
 
-            if (dataToUse && dataToUse.pages) {
-                setDesignName(initialName || dataToUse.leaflet_name || "New Leaflet");
-                setStoreName(storeFromNav || dataToUse.store || "Region");
-                if (dataToUse.id) setLeafletId(dataToUse.id);
+            // Jika ada minimal 1 key yang cocok dengan nama pulau, dan tidak ada properti 'pages' di root
+            // Atau jika object tersebut adalah map wilayah
+            const isMultiRegion = regionKeys.length > 0 && !backendData.pages;
+            
+            const initLeaflets: Record<string, PageWithDimensions[]> = {};
+            const regions: string[] = [];
 
-                const allProducts: BackendItem[] = [];
-                dataToUse.pages.forEach((p: BackendPage) => {
-                    if (p.items) allProducts.push(...p.items);
-                });
-
-                const coverSlots = extractSlots(LAYOUT_COVER);
-                const innerSlots = extractSlots(LAYOUT_INNER);
-
-                const newPages: PageWithDimensions[] = [];
-                let productIndex = 0;
-                let pageCount = 1;
-
-                while (productIndex < allProducts.length) {
-                    const isCover = pageCount === 1;
-                    const currentSlots = isCover ? coverSlots : innerSlots;
-                    const layoutRef = isCover ? LAYOUT_COVER : LAYOUT_INNER;
-                    const pageWidth = layoutRef[0].absoluteBoundingBox.width;
-                    const pageHeight = layoutRef[0].absoluteBoundingBox.height;
-
-                    const pageItems: (EditorItem & { component_name?: string })[] = [];
-
-                    for (let i = 0; i < currentSlots.length && productIndex < allProducts.length; i++) {
-                        const slot = currentSlots[i];
-                        const itemData = allProducts[productIndex];
-                        
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const raw = (itemData as any).data || (itemData as any).content || {};
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const componentName = (itemData as any).component_name || "card_cover_master";
-
-                        const plu = itemData.plu || raw.plu_code || "";
-                        
-                        const existingProduct = currentProductsMap[plu];
-                        
-                        let imgUrl = "placeholder.png";
-                        let productId = undefined;
-
-                        if (existingProduct) {
-                            imgUrl = existingProduct.image_path;
-                            productId = existingProduct.id;
-                        } else {
-                            imgUrl = raw.img_product || raw.image_url || "placeholder.png";
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            productId = raw.product_id || (typeof raw.id === 'number' ? raw.id : undefined);
+            if (isMultiRegion) {
+                regionKeys.forEach(regionKey => {
+                    const regionData = backendData[regionKey] as SingleLeafletData;
+                    if (regionData) {
+                        // Handle structure mismatch where regionData might be the object itself
+                        const pagesToParse = regionData.pages || (Array.isArray(regionData) ? regionData : []);
+                        if (pagesToParse) {
+                            initLeaflets[regionKey] = parsePagesFromBackend(pagesToParse);
+                            regions.push(regionKey);
                         }
-
-                        if (productId === 0) productId = undefined;
-
-                        // Ensure proper initialization of active states for existing items
-                        const hasCoret = raw.show_coret || (raw.txt_coret && raw.txt_coret !== '');
-                        const hasKeterangan = !!raw.txt_keterangan;
-
-                        pageItems.push({
-                            id: itemData.id || `auto-item-${productIndex}`,
-                            plu: plu,
-                            type: itemData.type || 'product_card',
-                            component_name: componentName,
-                            content: {
-                                ...raw,
-                                product_id: productId,
-                                name: existingProduct ? existingProduct.name : (raw.txt_name || raw.name || "Nama Barang"),
-                                price_display: raw.txt_price || raw.price_display || "",
-                                image_url: processAssetUrl(imgUrl),
-                                img_product: processAssetUrl(imgUrl),
-                                show_coret: hasCoret,
-                                show_keterangan: hasKeterangan
-                            },
-                            needs_manual_image: !existingProduct,
-                            layout: {
-                                x: slot.x,
-                                y: slot.y,
-                                w: slot.w,
-                                h: slot.h
-                            }
-                        });
-
-                        productIndex++;
                     }
+                });
+                
+                regions.sort(); 
 
-                    newPages.push({
-                        id: `page-${pageCount}`,
-                        pageNumber: pageCount,
-                        width: pageWidth,
-                        height: pageHeight,
-                        items: pageItems
-                    });
-
-                    pageCount++;
+                if (regions.length > 0) {
+                    // Set default active region
+                    const firstRegion = regions[0];
+                    setDesignName(backendData[firstRegion]?.leaflet_name || initialName || "Leaflet All Regions");
+                    setStoreName("ALL REGIONS");
+                    if (backendData[firstRegion]?.id) setLeafletId(backendData[firstRegion].id);
                 }
-
-                if (newPages.length === 0) {
-                    const w = LAYOUT_COVER[0].absoluteBoundingBox.width;
-                    const h = LAYOUT_COVER[0].absoluteBoundingBox.height;
-                    newPages.push({ id: "page-1", pageNumber: 1, width: w, height: h, items: [] });
-                }
-
-                setPages(newPages);
-                if (newPages.length > 0) setSelectedPageId(newPages[0].id);
-
             } else {
-                setPages([{ id: "page-1", pageNumber: 1, width: 2480, height: 3508, items: [] }]);
+                // Fallback Single Region
+                initLeaflets['DEFAULT'] = parsePagesFromBackend(backendData.pages || backendData.items || []);
+                regions.push('DEFAULT');
+                setDesignName(initialName || backendData.leaflet_name || "New Leaflet");
+                setStoreName(storeFromNav || backendData.store || "Region");
+                if (backendData.id) setLeafletId(backendData.id);
             }
+
+            setLeaflets(initLeaflets);
+            setRegionNames(regions);
+            setActiveRegion(regions[0] || 'DEFAULT');
             setLoading(false);
         } else {
-            setPages([{ id: "page-1", pageNumber: 1, width: 2480, height: 3508, items: [] }]);
+            const w = 2480, h = 3508;
+            setLeaflets({ 'DEFAULT': [{ id: "page-1", pageNumber: 1, width: w, height: h, items: [] }] });
+            setRegionNames(['DEFAULT']);
+            setActiveRegion('DEFAULT');
             setLoading(false);
         }
     };
@@ -516,11 +565,8 @@ const EditorPage = () => {
 
   const generateBadgeForItem = useCallback(async (item: EditorItem & { component_name?: string }) => {
       const compName = item.component_name || "card_cover_master";
-
       if (!item.content) return;
-
       setGeneratingBadges(prev => ({...prev, [item.id]: true}));
-      
       try {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const apiData: any = {
@@ -528,13 +574,10 @@ const EditorPage = () => {
               txt_name: item.content.name,
               txt_price: item.content.price_display,
               img_product: item.content.image_url,
-              // Pass boolean flags explicitly
               show_coret: item.content.show_coret,
               show_keterangan: item.content.show_keterangan,
               is_bbmu: item.content.is_bbmu
           };
-          
-          // Flatten nested objects for API
           if (item.content.badge_igr) {
              apiData.badge_igr = item.content.badge_igr;
              if (item.content.badge_igr.active) {
@@ -560,12 +603,7 @@ const EditorPage = () => {
                 apiData.txt_satuan = item.content.badge_promo.txt_satuan;
              }
           }
-
-          const url = await LeafletService.generateBadge(
-              compName,
-              apiData
-          );
-          
+          const url = await LeafletService.generateBadge(compName, apiData);
           const fullUrl = `${processAssetUrl(url)}?t=${Date.now()}`;
           setGeneratedBadges(prev => ({...prev, [item.id]: fullUrl}));
       } catch (e) {
@@ -595,7 +633,7 @@ const EditorPage = () => {
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = window.setTimeout(() => saveData("draft"), 2000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
-  }, [pages, designName, loading, saveData]);
+  }, [leaflets, designName, loading, saveData]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -607,49 +645,33 @@ const EditorPage = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const getNearestSlot = (
-    dropX: number,
-    dropY: number,
-    pageNumber: number
-  ): { x: number; y: number; w: number; h: number } | null => {
+  const getNearestSlot = (dropX: number, dropY: number, pageNumber: number): { x: number; y: number; w: number; h: number } | null => {
     const layout = pageNumber === 1 ? LAYOUT_COVER : LAYOUT_INNER;
     const slots = extractSlots(layout);
-
     let nearestSlot = null;
     let minDistance = Infinity;
-
     slots.forEach((slot) => {
       const centerX = slot.x + slot.w / 2;
       const centerY = slot.y + slot.h / 2;
-
-      const distance = Math.sqrt(
-        Math.pow(dropX - centerX, 2) + Math.pow(dropY - centerY, 2)
-      );
-
+      const distance = Math.sqrt(Math.pow(dropX - centerX, 2) + Math.pow(dropY - centerY, 2));
       if (distance < minDistance) {
         minDistance = distance;
         nearestSlot = slot;
       }
     });
-    
     return nearestSlot;
   };
 
   const scrollToItem = (item: EditorItem, pageId: string) => {
     setSelectedItemId(item.id);
     setSelectedPageId(pageId);
-
     const pageElement = pageRefs.current[pageId];
     if (pageElement && mainContainerRef.current) {
         const pageRect = pageElement.getBoundingClientRect();
         const containerRect = mainContainerRef.current.getBoundingClientRect();
         const relativeY = (item.layout.y * zoom);
         const newScrollTop = mainContainerRef.current.scrollTop + (pageRect.top - containerRect.top) + relativeY - 100;
-
-        mainContainerRef.current.scrollTo({
-            top: newScrollTop,
-            behavior: 'smooth'
-        });
+        mainContainerRef.current.scrollTo({ top: newScrollTop, behavior: 'smooth' });
     }
   };
 
@@ -659,7 +681,6 @@ const EditorPage = () => {
     const originalZoom = zoom;
     setZoom(1);
     await new Promise((resolve) => setTimeout(resolve, 1000));
-
     try {
       if (selectedFormat === "PDF") {
         const doc = new jsPDF("p", "mm", "a4");
@@ -676,7 +697,7 @@ const EditorPage = () => {
             doc.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
           }
         }
-        doc.save(`${designName}.pdf`);
+        doc.save(`${designName}_${activeRegion}.pdf`);
       } else {
         const targetPageId = selectedPageId || pages[0].id;
         const element = pageRefs.current[targetPageId];
@@ -684,13 +705,12 @@ const EditorPage = () => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false } as any);
           const link = document.createElement("a");
-          link.download = `${designName}-Page.${selectedFormat.toLowerCase()}`;
+          link.download = `${designName}-${activeRegion}-Page.${selectedFormat.toLowerCase()}`;
           link.href = canvas.toDataURL(`image/${selectedFormat.toLowerCase()}`, 0.9);
           link.click();
         }
       }
       await saveData("exported");
-      navigate("/history");
     } catch (error) {
       console.error("Download failed:", error);
       alert("Gagal mengunduh dokumen. Cek console untuk detail.");
@@ -723,13 +743,7 @@ const EditorPage = () => {
     setPages((prev) => {
       const idx = prev.findIndex((p) => p.id === pageId);
       const newPages = [...prev];
-      newPages.splice(idx + 1, 0, { 
-        id: newPageId, 
-        pageNumber: 0, 
-        width: pageToClone.width, 
-        height: pageToClone.height, 
-        items: clonedItems 
-      } as PageWithDimensions);
+      newPages.splice(idx + 1, 0, { id: newPageId, pageNumber: 0, width: pageToClone.width, height: pageToClone.height, items: clonedItems } as PageWithDimensions);
       return newPages.map((p, i) => ({ ...p, pageNumber: i + 1 }));
     });
   };
@@ -748,44 +762,22 @@ const EditorPage = () => {
     e.preventDefault();
     const jsonData = e.dataTransfer.getData("application/json");
     if (!jsonData) return;
-    
     const droppedItem = JSON.parse(jsonData) as EditorItem;
     const currentCanvas = pageRefs.current[pageId];
     if (!currentCanvas) return;
-    
     const canvasRect = currentCanvas.getBoundingClientRect();
     const mouseX = (e.clientX - canvasRect.left) / zoom;
     const mouseY = (e.clientY - canvasRect.top) / zoom;
-    
     const targetPage = pages.find(p => p.id === pageId);
     const pageNum = targetPage ? targetPage.pageNumber : 1;
-
     const nearestSlot = getNearestSlot(mouseX, mouseY, pageNum);
-
     let finalLayout;
-    
     if (droppedItem.type === 'product_card' && nearestSlot) {
-        finalLayout = {
-            x: nearestSlot.x,
-            y: nearestSlot.y,
-            w: nearestSlot.w,
-            h: nearestSlot.h
-        };
+        finalLayout = { x: nearestSlot.x, y: nearestSlot.y, w: nearestSlot.w, h: nearestSlot.h };
     } else {
-        finalLayout = {
-            x: mouseX - (droppedItem.layout.w || 400) / 2,
-            y: mouseY - (droppedItem.layout.h || 400) / 2,
-            w: droppedItem.layout.w || 400,
-            h: droppedItem.layout.h || 400,
-        };
+        finalLayout = { x: mouseX - (droppedItem.layout.w || 400) / 2, y: mouseY - (droppedItem.layout.h || 400) / 2, w: droppedItem.layout.w || 400, h: droppedItem.layout.h || 400 };
     }
-
-    const newItem: EditorItem = {
-      ...droppedItem,
-      id: `item-${Date.now()}`,
-      layout: finalLayout,
-    };
-    
+    const newItem: EditorItem = { ...droppedItem, id: `item-${Date.now()}`, layout: finalLayout };
     setPages((prev) => prev.map((p) => p.id === pageId ? { ...p, items: [...p.items, newItem] } as PageWithDimensions : p));
     setSelectedItemId(newItem.id);
     setSelectedPageId(pageId);
@@ -794,28 +786,14 @@ const EditorPage = () => {
 
   const handleAddText = () => {
     const targetPageId = selectedPageId || pages[0].id;
-    const newItem: EditorItem = {
-      id: `text-${Date.now()}`,
-      plu: "",
-      type: "text",
-      content: { name: "Teks Baru", price_display: "Rp 0", price_original: 0, show_coret: false, image_url: "", is_bbmu: false, badge_spi: null },
-      needs_manual_image: false,
-      layout: { x: 100, y: 100, w: 600, h: 200 },
-    };
+    const newItem: EditorItem = { id: `text-${Date.now()}`, plu: "", type: "text", content: { name: "Teks Baru", price_display: "Rp 0", price_original: 0, show_coret: false, image_url: "", is_bbmu: false, badge_spi: null }, needs_manual_image: false, layout: { x: 100, y: 100, w: 600, h: 200 } };
     setPages((prev) => prev.map((p) => p.id === targetPageId ? { ...p, items: [...p.items, newItem] } as PageWithDimensions : p));
     setSelectedItemId(newItem.id);
   };
 
   const handleAddImage = () => {
     const targetPageId = selectedPageId || pages[0].id;
-    const newItem: EditorItem = {
-      id: `img-${Date.now()}`,
-      plu: "",
-      type: "image",
-      content: { name: "Gambar Baru", price_display: "", price_original: 0, show_coret: false, image_url: "/assets/placeholder.png", is_bbmu: false, badge_spi: null },
-      needs_manual_image: false,
-      layout: { x: 100, y: 100, w: 400, h: 400 },
-    };
+    const newItem: EditorItem = { id: `img-${Date.now()}`, plu: "", type: "image", content: { name: "Gambar Baru", price_display: "", price_original: 0, show_coret: false, image_url: "/assets/placeholder.png", is_bbmu: false, badge_spi: null }, needs_manual_image: false, layout: { x: 100, y: 100, w: 400, h: 400 } };
     setPages((prev) => prev.map((p) => p.id === targetPageId ? { ...p, items: [...p.items, newItem] } as PageWithDimensions : p));
     setSelectedItemId(newItem.id);
   };
@@ -824,14 +802,11 @@ const EditorPage = () => {
     e.stopPropagation();
     const currentCanvas = pageRefs.current[pageId];
     if (!item.layout || !currentCanvas) return;
-    
     setSelectedItemId(item.id);
     setSelectedPageId(pageId);
-    
     const canvasRect = currentCanvas.getBoundingClientRect();
     const mouseX = (e.clientX - canvasRect.left) / zoom;
     const mouseY = (e.clientY - canvasRect.top) / zoom;
-
     if (handle) {
       setResizeHandle(handle);
       setInitialResizeLayout({ ...item.layout });
@@ -840,24 +815,19 @@ const EditorPage = () => {
       setDraggingId(item.id);
       setDragOffset({ x: mouseX - item.layout.x, y: mouseY - item.layout.y });
     }
-    
     setDragActivePageId(pageId);
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!dragActivePageId) return;
-    
     const currentCanvas = pageRefs.current[dragActivePageId];
     if (!currentCanvas) return;
-    
     e.preventDefault();
     const canvasRect = currentCanvas.getBoundingClientRect();
     const mouseX = (e.clientX - canvasRect.left) / zoom;
     const mouseY = (e.clientY - canvasRect.top) / zoom;
-
     if (draggingId) {
-      setPages((prevPages) =>
-        prevPages.map((page) => {
+      setPages((prevPages) => prevPages.map((page) => {
           if (page.id !== dragActivePageId) return page;
           return {
             ...page,
@@ -875,9 +845,7 @@ const EditorPage = () => {
     } else if (resizeHandle && selectedItemId && initialResizeLayout && initialMousePos) {
       const deltaX = mouseX - initialMousePos.x;
       const deltaY = mouseY - initialMousePos.y;
-      
-      setPages((prevPages) =>
-        prevPages.map((page) => {
+      setPages((prevPages) => prevPages.map((page) => {
           if (page.id !== dragActivePageId) return page;
           return {
             ...page,
@@ -887,7 +855,6 @@ const EditorPage = () => {
                 let newY = initialResizeLayout.y;
                 let newW = initialResizeLayout.w;
                 let newH = initialResizeLayout.h;
-
                 if (resizeHandle.includes("e")) newW = Math.max(10, initialResizeLayout.w + deltaX);
                 if (resizeHandle.includes("s")) newH = Math.max(10, initialResizeLayout.h + deltaY);
                 if (resizeHandle.includes("w")) {
@@ -900,7 +867,6 @@ const EditorPage = () => {
                   newH = Math.max(10, initialResizeLayout.h - deltaY);
                   newY = maxH - newH;
                 }
-
                 return { ...item, layout: { x: newX, y: newY, w: newW, h: newH } };
               }
               return item;
@@ -915,12 +881,10 @@ const EditorPage = () => {
     if (draggingId && dragActivePageId) {
         const page = pages.find(p => p.id === dragActivePageId);
         const item = page?.items.find(i => i.id === draggingId);
-        
         if (page && item && item.type === 'product_card') {
             const centerItemX = item.layout.x + item.layout.w / 2;
             const centerItemY = item.layout.y + item.layout.h / 2;
             const nearestSlot = getNearestSlot(centerItemX, centerItemY, page.pageNumber);
-            
             if (nearestSlot) {
                  setPages((prev) => prev.map((p) => {
                     if (p.id !== dragActivePageId) return p;
@@ -928,15 +892,7 @@ const EditorPage = () => {
                         ...p,
                         items: p.items.map(i => {
                             if (i.id === draggingId) {
-                                return {
-                                    ...i,
-                                    layout: {
-                                        x: nearestSlot.x,
-                                        y: nearestSlot.y,
-                                        w: nearestSlot.w,
-                                        h: nearestSlot.h
-                                    }
-                                }
+                                return { ...i, layout: { x: nearestSlot.x, y: nearestSlot.y, w: nearestSlot.w, h: nearestSlot.h } }
                             }
                             return i;
                         })
@@ -945,7 +901,6 @@ const EditorPage = () => {
             }
         }
     }
-
     setDraggingId(null);
     setResizeHandle(null);
     setInitialResizeLayout(null);
@@ -955,20 +910,13 @@ const EditorPage = () => {
 
   const handleDeleteItem = () => {
     if (!selectedPageId || !selectedItemId) return;
-    setPages((prev) =>
-      prev.map((page: LeafletPage) =>
-        page.id === selectedPageId
-          ? { ...page, items: page.items.filter((i: EditorItem) => i.id !== selectedItemId) }
-          : page
-      )
-    );
+    setPages((prev) => prev.map((page: LeafletPage) => page.id === selectedPageId ? { ...page, items: page.items.filter((i: EditorItem) => i.id !== selectedItemId) } : page));
     setSelectedItemId(null);
   };
 
   const toggleBooleanProperty = (key: string) => {
     if (!selectedPageId || !selectedItemId) return;
-    setPages((prev) =>
-        prev.map((page) => {
+    setPages((prev) => prev.map((page) => {
             if (page.id !== selectedPageId) return page;
             const updatedItems = page.items.map((item) => {
                 if (item.id !== selectedItemId) return item;
@@ -983,39 +931,17 @@ const EditorPage = () => {
 
   const toggleBadge = (badgeKey: string) => {
     if (!selectedPageId || !selectedItemId) return;
-    setPages((prev) =>
-        prev.map((page) => {
+    setPages((prev) => prev.map((page) => {
             if (page.id !== selectedPageId) return page;
             const updatedItems = page.items.map((item) => {
                 if (item.id !== selectedItemId) return item;
                 if (!item.content) return item;
-
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const currentBadge = (item.content as any)[badgeKey];
                 const isActive = currentBadge?.active;
-
-                const defaultBadgeIGR = {
-                    active: true,
-                    txt_keterangan_qty_igr: "Setiap Pembelian 1",
-                    txt_satuan_igr: "Pcs",
-                    txt_price_bonus_igr: "BONUS 100"
-                };
-
-                const defaultBadgeSPI = {
-                    active: true,
-                    txt_keterangan_qty_spi: "Setiap Pembelian 1",
-                    txt_satuan_spi: "Pcs",
-                    txt_price_bonus_spi: "Bonus 2.000"
-                };
-
-                const defaultBadgePromo = {
-                    active: true,
-                    txt_qty_promo: "BELI 2",
-                    txt_price_promo: "GRATIS",
-                    txt_keterangan_promo: "Produk Serupa",
-                    txt_satuan: "Pcs"
-                };
-
+                const defaultBadgeIGR = { active: true, txt_keterangan_qty_igr: "Setiap Pembelian 1", txt_satuan_igr: "Pcs", txt_price_bonus_igr: "BONUS 100" };
+                const defaultBadgeSPI = { active: true, txt_keterangan_qty_spi: "Setiap Pembelian 1", txt_satuan_spi: "Pcs", txt_price_bonus_spi: "Bonus 2.000" };
+                const defaultBadgePromo = { active: true, txt_qty_promo: "BELI 2", txt_price_promo: "GRATIS", txt_keterangan_promo: "Produk Serupa", txt_satuan: "Pcs" };
                 let newBadgeData;
                 if (!currentBadge) {
                     if (badgeKey === 'badge_igr') newBadgeData = defaultBadgeIGR;
@@ -1024,14 +950,7 @@ const EditorPage = () => {
                 } else {
                     newBadgeData = { ...currentBadge, active: !isActive };
                 }
-
-                return { 
-                    ...item, 
-                    content: { 
-                        ...item.content, 
-                        [badgeKey]: newBadgeData 
-                    } 
-                };
+                return { ...item, content: { ...item.content, [badgeKey]: newBadgeData } };
             });
             return { ...page, items: updatedItems as EditorItem[] } as PageWithDimensions;
         })
@@ -1040,8 +959,7 @@ const EditorPage = () => {
 
   const updateItemContent = (key: string, value: string | number | boolean | null) => {
     if (!selectedPageId || !selectedItemId) return;
-    setPages((prev) =>
-        prev.map((page) => {
+    setPages((prev) => prev.map((page) => {
             if (page.id !== selectedPageId) return page;
             const updatedItems = page.items.map((item) => {
                 if (item.id !== selectedItemId) return item;
@@ -1055,23 +973,14 @@ const EditorPage = () => {
   
   const updateNestedContent = (parentKey: string, childKey: string, value: string) => {
     if (!selectedPageId || !selectedItemId) return;
-    setPages((prev) =>
-        prev.map((page) => {
+    setPages((prev) => prev.map((page) => {
             if (page.id !== selectedPageId) return page;
             const updatedItems = page.items.map((item) => {
                 if (item.id !== selectedItemId) return item;
                 if (!item.content) return item;
-                
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const parentObj = (item.content as any)[parentKey] || {};
-                
-                return { 
-                    ...item, 
-                    content: { 
-                        ...item.content, 
-                        [parentKey]: { ...parentObj, [childKey]: value } 
-                    } 
-                };
+                return { ...item, content: { ...item.content, [parentKey]: { ...parentObj, [childKey]: value } } };
             });
             return { ...page, items: updatedItems as EditorItem[] } as PageWithDimensions;
         })
@@ -1080,20 +989,11 @@ const EditorPage = () => {
 
   const handleOpenBankGambar = () => {
      if (!selectedItemId || !selectedPageId) return;
-     
      const item = getSelectedItem();
-     
      const content = item?.content as ItemContent | undefined;
      const realProductId = content?.product_id;
-
      if (item) {
-         setProductToEdit({
-             id: (realProductId || 0) as number,
-             plu_code: item.plu || content?.plu_code || "",
-             name: content?.name || "",
-             image_path: "" 
-         } as Product);
-         
+         setProductToEdit({ id: (realProductId || 0) as number, plu_code: item.plu || content?.plu_code || "", name: content?.name || "", image_path: "" } as Product);
          setIsProductModalOpen(true);
      }
   };
@@ -1106,11 +1006,7 @@ const EditorPage = () => {
   };
 
   const refreshBadge = (item: EditorItem) => {
-      setGeneratedBadges(prev => {
-          const newState = {...prev};
-          delete newState[item.id];
-          return newState;
-      });
+      setGeneratedBadges(prev => { const newState = {...prev}; delete newState[item.id]; return newState; });
       generateBadgeForItem(item);
   };
 
@@ -1120,7 +1016,6 @@ const EditorPage = () => {
   };
 
   const activeItem = getSelectedItem();
-  
   const currentPage = pages.find(p => p.id === selectedPageId) || pages[0] || { width: 2480, height: 3508 };
 
   return (
@@ -1130,7 +1025,19 @@ const EditorPage = () => {
           <button onClick={() => navigate("/pilih-template")} className="flex items-center justify-center w-10 h-10 hover:bg-slate-100 rounded-full text-slate-700 transition-colors">
             <ArrowLeft size={24} strokeWidth={1.5} />
           </button>
-          <input type="text" value={designName} onChange={(e) => setDesignName(e.target.value)} className="text-lg font-semibold text-slate-800 outline-none hover:bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 rounded px-2 -ml-2 transition-all w-80" />
+          <div className="flex flex-col">
+              <input type="text" value={designName} onChange={(e) => setDesignName(e.target.value)} className="text-lg font-semibold text-slate-800 outline-none hover:bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 rounded px-2 -ml-2 transition-all w-80" />
+              <div className="flex items-center gap-1 text-xs text-slate-500 font-medium px-2">
+                  <Globe size={12} className="text-blue-500" />
+                  <span>{storeName}</span>
+                  {activeRegion !== 'DEFAULT' && (
+                      <>
+                        <span className="text-slate-300">|</span>
+                        <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-bold">{activeRegion}</span>
+                      </>
+                  )}
+              </div>
+          </div>
         </div>
         <div className="flex items-center gap-6">
           <div className="flex gap-1 items-center bg-slate-100 p-1 rounded-lg">
@@ -1184,38 +1091,95 @@ const EditorPage = () => {
       </header>
       <div className="flex-1 flex overflow-hidden bg-slate-200/50" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
         <aside className="w-72 bg-white border-r border-slate-200 flex flex-col shadow-sm z-10 shrink-0">
-          <div className="p-4 border-b border-slate-100"><h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-2"><Layers size={14} /> Daftar Item</h3></div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {loading ? (<div className="text-center py-10 text-slate-400 text-sm">Memuat aset...</div>) : (
+          
+          {/* --- SECTION SHEET TABS WILAYAH --- */}
+          {regionNames.length > 0 && (regionNames[0] !== 'DEFAULT') && (
+              <div className="flex flex-col border-b border-slate-200 bg-slate-50">
+                  <div className="px-4 py-3 border-b border-slate-200/50 bg-white">
+                      <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-2">
+                          <MapIcon size={14} className="text-blue-600" /> 
+                          Pilih Wilayah (Sheet)
+                      </h3>
+                  </div>
+                  <div className="p-2 grid grid-cols-2 gap-2 max-h-40 overflow-y-auto custom-scrollbar">
+                      {regionNames.map((region) => (
+                          <button 
+                              key={region}
+                              onClick={() => {
+                                  setActiveRegion(region);
+                                  setSelectedPageId(null);
+                                  setSelectedItemId(null);
+                              }}
+                              className={`
+                                  relative overflow-hidden text-xs font-bold py-2.5 px-3 rounded-lg border transition-all text-left shadow-sm
+                                  ${activeRegion === region 
+                                      ? "bg-blue-600 border-blue-600 text-white ring-2 ring-blue-200" 
+                                      : "bg-white border-slate-200 text-slate-600 hover:bg-white hover:border-blue-300 hover:text-blue-600 hover:shadow-md"
+                                  }
+                              `}
+                          >
+                              <span className="relative z-10 truncate block w-full">{region}</span>
+                              {activeRegion === region && (
+                                  <div className="absolute right-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
+                              )}
+                          </button>
+                      ))}
+                  </div>
+              </div>
+          )}
+
+          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-2"><Layers size={14} /> Daftar Item</h3>
+              <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-500 font-bold">{pages.reduce((acc, p) => acc + p.items.length, 0)} Items</span>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/30">
+            {loading ? (<div className="text-center py-10 text-slate-400 text-sm flex flex-col items-center gap-2"><Loader2 className="animate-spin"/> Memuat data...</div>) : (
                 pages.flatMap(page => page.items.map((item: EditorItem) => (
                     <div 
                         key={`sidebar-${item.id}`} 
                         draggable={true} 
                         onDragStart={(e) => handleSidebarDragStart(e, item)} 
                         onClick={() => scrollToItem(item, page.id)} 
-                        className="flex gap-3 p-2 rounded-lg border border-slate-200 hover:border-blue-400 cursor-pointer bg-white transition-all select-none group active:bg-blue-50"
+                        className={`
+                            flex gap-3 p-2 rounded-lg border cursor-pointer transition-all select-none group relative
+                            ${selectedItemId === item.id ? "bg-blue-50 border-blue-400 shadow-sm" : "bg-white border-slate-200 hover:border-blue-300 hover:shadow-sm"}
+                        `}
                     >
-                        <div className="w-12 h-12 bg-slate-50 rounded border border-slate-100 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                        <div className="w-12 h-12 bg-white rounded border border-slate-100 flex-shrink-0 flex items-center justify-center overflow-hidden">
                             <img src={generatedBadges[item.id] || item.content?.image_url || "/assets/placeholder.png"} className="w-10 h-10 object-contain mix-blend-multiply" />
                         </div>
-                        <div className="min-w-0 flex flex-col justify-center">
+                        <div className="min-w-0 flex flex-col justify-center flex-1">
                             <p className="text-xs font-bold text-slate-700 truncate">{item.content?.name || "Tanpa Nama"}</p>
-                            <p className="text-[10px] font-mono text-blue-600 font-bold mt-1">{item.content?.price_display}</p>
-                            <p className="text-[8px] text-slate-400 mt-0.5">Page {page.pageNumber}</p>
+                            <p className="text-[10px] font-mono text-blue-600 font-bold mt-1 truncate">{item.content?.price_display}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">Pg {page.pageNumber}</span>
+                                {item.content?.show_coret && <span className="text-[9px] text-red-500 font-bold line-through">{item.content.txt_coret}</span>}
+                            </div>
                         </div>
                     </div>
                 )))
             )}
+            {!loading && pages.length > 0 && pages.every(p => p.items.length === 0) && (
+                <div className="text-center py-10 text-slate-400 text-xs">
+                    Belum ada item di wilayah <b>{activeRegion}</b>.
+                </div>
+            )}
           </div>
         </aside>
-        <main className="flex-1 relative flex flex-col min-w-0 overflow-auto items-center py-10" ref={mainContainerRef}>
+        
+        {/* Main Canvas Area */}
+        <main className="flex-1 relative flex flex-col min-w-0 overflow-auto items-center py-10 bg-slate-200/50" ref={mainContainerRef}>
           {!loading && pages.map((page: PageWithDimensions) => (
               <div key={page.id} className="group flex flex-col gap-2 items-center mb-10">
-                <div className="flex items-center justify-between px-2 transition-all" style={{ width: (page.width || 2480) * zoom }}>
-                  <span className="text-xs font-bold text-slate-500 bg-white px-3 py-1 rounded shadow-sm border border-slate-200">Halaman {page.pageNumber}</span>
+                <div className="flex items-center justify-between px-2 transition-all select-none" style={{ width: (page.width || 2480) * zoom }}>
+                  <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-500 bg-white px-3 py-1 rounded shadow-sm border border-slate-200">Halaman {page.pageNumber}</span>
+                      <span className="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded border border-blue-100">{activeRegion}</span>
+                  </div>
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => handleDuplicatePage(page.id)} className="p-1.5 bg-white hover:text-blue-600 rounded shadow-sm border text-slate-500"><Copy size={14} /></button>
-                    <button onClick={() => handleDeletePage(page.id)} className="p-1.5 bg-white hover:text-red-600 rounded shadow-sm border text-slate-500"><Trash2 size={14} /></button>
+                    <button onClick={() => handleDuplicatePage(page.id)} className="p-1.5 bg-white hover:text-blue-600 rounded shadow-sm border text-slate-500" title="Duplicate Page"><Copy size={14} /></button>
+                    <button onClick={() => handleDeletePage(page.id)} className="p-1.5 bg-white hover:text-red-600 rounded shadow-sm border text-slate-500" title="Delete Page"><Trash2 size={14} /></button>
                   </div>
                 </div>
                 <div style={{ width: (page.width || 2480) * zoom, height: (page.height || 3508) * zoom, position: "relative" }} className="bg-white shadow-2xl transition-all duration-200 ease-out">
