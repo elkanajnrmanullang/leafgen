@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 import { LeafletService } from "../services/leafletService";
 import ProductUploadModal from "../components/ProductUploadModal";
 import layoutCoverJson from "../data/layout_cover.json";
@@ -38,8 +40,7 @@ import type {
   EditorItem,
   BackendPage,
   BackendItem,
-  ItemContent,
-  SingleLeafletData
+  ItemContent
 } from "../types";
 
 interface FigmaNode {
@@ -289,6 +290,7 @@ const EditorPage = () => {
 
   const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(""); 
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "unsaved">("saved");
   const [selectedFormat, setSelectedFormat] = useState<"PDF" | "JPG" | "PNG">("PDF");
 
@@ -501,19 +503,15 @@ const EditorPage = () => {
         if (backendData) {
             const rawKeys = Object.keys(backendData);
             
-            // Expanded list of known regions
             const knownRegions = ['JAWA', 'KAL', 'SUL', 'SUM', 'AMB', 'MALUKU', 'BALI', 'NTB', 'NTT', 'PAPUA'];
             
-            // More robust detection: check if keys match known regions OR if they contain array/pages structure (for ALL scenario)
             const regionKeys = rawKeys.filter(k => {
                 const upperK = k.toUpperCase();
                 const isKnown = knownRegions.some(region => upperK.includes(region));
-                // Ensure the value has content we can parse
                 const hasContent = backendData[k] && (Array.isArray(backendData[k]) || backendData[k].pages);
                 return isKnown && hasContent;
             });
 
-            // If we found valid region keys, treat as multi-region
             const isMultiRegion = regionKeys.length > 0;
             
             const initLeaflets: Record<string, PageWithDimensions[]> = {};
@@ -522,7 +520,6 @@ const EditorPage = () => {
             if (isMultiRegion) {
                 regionKeys.forEach(regionKey => {
                     const regionData = backendData[regionKey];
-                    // Handle structure mismatch where regionData might be the object itself
                     const pagesToParse = Array.isArray(regionData) ? regionData : (regionData.pages || []);
                     
                     if (pagesToParse && pagesToParse.length > 0) {
@@ -540,7 +537,6 @@ const EditorPage = () => {
                     if (backendData[firstRegion]?.id) setLeafletId(backendData[firstRegion].id);
                 }
             } else {
-                // Fallback Single Region
                 initLeaflets['DEFAULT'] = parsePagesFromBackend(backendData.pages || backendData.items || []);
                 regions.push('DEFAULT');
                 setDesignName(initialName || backendData.leaflet_name || "New Leaflet");
@@ -676,48 +672,106 @@ const EditorPage = () => {
     }
   };
 
+  const capturePages = async (targetPages: PageWithDimensions[]): Promise<string[]> => {
+    const images: string[] = [];
+    for (const page of targetPages) {
+        const element = pageRefs.current[page.id];
+        if (element) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false, allowTaint: true } as any);
+            const imgData = canvas.toDataURL(selectedFormat === "PDF" ? "image/jpeg" : `image/${selectedFormat.toLowerCase()}`, 0.9);
+            images.push(imgData);
+        }
+    }
+    return images;
+  };
+
   const handleDownload = async () => {
     setIsDownloadMenuOpen(false);
     setIsDownloading(true);
+    setDownloadProgress("Menyiapkan layout...");
+    
     const originalZoom = zoom;
-    setZoom(1);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const originalActiveRegion = activeRegion;
+    setZoom(1); 
+    
+    await new Promise(r => setTimeout(r, 800));
+
     try {
-      if (selectedFormat === "PDF") {
-        const doc = new jsPDF("p", "mm", "a4");
-        for (let i = 0; i < pages.length; i++) {
-          const page = pages[i];
-          const element = pageRefs.current[page.id];
-          if (element) {
-            if (i > 0) doc.addPage();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false } as any);
-            const imgData = canvas.toDataURL("image/jpeg", 0.9);
-            const imgWidth = 210;
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-            doc.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
-          }
+        const isBulk = regionNames.length > 1 && regionNames.some(r => r !== 'DEFAULT');
+        const zip = new JSZip();
+
+        if (isBulk) {
+            // Skenario 1 & 2: ALL REGIONS
+            for (const region of regionNames) {
+                if (region === 'ALL') continue;
+                
+                setDownloadProgress(`Memproses wilayah ${region}...`);
+                setActiveRegion(region);
+                await new Promise(r => setTimeout(r, 1000)); // Tunggu render DOM
+
+                const currentRegionPages = leaflets[region] || [];
+                const capturedImages = await capturePages(currentRegionPages);
+
+                if (selectedFormat === "PDF") {
+                    const doc = new jsPDF("p", "mm", "a4");
+                    capturedImages.forEach((imgData, i) => {
+                        if (i > 0) doc.addPage();
+                        doc.addImage(imgData, "JPEG", 0, 0, 210, 297);
+                    });
+                    const pdfBlob = doc.output('blob');
+                    zip.file(`${designName}_${region}.pdf`, pdfBlob);
+                } else {
+                    const regionFolder = zip.folder(region);
+                    capturedImages.forEach((imgData, i) => {
+                        const base64Data = imgData.split(',')[1];
+                        regionFolder?.file(`Page_${i + 1}.${selectedFormat.toLowerCase()}`, base64Data, { base64: true });
+                    });
+                }
+            }
+
+            setDownloadProgress("Mengompres file...");
+            const content = await zip.generateAsync({ type: "blob" });
+            saveAs(content, `${designName}_ALL_REGIONS.zip`);
+
+        } else {
+            // Skenario Single Region
+            const currentRegionPages = leaflets[activeRegion] || [];
+            const capturedImages = await capturePages(currentRegionPages);
+
+            if (selectedFormat === "PDF") {
+                const doc = new jsPDF("p", "mm", "a4");
+                capturedImages.forEach((imgData, i) => {
+                    if (i > 0) doc.addPage();
+                    doc.addImage(imgData, "JPEG", 0, 0, 210, 297);
+                });
+                doc.save(`${designName}_${activeRegion}.pdf`);
+            } else {
+                // JPG/PNG logic
+                if (capturedImages.length === 1) {
+                    // Single Page -> Direct Download
+                    saveAs(capturedImages[0], `${designName}_${activeRegion}.${selectedFormat.toLowerCase()}`);
+                } else {
+                    // Multiple Pages -> Zip
+                    capturedImages.forEach((imgData, i) => {
+                        const base64Data = imgData.split(',')[1];
+                        zip.file(`Page_${i + 1}.${selectedFormat.toLowerCase()}`, base64Data, { base64: true });
+                    });
+                    const content = await zip.generateAsync({ type: "blob" });
+                    saveAs(content, `${designName}_${activeRegion}.zip`);
+                }
+            }
         }
-        doc.save(`${designName}_${activeRegion}.pdf`);
-      } else {
-        const targetPageId = selectedPageId || pages[0].id;
-        const element = pageRefs.current[targetPageId];
-        if (element) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false } as any);
-          const link = document.createElement("a");
-          link.download = `${designName}-${activeRegion}-Page.${selectedFormat.toLowerCase()}`;
-          link.href = canvas.toDataURL(`image/${selectedFormat.toLowerCase()}`, 0.9);
-          link.click();
-        }
-      }
-      await saveData("exported");
+
+        await saveData("exported");
     } catch (error) {
-      console.error("Download failed:", error);
-      alert("Gagal mengunduh dokumen. Cek console untuk detail.");
+        console.error("Download failed:", error);
+        alert("Gagal mengunduh dokumen. Cek console untuk detail.");
     } finally {
-      setZoom(originalZoom);
-      setIsDownloading(false);
+        setActiveRegion(originalActiveRegion);
+        setZoom(originalZoom);
+        setIsDownloading(false);
+        setDownloadProgress("");
     }
   };
 
@@ -1070,7 +1124,7 @@ const EditorPage = () => {
           <div className="relative" ref={downloadMenuRef}>
             <button onClick={() => setIsDownloadMenuOpen(!isDownloadMenuOpen)} disabled={isDownloading} className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg shadow-slate-200 transition-all transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
               {isDownloading ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
-              {isDownloading ? "Memproses..." : "Download"}
+              {isDownloading ? "Processing..." : "Download"}
               <ChevronDown size={16} className={`transition-transform ${isDownloadMenuOpen ? "rotate-180" : ""}`} />
             </button>
             {isDownloadMenuOpen && (
@@ -1093,8 +1147,6 @@ const EditorPage = () => {
       <div className="flex-1 flex overflow-hidden bg-slate-200/50" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
         <aside className="w-72 bg-white border-r border-slate-200 flex flex-col shadow-sm z-10 shrink-0">
           
-          {/* --- SECTION SHEET TABS WILAYAH --- */}
-          {/* Tampilkan jika ada lebih dari 1 wilayah ATAU jika wilayah aktif bukan default */}
           {(regionNames.length > 1 || (regionNames.length > 0 && regionNames[0] !== 'DEFAULT')) && (
               <div className="flex flex-col bg-slate-100 border-b border-slate-300">
                   <div className="px-4 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
@@ -1110,12 +1162,14 @@ const EditorPage = () => {
                                     setSelectedPageId(null);
                                     setSelectedItemId(null);
                                 }}
+                                disabled={isDownloading}
                                 className={`
                                     relative px-4 py-2 text-xs font-bold rounded-t-lg transition-all border-t border-l border-r whitespace-nowrap
                                     ${activeRegion === region 
                                       ? "bg-white border-slate-300 border-b-transparent text-blue-600 z-10 top-px shadow-[0_-2px_5px_rgba(0,0,0,0.02)]" 
                                       : "bg-slate-200 border-slate-300 text-slate-500 hover:bg-slate-50 top-1"
                                     }
+                                    ${isDownloading ? "opacity-50 cursor-not-allowed" : ""}
                                 `}
                             >
                                 {region}
@@ -1123,7 +1177,6 @@ const EditorPage = () => {
                           )
                       ))}
                   </div>
-                  {/* Decorative Line to connect active tab */}
                   <div className="h-px bg-white w-full z-0 relative -mt-px"></div>
               </div>
           )}
@@ -1168,8 +1221,18 @@ const EditorPage = () => {
           </div>
         </aside>
         
-        {/* Main Canvas Area */}
         <main className="flex-1 relative flex flex-col min-w-0 overflow-auto items-center py-10 bg-slate-200/50" ref={mainContainerRef}>
+          {isDownloading && (
+              <div className="absolute inset-0 bg-slate-900/50 z-[100] flex flex-col items-center justify-center backdrop-blur-sm">
+                  <div className="bg-white p-6 rounded-xl shadow-2xl flex flex-col items-center gap-4">
+                      <Loader2 size={40} className="animate-spin text-blue-600" />
+                      <div className="text-center">
+                          <h3 className="font-bold text-lg text-slate-800">Sedang Memproses...</h3>
+                          <p className="text-slate-500 text-sm">{downloadProgress}</p>
+                      </div>
+                  </div>
+              </div>
+          )}
           {!loading && pages.map((page: PageWithDimensions) => (
               <div key={page.id} className="group flex flex-col gap-2 items-center mb-10">
                 <div className="flex items-center justify-between px-2 transition-all select-none" style={{ width: (page.width || 2480) * zoom }}>
@@ -1204,7 +1267,6 @@ const EditorPage = () => {
                                 </div>
                           )}
                           
-                          {/* Resize Handles - Only show when selected */}
                           {selectedItemId === item.id && (
                             <>
                                 <div className="absolute top-0 left-0 w-3 h-3 bg-blue-500 border border-white rounded-full -translate-x-1.5 -translate-y-1.5 cursor-nwse-resize z-50" onMouseDown={(e) => handleMouseDown(e, item, page.id, 'nw')} />
@@ -1248,7 +1310,6 @@ const EditorPage = () => {
                     <h4 className="text-xs font-bold text-slate-700">Komponen Badge</h4>
                     <button onClick={() => refreshBadge(activeItem)} className="w-full py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 flex items-center justify-center gap-2 mb-2"><RefreshCw size={14} /> Refresh Gambar</button>
                     
-                    {/* Coret */}
                     <div className="flex items-center justify-between"><span className="text-xs text-slate-600">Harga Coret</span><button onClick={() => toggleBooleanProperty('show_coret')} className={`text-slate-400 hover:text-blue-600 ${activeItem.content?.show_coret ? 'text-blue-600' : ''}`}>{activeItem.content?.show_coret ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}</button></div>
                     {activeItem.content?.show_coret && (
                         <div className="space-y-1 ml-2 pl-2 border-l-2 border-slate-200">
@@ -1256,7 +1317,6 @@ const EditorPage = () => {
                         </div>
                     )}
 
-                    {/* Keterangan */}
                     <div className="flex items-center justify-between mt-2">
                         <span className="text-xs text-slate-600">Keterangan / Promo</span>
                         <button onClick={() => toggleBooleanProperty('show_keterangan')} className={`text-slate-400 hover:text-blue-600 ${activeItem.content?.show_keterangan ? 'text-blue-600' : ''}`}>
@@ -1269,7 +1329,6 @@ const EditorPage = () => {
                         </div>
                     )}
                     
-                    {/* Label Promo */}
                     <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                         <span className="text-xs text-slate-600 font-bold">Label Promo</span>
                         <button onClick={() => toggleBadge('badge_promo')} className={`text-slate-400 hover:text-blue-600 ${activeItem.content?.badge_promo?.active ? 'text-blue-600' : ''}`}>
@@ -1285,10 +1344,8 @@ const EditorPage = () => {
                         </div>
                     )}
 
-                    {/* BBMU */}
                     <div className="flex items-center justify-between pt-2 border-t border-slate-100"><span className="text-xs text-slate-600">Badge BBMU</span><button onClick={() => toggleBooleanProperty('is_bbmu')} className={`text-slate-400 hover:text-blue-600 ${activeItem.content?.is_bbmu ? 'text-blue-600' : ''}`}>{activeItem.content?.is_bbmu ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}</button></div>
 
-                    {/* IGR */}
                     <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                         <span className="text-xs font-bold text-purple-600">Poin IGR</span>
                         <button onClick={() => toggleBadge('badge_igr')} className={`text-slate-400 hover:text-purple-600 ${activeItem.content?.badge_igr?.active ? 'text-purple-600' : ''}`}>
@@ -1303,7 +1360,6 @@ const EditorPage = () => {
                          </div>
                     )}
 
-                    {/* SPI */}
                     <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                         <span className="text-xs font-bold text-orange-600">Poin SPI</span>
                         <button onClick={() => toggleBadge('badge_spi')} className={`text-slate-400 hover:text-orange-600 ${activeItem.content?.badge_spi?.active ? 'text-orange-600' : ''}`}>
