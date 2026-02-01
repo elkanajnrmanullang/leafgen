@@ -13,20 +13,27 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 5173,
     strictPort: true,
+    cors: true,
     proxy: {
-      // Proxy untuk request API
+      // Proxy request ke API Laravel
       '/api': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false,
       },
-      // Proxy KHUSUS untuk gambar/file storage 
+      // Proxy untuk Sanctum CSRF
+      '/sanctum/csrf-cookie': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        secure: false,
+      },
+      // Proxy KHUSUS untuk gambar storage agar dianggap same-origin
       '/storage': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false,
       },
-      // Proxy untuk assets 
+      // Proxy untuk assets public
       '/assets': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
