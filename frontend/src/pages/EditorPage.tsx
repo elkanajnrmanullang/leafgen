@@ -207,28 +207,7 @@ const RenderStaticLayout = ({
         }
 
         if (node.name?.startsWith("slot_")) {
-            const isOccupied = pageItems.some(item => {
-                return Math.abs(item.layout.x - left) < 5 && Math.abs(item.layout.y - top) < 5;
-            });
-
-            if (isOccupied) return null;
-
-            return (
-                    <div 
-                    key={node.id}
-                    style={{
-                        position: 'absolute',
-                        left: `${left}px`,
-                        top: `${top}px`,
-                        width: `${width}px`,
-                        height: `${height}px`,
-                        border: '1px dashed #94a3b8',
-                        backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                        zIndex: 5,
-                        pointerEvents: 'none' 
-                    }}
-                />
-            );
+            return null;
         }
 
         return (
