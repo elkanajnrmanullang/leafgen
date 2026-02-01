@@ -306,6 +306,7 @@ const EditorPage = () => {
                 store: storeName,
                 pages: leaflets['DEFAULT'],
                 status: status,
+                template_url: pageBackground 
              };
         } else {
              payload = {
@@ -313,7 +314,8 @@ const EditorPage = () => {
                  title: designName,
                  store: storeName,
                  regions_data: leaflets,
-                 status: status
+                 status: status,
+                 template_url: pageBackground
              };
         }
 
@@ -326,7 +328,7 @@ const EditorPage = () => {
         setSaveStatus("unsaved");
       }
     },
-    [designName, storeName, leaflets, leafletId, regionNames]
+    [designName, storeName, leaflets, leafletId, regionNames, pageBackground]
   );
 
   useEffect(() => {
@@ -473,7 +475,14 @@ const EditorPage = () => {
     const templateUrl = location.state?.templateUrl;
 
     const initEditor = async () => {
-        if (templateUrl) setPageBackground(processAssetUrl(templateUrl));
+        // Prioritas loading background:
+        // 1. Dari data history (backendData.template_url)
+        // 2. Dari navigasi pilih template (templateUrl)
+        if (backendData?.template_url) {
+            setPageBackground(processAssetUrl(backendData.template_url));
+        } else if (templateUrl) {
+            setPageBackground(processAssetUrl(templateUrl));
+        }
 
         try {
              await getProducts(); 
@@ -516,7 +525,9 @@ const EditorPage = () => {
                     if (backendData[firstRegion]?.id) setLeafletId(backendData[firstRegion].id);
                 }
             } else {
-                initLeaflets['DEFAULT'] = parsePagesFromBackend(backendData.pages || backendData.items || []);
+                // Support structure { pages: [...], template_url: ... } or just [...]
+                const pagesData = backendData.pages || (Array.isArray(backendData) ? backendData : []) || backendData.items || [];
+                initLeaflets['DEFAULT'] = parsePagesFromBackend(pagesData);
                 regions.push('DEFAULT');
                 setDesignName(initialName || backendData.leaflet_name || "New Leaflet");
                 setStoreName(storeFromNav || backendData.store || "Region");

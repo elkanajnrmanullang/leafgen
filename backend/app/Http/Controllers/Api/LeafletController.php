@@ -15,7 +15,6 @@ use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Hash;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 
@@ -288,11 +287,8 @@ class LeafletController extends Controller
             $finalResults = [];
 
             foreach ($targetRegions as $regionCode) {
-                // Ensure parsing happens for every region in the list
                 $pages = $this->parserService->parse($mappedData, $regionCode);
 
-                // Add to results even if pages are empty, to ensure the key exists
-                // (Though parser usually returns [] if empty, we might want to handle it)
                 if (!empty($pages)) {
                     $finalResults[$regionCode] = [
                         'leaflet_name' => $baseLeafletName . " " . $regionCode,
@@ -347,17 +343,24 @@ class LeafletController extends Controller
                 }
                 $pages = $pages ?? [];
 
-                // Helper to count total pages if structure is multi-region map or array
                 $pageCount = 0;
+                
                 if (is_array($pages)) {
-                    if (isset($pages[0]) && isset($pages[0]['id'])) {
-                        // Standard array of pages
+                    if (isset($pages['pages']) && is_array($pages['pages'])) {
+                         $pageCount += count($pages['pages']);
+                    } else if (isset($pages[0]) && (isset($pages[0]['id']) || isset($pages[0]['items']))) {
                         $pageCount = count($pages);
                     } else {
-                        // Multi-region map
-                        foreach ($pages as $regionData) {
-                            if (isset($regionData['pages']) && is_array($regionData['pages'])) {
-                                $pageCount += count($regionData['pages']);
+                        foreach ($pages as $regionKey => $regionData) {
+                            if ($regionKey === 'template_url') continue;
+
+                            if (is_array($regionData)) {
+                                if (isset($regionData[0]['id'])) {
+                                    $pageCount += count($regionData);
+                                } 
+                                elseif (isset($regionData['pages']) && is_array($regionData['pages'])) {
+                                    $pageCount += count($regionData['pages']);
+                                }
                             }
                         }
                     }
@@ -397,8 +400,9 @@ class LeafletController extends Controller
                 'data' => [
                     'leaflet_name' => $leaflet->name,
                     'store' => $leaflet->store_name,
-                    'pages' => $decodedContent,
-                    'id' => $leaflet->id
+                    'pages' => $decodedContent, 
+                    'id' => $leaflet->id,
+                    'status' => $leaflet->status
                 ]
             ]);
         } catch (\Exception $e) {
@@ -413,7 +417,8 @@ class LeafletController extends Controller
             'store' => 'required|string',
             'pages' => 'sometimes|array',
             'regions_data' => 'sometimes|array',
-            'status' => 'required|string'
+            'status' => 'required|string',
+            'template_url' => 'nullable|string'
         ]);
 
         try {
@@ -428,10 +433,23 @@ class LeafletController extends Controller
                 $leaflet = Leaflet::find($request->id);
             }
 
-            // Handle content from either single-region 'pages' or multi-region 'regions_data'
-            $contentData = $request->input('pages', []);
+            $contentData = [];
             if ($request->has('regions_data')) {
                 $contentData = $request->input('regions_data');
+            } elseif ($request->has('pages')) {
+                $contentData = $request->input('pages');
+            }
+
+            if ($request->has('template_url')) {
+                if (!is_array($contentData)) {
+                    $contentData = [];
+                }
+                
+                if (array_keys($contentData) === range(0, count($contentData) - 1) && !empty($contentData)) {
+                    $contentData = ['pages' => $contentData];
+                }
+                
+                $contentData['template_url'] = $request->input('template_url');
             }
 
             $actionDescription = "";
@@ -455,8 +473,8 @@ class LeafletController extends Controller
                 $actionDescription = "{$user->name} membuat leaflet baru: {$request->title}";
             }
 
-            if ($request->status === 'Selesai') {
-                $actionDescription = "{$user->name} menyelesaikan leaflet: {$request->title}";
+            if ($request->status === 'exported') {
+                $actionDescription = "{$user->name} mendownload/menyelesaikan leaflet: {$request->title}";
             }
 
             ActivityLog::create([

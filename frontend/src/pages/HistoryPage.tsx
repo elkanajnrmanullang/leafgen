@@ -7,10 +7,11 @@ import {
   MoreVertical,
   Edit3,
   Trash2,
-  Download,
   FileText,
   Clock,
   Filter,
+  CheckCircle2,
+  FileClock
 } from "lucide-react";
 
 interface HistoryItem {
@@ -19,7 +20,7 @@ interface HistoryItem {
   store: string;
   date: string;
   thumbnailUrl: string | null;
-  status: "draft" | "exported";
+  status: "draft" | "exported" | "Selesai" | "Draft";
   pageCount: number;
 }
 
@@ -47,12 +48,15 @@ const HistoryPage = () => {
   const handleEdit = async (item: HistoryItem) => {
     setIsLoading(true);
     try {
-      const leafletData = await LeafletService.getLeafletById(item.id);
+      // Mengambil detail lengkap leaflet (termasuk struktur JSON halaman)
+      const data = await LeafletService.getLeafletById(item.id);
+      
       navigate("/editor", {
         state: {
-          leafletData: leafletData,
-          leafletName: item.title,
-          leafletId: item.id,
+          leafletData: data.pages, // 'pages' dari backend berisi struktur JSON (single/multi region)
+          leafletName: data.leaflet_name,
+          storeName: data.store,
+          leafletId: data.id,
         },
       });
     } catch (error) {
@@ -62,9 +66,11 @@ const HistoryPage = () => {
     }
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (confirm("Apakah Anda yakin ingin menghapus riwayat ini?")) {
+      // Optimistic update
       setHistoryData((prev) => prev.filter((item) => item.id !== id));
+      // TODO: Panggil API delete jika tersedia di service
     }
   };
 
@@ -75,7 +81,7 @@ const HistoryPage = () => {
   );
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8">
+    <div className="p-6 max-w-7xl mx-auto space-y-8 bg-slate-50 min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Riwayat Desain</h1>
@@ -109,7 +115,7 @@ const HistoryPage = () => {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-64 bg-slate-100 rounded-xl animate-pulse"
+              className="h-64 bg-slate-200 rounded-xl animate-pulse"
             ></div>
           ))}
         </div>
@@ -118,89 +124,87 @@ const HistoryPage = () => {
           {filteredData.map((item) => (
             <div
               key={item.id}
-              className="group bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col"
+              className="group bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col hover:-translate-y-1"
             >
-              <div className="h-40 bg-slate-100 relative overflow-hidden flex items-center justify-center">
+              <div className="h-44 bg-slate-100 relative overflow-hidden flex items-center justify-center border-b border-slate-100">
                 {item.thumbnailUrl ? (
                   <img
                     src={item.thumbnailUrl}
                     alt={item.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 ) : (
-                  <div className="flex flex-col items-center text-slate-300">
-                    <FileText size={48} strokeWidth={1} />
+                  <div className="flex flex-col items-center text-slate-300 group-hover:text-indigo-200 transition-colors">
+                    <FileText size={56} strokeWidth={1} />
                     <span className="text-xs font-medium mt-2">
-                      Preview Halaman Depan
+                      Preview Tidak Tersedia
                     </span>
                   </div>
                 )}
 
-                <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 duration-200">
+                <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 duration-200 backdrop-blur-[1px]">
                   <button
                     onClick={() => handleEdit(item)}
-                    className="bg-white text-indigo-600 px-4 py-2 rounded-full font-bold text-sm shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all flex items-center gap-2"
+                    className="bg-white text-indigo-600 px-5 py-2.5 rounded-full font-bold text-sm shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all flex items-center gap-2 hover:bg-indigo-50"
                   >
-                    <Edit3 size={16} /> Buka Editor
+                    <Edit3 size={16} /> Lanjut Edit
                   </button>
                 </div>
 
-                <div className="absolute top-3 right-3">
+                <div className="absolute top-3 right-3 z-10">
                   <span
-                    className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${
-                      item.status === "exported"
-                        ? "bg-green-100 text-green-700 border-green-200"
+                    className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border shadow-sm flex items-center gap-1.5 ${
+                      item.status === "exported" || item.status === "Selesai"
+                        ? "bg-emerald-100 text-emerald-700 border-emerald-200"
                         : "bg-amber-100 text-amber-700 border-amber-200"
                     }`}
                   >
-                    {item.status === "exported" ? "Selesai" : "Draft"}
+                    {item.status === "exported" || item.status === "Selesai" ? (
+                        <><CheckCircle2 size={12}/> SELESAI</>
+                    ) : (
+                        <><FileClock size={12}/> DRAFT</>
+                    )}
                   </span>
                 </div>
               </div>
 
               <div className="p-5 flex-1 flex flex-col">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-slate-800 text-lg line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                <div className="flex justify-between items-start mb-1">
+                  <h3 className="font-bold text-slate-800 text-lg line-clamp-1 group-hover:text-indigo-600 transition-colors" title={item.title}>
                     {item.title}
                   </h3>
-                  <button className="text-slate-400 hover:text-slate-600">
+                  <button className="text-slate-300 hover:text-slate-600 transition-colors">
                     <MoreVertical size={18} />
                   </button>
                 </div>
 
-                <div className="space-y-2 mb-6">
-                  <div className="flex items-center text-slate-500 text-sm">
-                    <MapPinIcon size={14} className="mr-2 text-slate-400" />
-                    <span>{item.store}</span>
+                <div className="space-y-2 mb-6 mt-2">
+                  <div className="flex items-center text-slate-500 text-xs font-medium">
+                    <MapPinIcon size={14} className="mr-2 text-indigo-400" />
+                    <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">{item.store}</span>
                   </div>
-                  <div className="flex items-center text-slate-500 text-sm">
+                  <div className="flex items-center text-slate-500 text-xs">
                     <Calendar size={14} className="mr-2 text-slate-400" />
-                    <span>{item.date}</span>
+                    <span>Terakhir diedit: {item.date}</span>
                   </div>
-                  <div className="flex items-center text-slate-500 text-sm">
+                  <div className="flex items-center text-slate-500 text-xs">
                     <FileText size={14} className="mr-2 text-slate-400" />
-                    <span>{item.pageCount} Halaman</span>
+                    <span>Total {item.pageCount} Halaman</span>
                   </div>
                 </div>
 
                 <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium uppercase tracking-wider">
                     <Clock size={12} />
-                    {item.status === "draft" ? "Auto-saved" : "Finalized"}
+                    {item.status === "draft" || item.status === "Draft" ? "Belum didownload" : "Sudah didownload"}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1">
                     <button
-                      onClick={() => handleDelete(item.id)}
+                      onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
                       className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
-                      title="Hapus"
+                      title="Hapus Desain"
                     >
-                      <Trash2 size={18} />
-                    </button>
-                    <button
-                      className="p-2 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-lg transition-colors"
-                      title="Download Ulang"
-                    >
-                      <Download size={18} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
@@ -209,20 +213,20 @@ const HistoryPage = () => {
           ))}
         </div>
       ) : (
-        <div className="text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
-          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+        <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-300 shadow-sm">
+          <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
             <FileText className="text-slate-300" size={32} />
           </div>
-          <h3 className="text-lg font-semibold text-slate-700">
+          <h3 className="text-lg font-semibold text-slate-800">
             Belum ada riwayat
           </h3>
-          <p className="text-slate-500 mb-6 max-w-md mx-auto">
+          <p className="text-slate-500 mb-6 max-w-md mx-auto text-sm">
             Anda belum membuat leaflet apa pun. Mulai buat desain sekarang untuk
             melihat riwayat di sini.
           </p>
           <button
-            onClick={() => navigate("/buat-leaflet")}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors"
+            onClick={() => navigate("/pilih-template")}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg font-bold text-sm transition-colors shadow-lg shadow-indigo-200"
           >
             Buat Leaflet Baru
           </button>
