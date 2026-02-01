@@ -54,7 +54,6 @@ const PilihTemplatePage = () => {
     try {
         const selectedTemplate = templates.find(t => t.id === templateId);
         
-        // Gunakan image_url yang sudah lengkap dari backend
         const templateUrl = selectedTemplate ? selectedTemplate.image_url : null;
 
         const draftResult = await LeafletService.generateDraft(file, storeName, leafletName);
@@ -62,10 +61,9 @@ const PilihTemplatePage = () => {
         let targetData = null;
         
         if (storeName === 'ALL') {
-            const firstRegion = Object.keys(draftResult)[0];
-            if (firstRegion) targetData = draftResult[firstRegion];
+            targetData = draftResult;
         } else {
-            targetData = draftResult[storeName];
+            targetData = draftResult[storeName] || draftResult;
         }
 
         if (!targetData) {
@@ -77,7 +75,7 @@ const PilihTemplatePage = () => {
                 leafletData: targetData, 
                 leafletName: leafletName,
                 storeName: storeName,
-                templateUrl: templateUrl // Kirim URL lengkap ke editor
+                templateUrl: templateUrl 
             }
         });
 
