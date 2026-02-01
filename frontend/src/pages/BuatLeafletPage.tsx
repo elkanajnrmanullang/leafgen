@@ -53,8 +53,10 @@ const BuatLeafletPage = () => {
         setDetectedRegions(["ALL", "JAWA", "SUM", "KAL", "SUL", "AMB", "BLI"]);
         setSelectedRegion("ALL");
       } else {
-        setDetectedRegions(regions);
-        setSelectedRegion(regions[0]);
+        // Jika ada regions, tambahkan opsi ALL di paling atas dan hapus duplikasi
+        const regionsWithAll = Array.from(new Set(["ALL", ...regions]));
+        setDetectedRegions(regionsWithAll);
+        setSelectedRegion("ALL"); 
       }
       setStep(2);
     } catch (err: unknown) {
@@ -193,7 +195,7 @@ const BuatLeafletPage = () => {
               <p className="text-sm text-blue-800 flex gap-2">
                 <MapPin size={18} />
                 Sistem mendeteksi{" "}
-                <strong>{detectedRegions.length} opsi wilayah</strong>.
+                <strong>{detectedRegions.length - 1} opsi wilayah</strong> (Plus ALL).
               </p>
             </div>
 

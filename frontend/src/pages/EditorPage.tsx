@@ -265,12 +265,10 @@ const EditorPage = () => {
   const mainContainerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  // -- STATE UNTUK MULTI-REGION --
   const [leaflets, setLeaflets] = useState<Record<string, PageWithDimensions[]>>({});
   const [activeRegion, setActiveRegion] = useState<string>("DEFAULT");
   const [regionNames, setRegionNames] = useState<string[]>([]);
   
-  // Helper to get/set pages for current active region to maintain compatibility
   const pages = leaflets[activeRegion] || [];
   
   const setPages = (value: React.SetStateAction<PageWithDimensions[]>) => {
@@ -320,7 +318,6 @@ const EditorPage = () => {
       
       try {
         let payload;
-        // Logic to construct payload based on structure
         if (regionNames.length === 1 && regionNames[0] === 'DEFAULT') {
              payload = {
                 id: leafletId,
@@ -330,7 +327,6 @@ const EditorPage = () => {
                 status: status,
              };
         } else {
-             // Saving multi-region state structure
              payload = {
                  id: leafletId,
                  title: designName,
@@ -503,36 +499,41 @@ const EditorPage = () => {
         } catch (error) { console.error(error); }
 
         if (backendData) {
-            // DETEKSI LOGIC YANG LEBIH KUAT UNTUK MULTI-REGION
-            // Cek apakah ada key wilayah di dalam object response
             const rawKeys = Object.keys(backendData);
-            const knownRegions = ['JAWA', 'KAL', 'SUL', 'SUM', 'AMB', 'MALUKU', 'BALI'];
-            const regionKeys = rawKeys.filter(k => knownRegions.includes(k.toUpperCase()));
+            
+            // Expanded list of known regions
+            const knownRegions = ['JAWA', 'KAL', 'SUL', 'SUM', 'AMB', 'MALUKU', 'BALI', 'NTB', 'NTT', 'PAPUA'];
+            
+            // More robust detection: check if keys match known regions OR if they contain array/pages structure (for ALL scenario)
+            const regionKeys = rawKeys.filter(k => {
+                const upperK = k.toUpperCase();
+                const isKnown = knownRegions.some(region => upperK.includes(region));
+                // Ensure the value has content we can parse
+                const hasContent = backendData[k] && (Array.isArray(backendData[k]) || backendData[k].pages);
+                return isKnown && hasContent;
+            });
 
-            // Jika ada minimal 1 key yang cocok dengan nama pulau, dan tidak ada properti 'pages' di root
-            // Atau jika object tersebut adalah map wilayah
-            const isMultiRegion = regionKeys.length > 0 && !backendData.pages;
+            // If we found valid region keys, treat as multi-region
+            const isMultiRegion = regionKeys.length > 0;
             
             const initLeaflets: Record<string, PageWithDimensions[]> = {};
             const regions: string[] = [];
 
             if (isMultiRegion) {
                 regionKeys.forEach(regionKey => {
-                    const regionData = backendData[regionKey] as SingleLeafletData;
-                    if (regionData) {
-                        // Handle structure mismatch where regionData might be the object itself
-                        const pagesToParse = regionData.pages || (Array.isArray(regionData) ? regionData : []);
-                        if (pagesToParse) {
-                            initLeaflets[regionKey] = parsePagesFromBackend(pagesToParse);
-                            regions.push(regionKey);
-                        }
+                    const regionData = backendData[regionKey];
+                    // Handle structure mismatch where regionData might be the object itself
+                    const pagesToParse = Array.isArray(regionData) ? regionData : (regionData.pages || []);
+                    
+                    if (pagesToParse && pagesToParse.length > 0) {
+                        initLeaflets[regionKey] = parsePagesFromBackend(pagesToParse);
+                        regions.push(regionKey);
                     }
                 });
                 
                 regions.sort(); 
 
                 if (regions.length > 0) {
-                    // Set default active region
                     const firstRegion = regions[0];
                     setDesignName(backendData[firstRegion]?.leaflet_name || initialName || "Leaflet All Regions");
                     setStoreName("ALL REGIONS");
@@ -1093,38 +1094,37 @@ const EditorPage = () => {
         <aside className="w-72 bg-white border-r border-slate-200 flex flex-col shadow-sm z-10 shrink-0">
           
           {/* --- SECTION SHEET TABS WILAYAH --- */}
-          {regionNames.length > 0 && (regionNames[0] !== 'DEFAULT') && (
-              <div className="flex flex-col border-b border-slate-200 bg-slate-50">
-                  <div className="px-4 py-3 border-b border-slate-200/50 bg-white">
-                      <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-2">
-                          <MapIcon size={14} className="text-blue-600" /> 
-                          Pilih Wilayah (Sheet)
-                      </h3>
+          {/* Tampilkan jika ada lebih dari 1 wilayah ATAU jika wilayah aktif bukan default */}
+          {(regionNames.length > 1 || (regionNames.length > 0 && regionNames[0] !== 'DEFAULT')) && (
+              <div className="flex flex-col bg-slate-100 border-b border-slate-300">
+                  <div className="px-4 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                      <MapIcon size={12} /> Wilayah (Sheet)
                   </div>
-                  <div className="p-2 grid grid-cols-2 gap-2 max-h-40 overflow-y-auto custom-scrollbar">
+                  <div className="flex flex-row overflow-x-auto px-2 gap-1 custom-scrollbar pb-0">
                       {regionNames.map((region) => (
-                          <button 
-                              key={region}
-                              onClick={() => {
-                                  setActiveRegion(region);
-                                  setSelectedPageId(null);
-                                  setSelectedItemId(null);
-                              }}
-                              className={`
-                                  relative overflow-hidden text-xs font-bold py-2.5 px-3 rounded-lg border transition-all text-left shadow-sm
-                                  ${activeRegion === region 
-                                      ? "bg-blue-600 border-blue-600 text-white ring-2 ring-blue-200" 
-                                      : "bg-white border-slate-200 text-slate-600 hover:bg-white hover:border-blue-300 hover:text-blue-600 hover:shadow-md"
-                                  }
-                              `}
-                          >
-                              <span className="relative z-10 truncate block w-full">{region}</span>
-                              {activeRegion === region && (
-                                  <div className="absolute right-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
-                              )}
-                          </button>
+                          region !== 'ALL' && (
+                            <button 
+                                key={region}
+                                onClick={() => {
+                                    setActiveRegion(region);
+                                    setSelectedPageId(null);
+                                    setSelectedItemId(null);
+                                }}
+                                className={`
+                                    relative px-4 py-2 text-xs font-bold rounded-t-lg transition-all border-t border-l border-r whitespace-nowrap
+                                    ${activeRegion === region 
+                                      ? "bg-white border-slate-300 border-b-transparent text-blue-600 z-10 top-px shadow-[0_-2px_5px_rgba(0,0,0,0.02)]" 
+                                      : "bg-slate-200 border-slate-300 text-slate-500 hover:bg-slate-50 top-1"
+                                    }
+                                `}
+                            >
+                                {region}
+                            </button>
+                          )
                       ))}
                   </div>
+                  {/* Decorative Line to connect active tab */}
+                  <div className="h-px bg-white w-full z-0 relative -mt-px"></div>
               </div>
           )}
 
