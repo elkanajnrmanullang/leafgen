@@ -18,7 +18,6 @@ interface UserData {
     name: string;
     email: string;
   };
-  action_required?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,19 +41,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(data.access_token);
     setUserRole(data.user.role);
     setUserName(data.user.name);
+    
     localStorage.setItem("authToken", data.access_token);
     localStorage.setItem("userRole", data.user.role);
     localStorage.setItem("userName", data.user.name);
     localStorage.setItem("userEmail", data.user.email);
 
-    if (data.action_required) {
-      localStorage.setItem("passwordChangeReason", data.action_required);
-      navigate("/ganti-password");
-    } else {
-      localStorage.removeItem("passwordChangeReason");
-      const from = location.state?.from?.pathname || "/";
-      navigate(from, { replace: true });
-    }
+    const from = location.state?.from?.pathname || "/";
+    navigate(from, { replace: true });
   };
 
   const logoutAction = () => {

@@ -34,6 +34,8 @@ class ForgotPasswordController extends Controller
         ]);
 
         return response()->json([
+            'status' => 'success',
+            'email' => $request->email,
             'token' => $token
         ], 200);
     }
@@ -64,6 +66,7 @@ class ForgotPasswordController extends Controller
         }
 
         $user = User::where('email', $request->email)->first();
+
         if (!$user) {
              return response()->json(['message' => 'User tidak ditemukan.'], 404);
         }

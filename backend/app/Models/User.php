@@ -19,7 +19,6 @@ class User extends Authenticatable
         'password',
         'role',
         'status',
-        'password_changed_at',
     ];
 
     protected $hidden = [
@@ -30,7 +29,6 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
-        'password_changed_at' => 'datetime',
     ];
 
     public function leaflets(): HasMany
