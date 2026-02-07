@@ -1,47 +1,51 @@
 import axios from "axios";
 
-const API_URL = "http://127.0.0.1:8000/api";
-
 const apiClient = axios.create({
-  baseURL: API_URL,
+  baseURL: "http://127.0.0.1:8000",
+  withCredentials: true,
   headers: {
+    "Content-Type": "application/json",
     Accept: "application/json",
   },
+  xsrfCookieName: "XSRF-TOKEN",
+  xsrfHeaderName: "X-XSRF-TOKEN",
 });
 
-const getAuthHeaders = () => {
-  const token = localStorage.getItem("authToken");
-  return {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/json",
-    },
-  };
+export const getCsrfToken = async () => {
+  return await apiClient.get("/sanctum/csrf-cookie");
 };
 
 export const login = async (username: string, password: string) => {
-  const response = await apiClient.post("/login", {
-    username: username,
-    password: password,
+  const response = await apiClient.post("/api/login", {
+    username,
+    password,
   });
   return response.data;
 };
 
+export const logout = async () => {
+  const response = await apiClient.post("/api/logout");
+  return response.data;
+};
+
+export const getUser = async () => {
+  const response = await apiClient.get("/api/user");
+  return response.data;
+};
+
 export const forgotPassword = async (email: string) => {
-  const response = await apiClient.post("/forgot-password", { email });
+  const response = await apiClient.post("/api/forgot-password", { email });
   return response.data;
 };
 
 export const resetPassword = async (data: object) => {
-  const response = await apiClient.post("/reset-password", data);
+  const response = await apiClient.post("/api/reset-password", data);
   return response.data;
 };
 
 export const changePassword = async (data: object) => {
-  const response = await axios.put(
-    `${API_URL}/user/password`,
-    data,
-    getAuthHeaders()
-  );
+  const response = await apiClient.put("/api/user/password", data);
   return response.data;
 };
+
+export default apiClient;
