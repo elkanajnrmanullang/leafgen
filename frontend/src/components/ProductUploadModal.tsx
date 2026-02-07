@@ -37,8 +37,8 @@ const ProductUploadModal = ({
       setError(null);
       
       if (productToEdit) {
-        setPlu(productToEdit.plu_code);
-        setName(productToEdit.name);
+        setPlu(productToEdit.plu_code || "");
+        setName(productToEdit.name || "");
         
         const imgPath = productToEdit.image_path;
         if (imgPath && !imgPath.includes("placeholder")) {
@@ -85,11 +85,6 @@ const ProductUploadModal = ({
     try {
       let response;
       
-      // LOGIKA: 
-      // Jika productToEdit memiliki ID (dari Bank Gambar), gunakan update.
-      // Jika tidak (dari Leaflet parser yang belum ada di DB), gunakan addProduct.
-      // Backend sekarang sudah cerdas: jika addProduct dipanggil tapi PLU ada, dia akan otomatis update.
-      
       if (productToEdit && productToEdit.id && productToEdit.id !== 0) {
         formData.append("_method", "PUT");
         response = await updateProduct(productToEdit.id, formData);
@@ -97,11 +92,9 @@ const ProductUploadModal = ({
         response = await addProduct(formData);
       }
 
-      // Pastikan kita mendapatkan URL gambar yang valid dari response
       const responseData = response.data || response;
       const imageUrl = responseData.full_image_url || responseData.image_path;
 
-      // Dispatch event dengan data produk terbaru agar EditorPage bisa langsung update gambar
       const event = new CustomEvent("productUpdated", { 
           detail: { 
               plu_code: plu, 
@@ -115,7 +108,6 @@ const ProductUploadModal = ({
       console.error(err);
       if (isAxiosError(err)) {
         if (err.response?.status === 422) {
-            // Tangkap error validasi dari Laravel
             setValidationErrors(err.response.data.errors || {});
             setError("Mohon periksa input Anda.");
         } else if (err.response?.status === 404) {
@@ -138,7 +130,7 @@ const ProductUploadModal = ({
       <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden scale-100 animate-in zoom-in-95 duration-200">
         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <h3 className="text-lg font-bold text-slate-800">
-            {productToEdit ? "Upload / Edit Produk" : "Upload Produk Baru"}
+            {productToEdit ? "Edit Produk" : "Upload Produk Baru"}
           </h3>
           <button
             onClick={onClose}
@@ -225,10 +217,9 @@ const ProductUploadModal = ({
                 id="plu_code"
                 type="text"
                 required
-                readOnly={!!productToEdit} // Readonly jika edit untuk mencegah ganti PLU tidak sengaja
                 value={plu}
                 onChange={(e) => setPlu(e.target.value)}
-                className={`w-full px-4 py-2 border rounded-lg outline-none transition-all font-mono ${productToEdit ? 'bg-slate-100 text-slate-500' : 'bg-white'} ${validationErrors.plu_code ? 'border-red-500 focus:ring-red-200' : 'border-slate-300 focus:ring-blue-500 focus:border-blue-500'}`}
+                className={`w-full px-4 py-2 border rounded-lg outline-none transition-all font-mono ${validationErrors.plu_code ? 'border-red-500 focus:ring-red-200' : 'border-slate-300 focus:ring-blue-500 focus:border-blue-500'}`}
                 placeholder="Contoh: 100456"
               />
             </div>
@@ -255,7 +246,7 @@ const ProductUploadModal = ({
           >
             {loading ? (
               <Loader2 className="animate-spin" />
-            ) : "Simpan Gambar"}
+            ) : "Simpan Produk"}
           </button>
         </form>
       </div>

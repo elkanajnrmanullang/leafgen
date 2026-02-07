@@ -7,8 +7,6 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\NewUserWelcomeMail;
 
 class UserController extends Controller
 {
@@ -38,10 +36,9 @@ class UserController extends Controller
 
         $user = User::create($validatedData);
 
-        Mail::to($user->email)->send(new NewUserWelcomeMail($user, $password));
-
         return response()->json([
-            'user' => $user
+            'user' => $user,
+            'plain_password' => $password
         ], 201);
     }
 
@@ -76,14 +73,19 @@ class UserController extends Controller
         }
 
         \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
+
         \App\Models\LeafletItem::truncate();
         \App\Models\Leaflet::truncate();
         \App\Models\Product::truncate();
         \App\Models\BackgroundTemplate::truncate();
+
+        \App\Models\ActivityLog::truncate();
+
         User::whereNotIn('username', ['manager', 'staff'])->delete();
+
         \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
 
-        return response()->json(['message' => 'Data simulasi (produk, leaflet, template) berhasil dikosongkan.']);
+        return response()->json(['message' => 'Data simulasi dan riwayat aktivitas berhasil dikosongkan.']);
     }
 
     public function updatePassword(Request $request)

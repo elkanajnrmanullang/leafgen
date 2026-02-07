@@ -189,7 +189,7 @@ const DashboardPage = () => {
               </div>
             </Link>
             <button
-              onClick={openProductModal}
+              onClick={() => openProductModal()}
               className="w-full flex items-center gap-4 p-5 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md hover:border-emerald-200 hover:bg-emerald-50/50 transition-all group"
             >
               <div className="p-3 bg-emerald-100 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-colors text-emerald-600">

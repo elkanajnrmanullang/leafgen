@@ -114,16 +114,31 @@ const ManajemenAkunPage = () => {
 
       setAlertState({
         isOpen: true,
-        title: "Sukses!",
-        message: `Akun untuk ${response.user.name} berhasil dibuat.`,
+        title: "Akun Berhasil Dibuat",
+        message: `Akun untuk ${response.user.name} siap digunakan.`,
         children: (
-          <p className="text-gray-500">
-            Informasi login lengkap telah disimulasikan terkirim ke{" "}
-            <strong className="font-medium text-gray-800">
-              {response.user.email}
-            </strong>
-            .
-          </p>
+          <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-lg text-left shadow-inner">
+            <p className="text-sm text-slate-600 mb-3">
+              Silakan salin informasi login berikut dan berikan kepada pengguna secara manual (WhatsApp/Email):
+            </p>
+            <div className="space-y-2 font-mono text-sm">
+                <div className="flex justify-between border-b border-slate-200 pb-1">
+                    <span className="text-slate-500">Username:</span>
+                    <span className="font-bold text-slate-800">{response.user.username}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-200 pb-1">
+                    <span className="text-slate-500">Email:</span>
+                    <span className="font-bold text-slate-800">{response.user.email}</span>
+                </div>
+                <div className="flex justify-between items-center bg-yellow-50 p-2 rounded border border-yellow-200">
+                    <span className="text-slate-500">Password:</span>
+                    <span className="font-bold text-red-600 text-base select-all">{response.plain_password}</span>
+                </div>
+            </div>
+            <p className="mt-3 text-xs text-red-500 italic">
+              *Password hanya ditampilkan satu kali ini saja. Harap segera disimpan.
+            </p>
+          </div>
         ),
         type: "success",
       });
@@ -142,7 +157,7 @@ const ManajemenAkunPage = () => {
       isOpen: true,
       title: "Konfirmasi Reset Data",
       message:
-        "Ini akan menghapus SEMUA data produk, leaflet, dan template. Akun pengguna tidak akan dihapus. Lanjutkan?",
+        "Ini akan menghapus SEMUA data produk, leaflet, template, dan riwayat aktivitas dashboard. Akun pengguna tidak akan dihapus. Lanjutkan?",
       type: "confirm",
       onConfirm: handleResetData,
     });
@@ -158,7 +173,8 @@ const ManajemenAkunPage = () => {
         type: "success",
       });
       fetchUsers();
-      window.dispatchEvent(new CustomEvent("dataChanged"));
+      // Dispatch event agar komponen Dashboard (jika sedang mount) me-refresh datanya
+      window.dispatchEvent(new CustomEvent("productAdded")); 
     } catch {
       setAlertState({
         isOpen: true,
@@ -348,7 +364,6 @@ const ManajemenAkunPage = () => {
                 type="email"
                 placeholder="Email"
                 className="w-full p-2 border rounded-md"
-                Next
               />
               <input
                 name="username"
@@ -369,8 +384,7 @@ const ManajemenAkunPage = () => {
                 <option value="manager">Manager</option>
               </select>
               <p className="text-xs text-slate-500">
-                Password sementara akan di-generate oleh sistem dan
-                disimulasikan terkirim ke email.
+                Password akan dibuat otomatis oleh sistem dan ditampilkan setelah Anda klik Simpan.
               </p>
             </div>
             <div className="p-6 bg-slate-50 rounded-b-xl flex justify-end gap-3">

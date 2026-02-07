@@ -40,7 +40,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/leaflet/templates', [LeafletController::class, 'getTemplates']);
     Route::post('/leaflet/templates', [LeafletController::class, 'storeTemplate']);
-    Route::post('/leaflet/templates/{id}', [LeafletController::class, 'updateTemplate']);
+    Route::match(['put', 'post'], '/leaflet/templates/{id}', [LeafletController::class, 'updateTemplate']);
     Route::delete('/leaflet/templates/{id}', [LeafletController::class, 'destroyTemplate']);
 
     Route::get('/users', [UserController::class, 'index']);

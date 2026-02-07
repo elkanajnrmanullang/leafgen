@@ -69,6 +69,11 @@ class LeafletController extends Controller
         try {
             $templates = BackgroundTemplate::orderBy('created_at', 'desc')->get();
 
+            $templates->transform(function ($template) {
+                $template->image_url = url('storage/' . $template->image_path);
+                return $template;
+            });
+
             return response()->json([
                 'success' => true,
                 'data' => $templates
@@ -110,6 +115,8 @@ class LeafletController extends Controller
                 'user_id' => $userId,
                 'is_default' => false
             ]);
+
+            $template->image_url = url('storage/' . $path);
 
             ActivityLog::create([
                 'user_id' => $userId,
@@ -158,12 +165,13 @@ class LeafletController extends Controller
             }
 
             $template->update($data);
+            $template->image_url = url('storage/' . $template->image_path);
 
             $user = Auth::user();
             ActivityLog::create([
-                'user_id' => $user->id,
+                'user_id' => $user ? $user->id : null,
                 'type' => 'template',
-                'description' => "{$user->name} memperbarui template: {$request->title}"
+                'description' => $user ? "{$user->name} memperbarui template: {$request->title}" : "Sistem memperbarui template"
             ]);
 
             return response()->json([
@@ -182,11 +190,19 @@ class LeafletController extends Controller
         try {
             $template = BackgroundTemplate::findOrFail($id);
 
-            if (Storage::disk('public')->exists($template->image_path)) {
+            if ($template->image_path && Storage::disk('public')->exists($template->image_path)) {
                 Storage::disk('public')->delete($template->image_path);
             }
 
+            $title = $template->title;
             $template->delete();
+
+            $user = Auth::user();
+            ActivityLog::create([
+                'user_id' => $user ? $user->id : null,
+                'type' => 'template',
+                'description' => $user ? "{$user->name} menghapus template: {$title}" : "Sistem menghapus template"
+            ]);
 
             return response()->json(['success' => true, 'message' => 'Template dihapus']);
         } catch (\Exception $e) {
@@ -344,7 +360,7 @@ class LeafletController extends Controller
                 $pages = $pages ?? [];
 
                 $pageCount = 0;
-                
+
                 if (is_array($pages)) {
                     if (isset($pages['pages']) && is_array($pages['pages'])) {
                          $pageCount += count($pages['pages']);
@@ -357,7 +373,7 @@ class LeafletController extends Controller
                             if (is_array($regionData)) {
                                 if (isset($regionData[0]['id'])) {
                                     $pageCount += count($regionData);
-                                } 
+                                }
                                 elseif (isset($regionData['pages']) && is_array($regionData['pages'])) {
                                     $pageCount += count($regionData['pages']);
                                 }
@@ -400,7 +416,7 @@ class LeafletController extends Controller
                 'data' => [
                     'leaflet_name' => $leaflet->name,
                     'store' => $leaflet->store_name,
-                    'pages' => $decodedContent, 
+                    'pages' => $decodedContent,
                     'id' => $leaflet->id,
                     'status' => $leaflet->status
                 ]
@@ -444,11 +460,11 @@ class LeafletController extends Controller
                 if (!is_array($contentData)) {
                     $contentData = [];
                 }
-                
+
                 if (array_keys($contentData) === range(0, count($contentData) - 1) && !empty($contentData)) {
                     $contentData = ['pages' => $contentData];
                 }
-                
+
                 $contentData['template_url'] = $request->input('template_url');
             }
 
