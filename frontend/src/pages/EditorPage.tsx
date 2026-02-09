@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -24,7 +24,6 @@ import {
   ChevronDown,
   FileText,
   Image as ImageIcon,
-  Type,
   Loader2,
   Download,
   ToggleLeft,
@@ -32,7 +31,8 @@ import {
   RefreshCw,
   FolderOpen,
   Map as MapIcon,
-  Globe
+  Globe,
+  PlusSquare
 } from "lucide-react";
 
 import type {
@@ -82,7 +82,7 @@ const LAYOUT_INNER = layoutInnerJson as unknown as FigmaNode[];
 const processAssetUrl = (url: string | null | undefined): string => {
   if (!url) return "";
   if (url.startsWith('http')) return url;
-  
+   
   const BACKEND_URL = "http://127.0.0.1:8000";
   if (url.startsWith('products/') || url.includes('storage/')) {
       const cleanPath = url.replace('public/', '').replace(/^\/+/, '');
@@ -130,12 +130,10 @@ const extractSlots = (layoutData: FigmaNode[]): Slot[] => {
 
 const RenderStaticLayout = ({ 
     layoutData, 
-    pageBackground, 
-    pageItems 
+    pageBackground
 }: { 
     layoutData: FigmaNode[], 
-    pageBackground: string | null, 
-    pageItems: EditorItem[]
+    pageBackground: string | null
 }) => {
     if (!layoutData || !layoutData[0]) return null;
 
@@ -249,15 +247,17 @@ const EditorPage = () => {
   const [activeRegion, setActiveRegion] = useState<string>("DEFAULT");
   const [regionNames, setRegionNames] = useState<string[]>([]);
   
-  const pages = leaflets[activeRegion] || [];
+  // Memoize pages to avoid re-creation on every render
+  const pages = useMemo(() => leaflets[activeRegion] || [], [leaflets, activeRegion]);
   
-  const setPages = (value: React.SetStateAction<PageWithDimensions[]>) => {
+  // Wrap setPages in useCallback to stabilize it
+  const setPages = useCallback((value: React.SetStateAction<PageWithDimensions[]>) => {
     setLeaflets(prev => {
         const currentPages = prev[activeRegion] || [];
         const updatedPages = typeof value === 'function' ? value(currentPages) : value;
         return { ...prev, [activeRegion]: updatedPages };
     });
-  };
+  }, [activeRegion]);
 
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState(0.25);
@@ -279,9 +279,8 @@ const EditorPage = () => {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragActivePageId, setDragActivePageId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [resizeHandle, setResizeHandle] = useState<string | null>(null);
-  const [initialResizeLayout, setInitialResizeLayout] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
-  const [initialMousePos, setInitialMousePos] = useState<{ x: number; y: number } | null>(null);
+  
+  // States removed: resizeHandle, initialResizeLayout, initialMousePos (Button pada gambar dihapus)
 
   const [generatedBadges, setGeneratedBadges] = useState<Record<string, string>>({});
   const [generatingBadges, setGeneratingBadges] = useState<Record<string, boolean>>({});
@@ -475,9 +474,6 @@ const EditorPage = () => {
     const templateUrl = location.state?.templateUrl;
 
     const initEditor = async () => {
-        // Prioritas loading background:
-        // 1. Dari data history (backendData.template_url)
-        // 2. Dari navigasi pilih template (templateUrl)
         if (backendData?.template_url) {
             setPageBackground(processAssetUrl(backendData.template_url));
         } else if (templateUrl) {
@@ -525,7 +521,6 @@ const EditorPage = () => {
                     if (backendData[firstRegion]?.id) setLeafletId(backendData[firstRegion].id);
                 }
             } else {
-                // Support structure { pages: [...], template_url: ... } or just [...]
                 const pagesData = backendData.pages || (Array.isArray(backendData) ? backendData : []) || backendData.items || [];
                 initLeaflets['DEFAULT'] = parsePagesFromBackend(pagesData);
                 regions.push('DEFAULT');
@@ -692,13 +687,12 @@ const EditorPage = () => {
         const zip = new JSZip();
 
         if (isBulk) {
-            // Skenario 1 & 2: ALL REGIONS
             for (const region of regionNames) {
                 if (region === 'ALL') continue;
                 
                 setDownloadProgress(`Memproses wilayah ${region}...`);
                 setActiveRegion(region);
-                await new Promise(r => setTimeout(r, 1000)); // Tunggu render DOM
+                await new Promise(r => setTimeout(r, 1000)); 
 
                 const currentRegionPages = leaflets[region] || [];
                 const capturedImages = await capturePages(currentRegionPages);
@@ -725,7 +719,6 @@ const EditorPage = () => {
             saveAs(content, `${designName}_ALL_REGIONS.zip`);
 
         } else {
-            // Skenario Single Region
             const currentRegionPages = leaflets[activeRegion] || [];
             const capturedImages = await capturePages(currentRegionPages);
 
@@ -737,12 +730,9 @@ const EditorPage = () => {
                 });
                 doc.save(`${designName}_${activeRegion}.pdf`);
             } else {
-                // JPG/PNG logic
                 if (capturedImages.length === 1) {
-                    // Single Page -> Direct Download
                     saveAs(capturedImages[0], `${designName}_${activeRegion}.${selectedFormat.toLowerCase()}`);
                 } else {
-                    // Multiple Pages -> Zip
                     capturedImages.forEach((imgData, i) => {
                         const base64Data = imgData.split(',')[1];
                         zip.file(`Page_${i + 1}.${selectedFormat.toLowerCase()}`, base64Data, { base64: true });
@@ -829,21 +819,62 @@ const EditorPage = () => {
     setGeneratedBadges(prev => ({...prev, [newItem.id]: generatedBadges[droppedItem.id] || ""}));
   };
 
-  const handleAddText = () => {
-    const targetPageId = selectedPageId || pages[0].id;
-    const newItem: EditorItem = { id: `text-${Date.now()}`, plu: "", type: "text", content: { name: "Teks Baru", price_display: "Rp 0", price_original: 0, show_coret: false, image_url: "", is_bbmu: false, badge_spi: null }, needs_manual_image: false, layout: { x: 100, y: 100, w: 600, h: 200 } };
-    setPages((prev) => prev.map((p) => p.id === targetPageId ? { ...p, items: [...p.items, newItem] } as PageWithDimensions : p));
-    setSelectedItemId(newItem.id);
-  };
+  const handleAddDummyProduct = useCallback(() => {
+    const targetPageId = selectedPageId || pages[0]?.id;
+    const page = pages.find(p => p.id === targetPageId) || pages[0];
+    if (!page) return;
 
-  const handleAddImage = () => {
-    const targetPageId = selectedPageId || pages[0].id;
-    const newItem: EditorItem = { id: `img-${Date.now()}`, plu: "", type: "image", content: { name: "Gambar Baru", price_display: "", price_original: 0, show_coret: false, image_url: "/assets/placeholder.png", is_bbmu: false, badge_spi: null }, needs_manual_image: false, layout: { x: 100, y: 100, w: 400, h: 400 } };
-    setPages((prev) => prev.map((p) => p.id === targetPageId ? { ...p, items: [...p.items, newItem] } as PageWithDimensions : p));
-    setSelectedItemId(newItem.id);
-  };
+    const layoutRef = page.pageNumber === 1 ? LAYOUT_COVER : LAYOUT_INNER;
+    const slots = extractSlots(layoutRef);
 
-  const handleMouseDown = (e: React.MouseEvent, item: EditorItem, pageId: string, handle?: string) => {
+    const emptySlot = slots.find(slot => !page.items.some(item => 
+        Math.abs(item.layout.x - slot.x) < 5 && Math.abs(item.layout.y - slot.y) < 5
+    ));
+
+    if (!emptySlot) {
+        alert("Halaman ini sudah penuh. Silakan tambah halaman baru.");
+        return;
+    }
+
+    const newId = `manual-item-${Date.now()}`;
+    
+    const newItem: EditorItem = {
+      id: newId,
+      plu: "00000",
+      type: "product_card",
+      component_name: "card_cover_master",
+      layout: { x: emptySlot.x, y: emptySlot.y, w: emptySlot.w, h: emptySlot.h },
+      content: {
+        name: "Nama Produk Baru",
+        price_display: "Rp 0",
+        image_url: "/assets/placeholder.png", 
+        img_product: "/assets/placeholder.png",
+        show_coret: false,
+        price_original: 0,
+        txt_coret: "",
+        show_keterangan: false,
+        txt_keterangan: "",
+        is_bbmu: false,
+        badge_igr: { active: false, txt_keterangan_qty_igr: "", txt_satuan_igr: "", txt_price_bonus_igr: "" },
+        badge_spi: { active: false, txt_keterangan_qty_spi: "", txt_satuan_spi: "", txt_price_bonus_spi: "" },
+        badge_promo: { active: false, txt_qty_promo: "", txt_price_promo: "", txt_keterangan_promo: "", txt_satuan: "" }
+      },
+      needs_manual_image: true
+    };
+
+    setPages((prev) => prev.map((p) => {
+        if(p.id === page.id) {
+            return { ...p, items: [...p.items, newItem] };
+        }
+        return p;
+    }));
+
+    generateBadgeForItem(newItem);
+    setSelectedItemId(newItem.id);
+    setSelectedPageId(page.id);
+  }, [pages, selectedPageId, generateBadgeForItem, setPages]);
+
+  const handleMouseDown = (e: React.MouseEvent, item: EditorItem, pageId: string) => {
     e.stopPropagation();
     const currentCanvas = pageRefs.current[pageId];
     if (!item.layout || !currentCanvas) return;
@@ -852,14 +883,8 @@ const EditorPage = () => {
     const canvasRect = currentCanvas.getBoundingClientRect();
     const mouseX = (e.clientX - canvasRect.left) / zoom;
     const mouseY = (e.clientY - canvasRect.top) / zoom;
-    if (handle) {
-      setResizeHandle(handle);
-      setInitialResizeLayout({ ...item.layout });
-      setInitialMousePos({ x: mouseX, y: mouseY });
-    } else {
-      setDraggingId(item.id);
-      setDragOffset({ x: mouseX - item.layout.x, y: mouseY - item.layout.y });
-    }
+    setDraggingId(item.id);
+    setDragOffset({ x: mouseX - item.layout.x, y: mouseY - item.layout.y });
     setDragActivePageId(pageId);
   };
 
@@ -887,39 +912,7 @@ const EditorPage = () => {
           };
         })
       );
-    } else if (resizeHandle && selectedItemId && initialResizeLayout && initialMousePos) {
-      const deltaX = mouseX - initialMousePos.x;
-      const deltaY = mouseY - initialMousePos.y;
-      setPages((prevPages) => prevPages.map((page) => {
-          if (page.id !== dragActivePageId) return page;
-          return {
-            ...page,
-            items: page.items.map((item) => {
-              if (item.id === selectedItemId) {
-                let newX = initialResizeLayout.x;
-                let newY = initialResizeLayout.y;
-                let newW = initialResizeLayout.w;
-                let newH = initialResizeLayout.h;
-                if (resizeHandle.includes("e")) newW = Math.max(10, initialResizeLayout.w + deltaX);
-                if (resizeHandle.includes("s")) newH = Math.max(10, initialResizeLayout.h + deltaY);
-                if (resizeHandle.includes("w")) {
-                  const maxW = initialResizeLayout.x + initialResizeLayout.w;
-                  newW = Math.max(10, initialResizeLayout.w - deltaX);
-                  newX = maxW - newW;
-                }
-                if (resizeHandle.includes("n")) {
-                  const maxH = initialResizeLayout.y + initialResizeLayout.h;
-                  newH = Math.max(10, initialResizeLayout.h - deltaY);
-                  newY = maxH - newH;
-                }
-                return { ...item, layout: { x: newX, y: newY, w: newW, h: newH } };
-              }
-              return item;
-            }),
-          };
-        })
-      );
-    }
+    } 
   };
 
   const handleMouseUp = () => {
@@ -947,9 +940,6 @@ const EditorPage = () => {
         }
     }
     setDraggingId(null);
-    setResizeHandle(null);
-    setInitialResizeLayout(null);
-    setInitialMousePos(null);
     setDragActivePageId(null);
   };
 
@@ -1061,7 +1051,19 @@ const EditorPage = () => {
   };
 
   const activeItem = getSelectedItem();
-  const currentPage = pages.find(p => p.id === selectedPageId) || pages[0] || { width: 2480, height: 3508 };
+  // FIXED: Fallback object now includes 'items' array to prevent crash. Also added useMemo to prevent frequent updates.
+  const currentPage = useMemo(() => {
+     return pages.find(p => p.id === selectedPageId) || pages[0] || { id: "temp-page", pageNumber: 1, width: 2480, height: 3508, items: [] };
+  }, [pages, selectedPageId]);
+
+  const hasEmptySlot = useMemo(() => {
+    if (!currentPage || !currentPage.items) return false;
+    const layoutRef = currentPage.pageNumber === 1 ? LAYOUT_COVER : LAYOUT_INNER;
+    const slots = extractSlots(layoutRef);
+    return slots.some(slot => !currentPage.items.some(item => 
+        Math.abs(item.layout.x - slot.x) < 5 && Math.abs(item.layout.y - slot.y) < 5
+    ));
+  }, [currentPage]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-100 h-screen w-screen overflow-hidden font-sans">
@@ -1088,9 +1090,6 @@ const EditorPage = () => {
           <div className="flex gap-1 items-center bg-slate-100 p-1 rounded-lg">
               <button className="p-2 bg-white shadow-sm rounded-md text-blue-600 hover:text-blue-700" title="Select"><MousePointer2 size={18} /></button>
               <button className="p-2 text-slate-600 hover:bg-white hover:shadow-sm hover:rounded-md transition-all" title="Move Canvas"><Move size={18} /></button>
-              <div className="w-px h-5 bg-slate-300 mx-1"></div>
-              <button onClick={handleAddImage} className="p-2 text-slate-600 hover:bg-white hover:shadow-sm hover:rounded-md transition-all" title="Add Image"><ImageIcon size={18} /></button>
-              <button onClick={handleAddText} className="p-2 text-slate-600 hover:bg-white hover:shadow-sm hover:rounded-md transition-all" title="Add Text"><Type size={18} /></button>
           </div>
           <div className="h-8 w-px bg-slate-200"></div>
           <div className="flex items-center gap-2">
@@ -1237,7 +1236,7 @@ const EditorPage = () => {
                 </div>
                 <div style={{ width: (page.width || 2480) * zoom, height: (page.height || 3508) * zoom, position: "relative" }} className="bg-white shadow-2xl transition-all duration-200 ease-out">
                   <div ref={(el) => { pageRefs.current[page.id] = el; }} className={`bg-white overflow-hidden origin-top-left absolute top-0 left-0 ${selectedPageId === page.id ? "ring-4 ring-blue-500/20" : ""}`} onDragOver={handleCanvasDragOver} onDrop={(e) => handleCanvasDrop(e, page.id)} onClick={() => setSelectedPageId(page.id)} style={{ width: `${page.width || 2480}px`, height: `${page.height || 3508}px`, transform: `scale(${zoom})`, transformOrigin: 'top left', backgroundImage: pageBackground ? `url(${pageBackground})` : undefined, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat' }}>
-                    <RenderStaticLayout layoutData={page.pageNumber === 1 ? LAYOUT_COVER : LAYOUT_INNER} pageBackground={pageBackground} pageItems={page.items} />
+                    <RenderStaticLayout layoutData={page.pageNumber === 1 ? LAYOUT_COVER : LAYOUT_INNER} pageBackground={pageBackground} />
                     {isGridEnabled && <div className="absolute inset-0 grid grid-cols-4 grid-rows-4 divide-x divide-y divide-blue-500/20 pointer-events-none z-50 border border-blue-500/20">{[...Array(16)].map((_, i) => <div key={i}></div>)}</div>}
                     {page.items.map((item: EditorItem) => (
                       <div key={item.id} onMouseDown={(e) => handleMouseDown(e, item, page.id)} className={`absolute select-none group/item cursor-move flex flex-col ${selectedItemId === item.id ? "ring-2 ring-blue-500 z-40 shadow-xl" : "hover:ring-1 hover:ring-blue-300 z-10"}`} style={{ left: item.layout.x, top: item.layout.y, width: item.layout.w, height: item.layout.h }}>
@@ -1255,20 +1254,6 @@ const EditorPage = () => {
                                     {item.content?.image_url && <img src={item.content.image_url} className="max-w-full max-h-full object-contain" />}
                                     {item.type === 'text' && <p className="p-2 text-center">{item.content?.name}</p>}
                                 </div>
-                          )}
-                          
-                          {selectedItemId === item.id && (
-                            <>
-                                <div className="absolute top-0 left-0 w-3 h-3 bg-blue-500 border border-white rounded-full -translate-x-1.5 -translate-y-1.5 cursor-nwse-resize z-50" onMouseDown={(e) => handleMouseDown(e, item, page.id, 'nw')} />
-                                <div className="absolute top-0 right-0 w-3 h-3 bg-blue-500 border border-white rounded-full translate-x-1.5 -translate-y-1.5 cursor-nesw-resize z-50" onMouseDown={(e) => handleMouseDown(e, item, page.id, 'ne')} />
-                                <div className="absolute bottom-0 left-0 w-3 h-3 bg-blue-500 border border-white rounded-full -translate-x-1.5 translate-y-1.5 cursor-nesw-resize z-50" onMouseDown={(e) => handleMouseDown(e, item, page.id, 'sw')} />
-                                <div className="absolute bottom-0 right-0 w-3 h-3 bg-blue-500 border border-white rounded-full translate-x-1.5 translate-y-1.5 cursor-nwse-resize z-50" onMouseDown={(e) => handleMouseDown(e, item, page.id, 'se')} />
-                                
-                                <div className="absolute top-0 left-1/2 w-3 h-3 bg-blue-500 border border-white rounded-full -translate-x-1.5 -translate-y-1.5 cursor-ns-resize z-50" onMouseDown={(e) => handleMouseDown(e, item, page.id, 'n')} />
-                                <div className="absolute bottom-0 left-1/2 w-3 h-3 bg-blue-500 border border-white rounded-full -translate-x-1.5 translate-y-1.5 cursor-ns-resize z-50" onMouseDown={(e) => handleMouseDown(e, item, page.id, 's')} />
-                                <div className="absolute top-1/2 left-0 w-3 h-3 bg-blue-500 border border-white rounded-full -translate-x-1.5 -translate-y-1.5 cursor-ew-resize z-50" onMouseDown={(e) => handleMouseDown(e, item, page.id, 'w')} />
-                                <div className="absolute top-1/2 right-0 w-3 h-3 bg-blue-500 border border-white rounded-full translate-x-1.5 -translate-y-1.5 cursor-ew-resize z-50" onMouseDown={(e) => handleMouseDown(e, item, page.id, 'e')} />
-                            </>
                           )}
                       </div>
                     ))}
@@ -1372,7 +1357,19 @@ const EditorPage = () => {
                 </div>
                 <div className="pt-4 border-t border-slate-200"><button onClick={handleDeleteItem} className="w-full py-2 bg-white text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-50 flex items-center justify-center gap-2"><Trash2 size={14} /> Hapus Item</button></div>
               </div>
-            ) : (<div className="flex flex-col items-center justify-center h-40 text-slate-400 text-xs"><p>Pilih elemen di canvas</p></div>)}
+            ) : (
+                <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4">
+                    <p className="text-xs">Belum ada elemen yang dipilih</p>
+                    {hasEmptySlot && (
+                        <button 
+                            onClick={handleAddDummyProduct}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-md active:scale-95"
+                        >
+                            <PlusSquare size={16} /> Tambah Produk Manual
+                        </button>
+                    )}
+                </div>
+            )}
           </div>
         </aside>
       </div>
