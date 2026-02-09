@@ -18,7 +18,6 @@ import {
   Plus,
   Trash2,
   Copy,
-  Move,
   Grid,
   CheckCircle2,
   ChevronDown,
@@ -247,10 +246,8 @@ const EditorPage = () => {
   const [activeRegion, setActiveRegion] = useState<string>("DEFAULT");
   const [regionNames, setRegionNames] = useState<string[]>([]);
   
-  // Memoize pages to avoid re-creation on every render
   const pages = useMemo(() => leaflets[activeRegion] || [], [leaflets, activeRegion]);
   
-  // Wrap setPages in useCallback to stabilize it
   const setPages = useCallback((value: React.SetStateAction<PageWithDimensions[]>) => {
     setLeaflets(prev => {
         const currentPages = prev[activeRegion] || [];
@@ -280,8 +277,6 @@ const EditorPage = () => {
   const [dragActivePageId, setDragActivePageId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   
-  // States removed: resizeHandle, initialResizeLayout, initialMousePos (Button pada gambar dihapus)
-
   const [generatedBadges, setGeneratedBadges] = useState<Record<string, string>>({});
   const [generatingBadges, setGeneratingBadges] = useState<Record<string, boolean>>({});
 
@@ -1051,7 +1046,7 @@ const EditorPage = () => {
   };
 
   const activeItem = getSelectedItem();
-  // FIXED: Fallback object now includes 'items' array to prevent crash. Also added useMemo to prevent frequent updates.
+  
   const currentPage = useMemo(() => {
      return pages.find(p => p.id === selectedPageId) || pages[0] || { id: "temp-page", pageNumber: 1, width: 2480, height: 3508, items: [] };
   }, [pages, selectedPageId]);
@@ -1087,11 +1082,6 @@ const EditorPage = () => {
           </div>
         </div>
         <div className="flex items-center gap-6">
-          <div className="flex gap-1 items-center bg-slate-100 p-1 rounded-lg">
-              <button className="p-2 bg-white shadow-sm rounded-md text-blue-600 hover:text-blue-700" title="Select"><MousePointer2 size={18} /></button>
-              <button className="p-2 text-slate-600 hover:bg-white hover:shadow-sm hover:rounded-md transition-all" title="Move Canvas"><Move size={18} /></button>
-          </div>
-          <div className="h-8 w-px bg-slate-200"></div>
           <div className="flex items-center gap-2">
             {saveStatus === "saving" && <span className="text-xs text-slate-400 flex items-center gap-1"><Loader2 size={12} className="animate-spin" /> Saving...</span>}
             {saveStatus === "saved" && <span className="text-xs text-green-600 flex items-center gap-1 font-medium"><CheckCircle2 size={12} /> Saved</span>}
