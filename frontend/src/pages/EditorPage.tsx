@@ -9,6 +9,8 @@ import ProductUploadModal from "../components/ProductUploadModal";
 import layoutCoverJson from "../data/layout_cover.json";
 import layoutInnerJson from "../data/layout_inner.json";
 import { getProducts } from "../services/productService";
+import { fetchSmartGridRules } from "../services/smartGridService";
+import { applyAprioriSorting } from "../utils/aprioriSorter";
 import {
   ZoomIn,
   ZoomOut,
@@ -73,6 +75,22 @@ interface Slot {
   y: number;
   w: number;
   h: number;
+}
+
+interface Rule {
+  rule_id: number;
+  antecedent: string;
+  consequent: string;
+  support_percent: string;
+  confidence_percent: string;
+  lift_ratio: string;
+  keterangan: string;
+}
+
+interface AprioriData {
+  isReady: boolean;
+  totalTransactions: number;
+  rules: Rule[];
 }
 
 const LAYOUT_COVER = layoutCoverJson as unknown as FigmaNode[];
@@ -264,6 +282,11 @@ const EditorPage = () => {
   const [leafletId, setLeafletId] = useState<string | undefined>(undefined);
   const [pageBackground, setPageBackground] = useState<string | null>(null);
 
+  const [isSmartGridActive, setIsSmartGridActive] = useState(false);
+  const [showCalcModal, setShowCalcModal] = useState(false);
+  const [aprioriData, setAprioriData] = useState<AprioriData>({ isReady: false, totalTransactions: 0, rules: [] });
+  const originalLeafletsRef = useRef<Record<string, PageWithDimensions[]>>({});
+
   const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(""); 
@@ -285,6 +308,42 @@ const EditorPage = () => {
 
   const downloadMenuRef = useRef<HTMLDivElement>(null);
   const autoSaveTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+      const loadRules = async () => {
+          const data = await fetchSmartGridRules();
+          if (data && data.success) {
+              setAprioriData({
+                  isReady: data.is_smart_grid_active,
+                  totalTransactions: data.total_transactions,
+                  rules: data.rules
+              });
+          }
+      };
+      loadRules();
+  }, []);
+
+  const toggleSmartGrid = () => {
+      const newValue = !isSmartGridActive;
+      setIsSmartGridActive(newValue);
+      if (!newValue) setShowCalcModal(false);
+
+      if (newValue) {
+          originalLeafletsRef.current = JSON.parse(JSON.stringify(leaflets));
+          const newLeaflets = { ...leaflets };
+          Object.keys(newLeaflets).forEach(region => {
+              newLeaflets[region] = newLeaflets[region].map(page => ({
+                  ...page,
+                  items: applyAprioriSorting(page.items, aprioriData.rules)
+              }));
+          });
+          setLeaflets(newLeaflets);
+      } else {
+          if (Object.keys(originalLeafletsRef.current).length > 0) {
+              setLeaflets(originalLeafletsRef.current);
+          }
+      }
+  };
 
   const saveData = useCallback(
     async (status: "draft" | "exported") => {
@@ -318,7 +377,7 @@ const EditorPage = () => {
         if (response && response.id) setLeafletId(response.id);
         setSaveStatus("saved");
       } catch (error) {
-        console.error("Auto-save failed", error);
+        console.error(error);
         setSaveStatus("unsaved");
       }
     },
@@ -339,7 +398,7 @@ const EditorPage = () => {
                 newLeaflets[region] = newLeaflets[region].map(page => ({
                     ...page,
                     items: page.items.map(item => {
-                        const content = item.content as ItemContent;
+                        const content = item.content as unknown as Record<string, string>;
                         if (item.plu === plu_code || content?.plu_code === plu_code) {
                             itemsToUpdate.push(item.id);
                             return {
@@ -350,7 +409,7 @@ const EditorPage = () => {
                                     img_product: newImageUrl
                                 },
                                 needs_manual_image: false
-                            };
+                            } as EditorItem;
                         }
                         return item;
                     })
@@ -399,36 +458,34 @@ const EditorPage = () => {
 
           for (let i = 0; i < currentSlots.length && productIndex < allProducts.length; i++) {
               const slot = currentSlots[i];
-              const itemData = allProducts[productIndex];
+              const itemData = allProducts[productIndex] as unknown as Record<string, unknown>;
               
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const raw = (itemData as any).data || (itemData as any).content || {};
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const componentName = (itemData as any).component_name || "card_cover_master";
+              const raw = (itemData.data || itemData.content || {}) as Record<string, unknown>;
+              const componentName = (itemData.component_name as string) || "card_cover_master";
 
-              const plu = itemData.plu || raw.plu_code || "";
+              const plu = (itemData.plu as string) || (raw.plu_code as string) || "";
               
-              const imgUrl = raw.img_product || raw.image_url || "placeholder.png";
-              const productId = raw.product_id || (typeof raw.id === 'number' ? raw.id : undefined);
+              const imgUrl = (raw.img_product as string) || (raw.image_url as string) || "placeholder.png";
+              const productId = (raw.product_id as number) || (typeof raw.id === 'number' ? raw.id : undefined);
 
-              const hasCoret = raw.show_coret || (raw.txt_coret && raw.txt_coret !== '');
-              const hasKeterangan = !!raw.txt_keterangan;
+              const hasCoret = Boolean(raw.show_coret || (raw.txt_coret && raw.txt_coret !== ''));
+              const hasKeterangan = Boolean(raw.txt_keterangan);
 
               pageItems.push({
-                  id: itemData.id || `auto-item-${productIndex}-${Date.now()}`,
+                  id: (itemData.id as string) || `auto-item-${productIndex}-${Date.now()}`,
                   plu: plu,
-                  type: itemData.type || 'product_card',
+                  type: (itemData.type as string) || 'product_card',
                   component_name: componentName,
                   content: {
                       ...raw,
                       product_id: productId,
-                      name: raw.txt_name || raw.name || "Nama Barang",
-                      price_display: raw.txt_price || raw.price_display || "",
+                      name: (raw.txt_name as string) || (raw.name as string) || "Nama Barang",
+                      price_display: (raw.txt_price as string) || (raw.price_display as string) || "",
                       image_url: processAssetUrl(imgUrl),
                       img_product: processAssetUrl(imgUrl),
                       show_coret: hasCoret,
                       show_keterangan: hasKeterangan
-                  },
+                  } as ItemContent,
                   needs_manual_image: false, 
                   layout: {
                       x: slot.x,
@@ -462,22 +519,23 @@ const EditorPage = () => {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const backendData = location.state?.leafletData as any;
+    const backendData = location.state?.leafletData as Record<string, unknown>;
     const initialName = location.state?.leafletName;
     const storeFromNav = location.state?.storeName;
     const templateUrl = location.state?.templateUrl;
 
     const initEditor = async () => {
         if (backendData?.template_url) {
-            setPageBackground(processAssetUrl(backendData.template_url));
+            setPageBackground(processAssetUrl(backendData.template_url as string));
         } else if (templateUrl) {
             setPageBackground(processAssetUrl(templateUrl));
         }
 
         try {
              await getProducts(); 
-        } catch (error) { console.error(error); }
+        } catch (error) {
+            console.error(error);
+        }
 
         if (backendData) {
             const rawKeys = Object.keys(backendData);
@@ -487,7 +545,7 @@ const EditorPage = () => {
             const regionKeys = rawKeys.filter(k => {
                 const upperK = k.toUpperCase();
                 const isKnown = knownRegions.some(region => upperK.includes(region));
-                const hasContent = backendData[k] && (Array.isArray(backendData[k]) || backendData[k].pages);
+                const hasContent = backendData[k] && (Array.isArray(backendData[k]) || (backendData[k] as Record<string, unknown>).pages);
                 return isKnown && hasContent;
             });
 
@@ -499,7 +557,7 @@ const EditorPage = () => {
             if (isMultiRegion) {
                 regionKeys.forEach(regionKey => {
                     const regionData = backendData[regionKey];
-                    const pagesToParse = Array.isArray(regionData) ? regionData : (regionData.pages || []);
+                    const pagesToParse = Array.isArray(regionData) ? regionData : ((regionData as Record<string, unknown>).pages as BackendPage[] || []);
                     
                     if (pagesToParse && pagesToParse.length > 0) {
                         initLeaflets[regionKey] = parsePagesFromBackend(pagesToParse);
@@ -511,17 +569,18 @@ const EditorPage = () => {
 
                 if (regions.length > 0) {
                     const firstRegion = regions[0];
-                    setDesignName(backendData[firstRegion]?.leaflet_name || initialName || "Leaflet All Regions");
+                    const firstRegionData = backendData[firstRegion] as Record<string, unknown>;
+                    setDesignName((firstRegionData?.leaflet_name as string) || initialName || "Leaflet All Regions");
                     setStoreName("ALL REGIONS");
-                    if (backendData[firstRegion]?.id) setLeafletId(backendData[firstRegion].id);
+                    if (firstRegionData?.id) setLeafletId(firstRegionData.id as string);
                 }
             } else {
-                const pagesData = backendData.pages || (Array.isArray(backendData) ? backendData : []) || backendData.items || [];
+                const pagesData = (backendData.pages as BackendPage[]) || (Array.isArray(backendData) ? backendData : []) || (backendData.items as BackendPage[]) || [];
                 initLeaflets['DEFAULT'] = parsePagesFromBackend(pagesData);
                 regions.push('DEFAULT');
-                setDesignName(initialName || backendData.leaflet_name || "New Leaflet");
-                setStoreName(storeFromNav || backendData.store || "Region");
-                if (backendData.id) setLeafletId(backendData.id);
+                setDesignName(initialName || (backendData.leaflet_name as string) || "New Leaflet");
+                setStoreName(storeFromNav || (backendData.store as string) || "Region");
+                if (backendData.id) setLeafletId(backendData.id as string);
             }
 
             setLeaflets(initLeaflets);
@@ -545,46 +604,46 @@ const EditorPage = () => {
       if (!item.content) return;
       setGeneratingBadges(prev => ({...prev, [item.id]: true}));
       try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const apiData: any = {
+          const apiData: Record<string, unknown> = {
               ...item.content,
               txt_name: item.content.name,
               txt_price: item.content.price_display,
               img_product: item.content.image_url,
               show_coret: item.content.show_coret,
               show_keterangan: item.content.show_keterangan,
-              is_bbmu: item.content.is_bbmu
+              is_bbmu: (item.content as unknown as Record<string, unknown>).is_bbmu
           };
-          if (item.content.badge_igr) {
-             apiData.badge_igr = item.content.badge_igr;
-             if (item.content.badge_igr.active) {
-                apiData.txt_keterangan_qty_igr = item.content.badge_igr.txt_keterangan_qty_igr;
-                apiData.txt_satuan_igr = item.content.badge_igr.txt_satuan_igr;
-                apiData.txt_price_bonus_igr = item.content.badge_igr.txt_price_bonus_igr;
+          const content = item.content as unknown as Record<string, Record<string, unknown>>;
+          if (content.badge_igr) {
+             apiData.badge_igr = content.badge_igr;
+             if (content.badge_igr.active) {
+                apiData.txt_keterangan_qty_igr = content.badge_igr.txt_keterangan_qty_igr;
+                apiData.txt_satuan_igr = content.badge_igr.txt_satuan_igr;
+                apiData.txt_price_bonus_igr = content.badge_igr.txt_price_bonus_igr;
              }
           }
-          if (item.content.badge_spi) {
-             apiData.badge_spi = item.content.badge_spi;
-             if (item.content.badge_spi.active) {
-                apiData.txt_keterangan_qty_spi = item.content.badge_spi.txt_keterangan_qty_spi;
-                apiData.txt_satuan_spi = item.content.badge_spi.txt_satuan_spi;
-                apiData.txt_price_bonus_spi = item.content.badge_spi.txt_price_bonus_spi;
+          if (content.badge_spi) {
+             apiData.badge_spi = content.badge_spi;
+             if (content.badge_spi.active) {
+                apiData.txt_keterangan_qty_spi = content.badge_spi.txt_keterangan_qty_spi;
+                apiData.txt_satuan_spi = content.badge_spi.txt_satuan_spi;
+                apiData.txt_price_bonus_spi = content.badge_spi.txt_price_bonus_spi;
              }
           }
-          if (item.content.badge_promo) {
-             apiData.badge_promo = item.content.badge_promo;
-             if (item.content.badge_promo.active) {
-                apiData.txt_qty_promo = item.content.badge_promo.txt_qty_promo;
-                apiData.txt_price_promo = item.content.badge_promo.txt_price_promo;
-                apiData.txt_keterangan_promo = item.content.badge_promo.txt_keterangan_promo;
-                apiData.txt_satuan = item.content.badge_promo.txt_satuan;
+          if (content.badge_promo) {
+             apiData.badge_promo = content.badge_promo;
+             if (content.badge_promo.active) {
+                apiData.txt_qty_promo = content.badge_promo.txt_qty_promo;
+                apiData.txt_price_promo = content.badge_promo.txt_price_promo;
+                apiData.txt_keterangan_promo = content.badge_promo.txt_keterangan_promo;
+                apiData.txt_satuan = content.badge_promo.txt_satuan;
              }
           }
           const url = await LeafletService.generateBadge(compName, apiData);
           const fullUrl = `${processAssetUrl(url)}?t=${Date.now()}`;
           setGeneratedBadges(prev => ({...prev, [item.id]: fullUrl}));
-      } catch (e) {
-          console.error("Failed to generate badge for item", item.id, e);
+      } catch (error) {
+          console.error(error);
       } finally {
           setGeneratingBadges(prev => {
               const newState = {...prev};
@@ -657,8 +716,8 @@ const EditorPage = () => {
     for (const page of targetPages) {
         const element = pageRefs.current[page.id];
         if (element) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false, allowTaint: true } as any);
+            const options = { scale: 2, useCORS: true, logging: false, allowTaint: true };
+            const canvas = await html2canvas(element, options as Parameters<typeof html2canvas>[1]);
             const imgData = canvas.toDataURL(selectedFormat === "PDF" ? "image/jpeg" : `image/${selectedFormat.toLowerCase()}`, 0.9);
             images.push(imgData);
         }
@@ -740,8 +799,8 @@ const EditorPage = () => {
 
         await saveData("exported");
     } catch (error) {
-        console.error("Download failed:", error);
-        alert("Gagal mengunduh dokumen. Cek console untuk detail.");
+        console.error(error);
+        alert("Gagal mengunduh dokumen.");
     } finally {
         setActiveRegion(originalActiveRegion);
         setZoom(originalZoom);
@@ -951,8 +1010,8 @@ const EditorPage = () => {
             const updatedItems = page.items.map((item) => {
                 if (item.id !== selectedItemId) return item;
                 if (!item.content) return item;
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                return { ...item, content: { ...item.content, [key]: !(item.content as any)[key] } };
+                const contentRecord = item.content as unknown as Record<string, boolean>;
+                return { ...item, content: { ...item.content, [key]: !contentRecord[key] } };
             });
             return { ...page, items: updatedItems as EditorItem[] } as PageWithDimensions;
         })
@@ -966,8 +1025,8 @@ const EditorPage = () => {
             const updatedItems = page.items.map((item) => {
                 if (item.id !== selectedItemId) return item;
                 if (!item.content) return item;
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const currentBadge = (item.content as any)[badgeKey];
+                const contentRecord = item.content as unknown as Record<string, { active?: boolean }>;
+                const currentBadge = contentRecord[badgeKey];
                 const isActive = currentBadge?.active;
                 const defaultBadgeIGR = { active: true, txt_keterangan_qty_igr: "Setiap Pembelian 1", txt_satuan_igr: "Pcs", txt_price_bonus_igr: "BONUS 100" };
                 const defaultBadgeSPI = { active: true, txt_keterangan_qty_spi: "Setiap Pembelian 1", txt_satuan_spi: "Pcs", txt_price_bonus_spi: "Bonus 2.000" };
@@ -1008,8 +1067,8 @@ const EditorPage = () => {
             const updatedItems = page.items.map((item) => {
                 if (item.id !== selectedItemId) return item;
                 if (!item.content) return item;
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const parentObj = (item.content as any)[parentKey] || {};
+                const contentRecord = item.content as unknown as Record<string, Record<string, string>>;
+                const parentObj = contentRecord[parentKey] || {};
                 return { ...item, content: { ...item.content, [parentKey]: { ...parentObj, [childKey]: value } } };
             });
             return { ...page, items: updatedItems as EditorItem[] } as PageWithDimensions;
@@ -1100,6 +1159,29 @@ const EditorPage = () => {
           >
             <Grid size={16} /> Grid
           </button>
+          
+          {aprioriData.isReady && (
+            <div className="flex items-center gap-2 bg-white rounded-lg px-2 py-1.5 border border-slate-200 shadow-sm">
+                <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                        type="checkbox" 
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" 
+                        checked={isSmartGridActive} 
+                        onChange={toggleSmartGrid} 
+                    />
+                    <span className="text-xs font-bold text-slate-700">Grid Cerdas</span>
+                </label>
+                {isSmartGridActive && (
+                    <button 
+                        onClick={() => setShowCalcModal(true)} 
+                        className="px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded text-[10px] font-bold border border-blue-200"
+                    >
+                        Tampilkan Perhitungan
+                    </button>
+                )}
+            </div>
+          )}
+
           <div className="relative" ref={downloadMenuRef}>
             <button onClick={() => setIsDownloadMenuOpen(!isDownloadMenuOpen)} disabled={isDownloading} className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg shadow-slate-200 transition-all transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
               {isDownloading ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
@@ -1296,46 +1378,46 @@ const EditorPage = () => {
                     
                     <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                         <span className="text-xs text-slate-600 font-bold">Label Promo</span>
-                        <button onClick={() => toggleBadge('badge_promo')} className={`text-slate-400 hover:text-blue-600 ${activeItem.content?.badge_promo?.active ? 'text-blue-600' : ''}`}>
-                            {activeItem.content?.badge_promo?.active ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
+                        <button onClick={() => toggleBadge('badge_promo')} className={`text-slate-400 hover:text-blue-600 ${((activeItem.content as unknown as Record<string, { active?: boolean }>).badge_promo)?.active ? 'text-blue-600' : ''}`}>
+                            {((activeItem.content as unknown as Record<string, { active?: boolean }>).badge_promo)?.active ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
                         </button>
                     </div>
-                    {activeItem.content?.badge_promo?.active && (
+                    {((activeItem.content as unknown as Record<string, { active?: boolean }>).badge_promo)?.active && (
                         <div className="grid grid-cols-1 gap-2 pl-2 border-l-2 border-yellow-100 mb-2">
-                            <input type="text" placeholder="Qty (Mis: BELI 2)" className="w-full text-xs border p-1 rounded" value={activeItem.content.badge_promo.txt_qty_promo || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_qty_promo', e.target.value)} />
-                            <input type="text" placeholder="Harga/Ket (Mis: GRATIS)" className="w-full text-xs border p-1 rounded font-bold" value={activeItem.content.badge_promo.txt_price_promo || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_price_promo', e.target.value)} />
-                             <input type="text" placeholder="Ket Bawah (Mis: Produk Serupa)" className="w-full text-xs border p-1 rounded" value={activeItem.content.badge_promo.txt_keterangan_promo || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_keterangan_promo', e.target.value)} />
-                             <input type="text" placeholder="Satuan (Mis: Pcs)" className="w-full text-xs border p-1 rounded" value={activeItem.content.badge_promo.txt_satuan || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_satuan', e.target.value)} />
+                            <input type="text" placeholder="Qty (Mis: BELI 2)" className="w-full text-xs border p-1 rounded" value={((activeItem.content as unknown as Record<string, Record<string, string>>).badge_promo).txt_qty_promo || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_qty_promo', e.target.value)} />
+                            <input type="text" placeholder="Harga/Ket (Mis: GRATIS)" className="w-full text-xs border p-1 rounded font-bold" value={((activeItem.content as unknown as Record<string, Record<string, string>>).badge_promo).txt_price_promo || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_price_promo', e.target.value)} />
+                             <input type="text" placeholder="Ket Bawah (Mis: Produk Serupa)" className="w-full text-xs border p-1 rounded" value={((activeItem.content as unknown as Record<string, Record<string, string>>).badge_promo).txt_keterangan_promo || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_keterangan_promo', e.target.value)} />
+                             <input type="text" placeholder="Satuan (Mis: Pcs)" className="w-full text-xs border p-1 rounded" value={((activeItem.content as unknown as Record<string, Record<string, string>>).badge_promo).txt_satuan || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_satuan', e.target.value)} />
                         </div>
                     )}
 
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-100"><span className="text-xs text-slate-600">Badge BBMU</span><button onClick={() => toggleBooleanProperty('is_bbmu')} className={`text-slate-400 hover:text-blue-600 ${activeItem.content?.is_bbmu ? 'text-blue-600' : ''}`}>{activeItem.content?.is_bbmu ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}</button></div>
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100"><span className="text-xs text-slate-600">Badge BBMU</span><button onClick={() => toggleBooleanProperty('is_bbmu')} className={`text-slate-400 hover:text-blue-600 ${((activeItem.content as unknown as Record<string, boolean>).is_bbmu) ? 'text-blue-600' : ''}`}>{((activeItem.content as unknown as Record<string, boolean>).is_bbmu) ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}</button></div>
 
                     <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                         <span className="text-xs font-bold text-purple-600">Poin IGR</span>
-                        <button onClick={() => toggleBadge('badge_igr')} className={`text-slate-400 hover:text-purple-600 ${activeItem.content?.badge_igr?.active ? 'text-purple-600' : ''}`}>
-                            {activeItem.content?.badge_igr?.active ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
+                        <button onClick={() => toggleBadge('badge_igr')} className={`text-slate-400 hover:text-purple-600 ${((activeItem.content as unknown as Record<string, { active?: boolean }>).badge_igr)?.active ? 'text-purple-600' : ''}`}>
+                            {((activeItem.content as unknown as Record<string, { active?: boolean }>).badge_igr)?.active ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
                         </button>
                     </div>
-                    {activeItem.content?.badge_igr?.active && (
+                    {((activeItem.content as unknown as Record<string, { active?: boolean }>).badge_igr)?.active && (
                          <div className="grid grid-cols-1 gap-2 pl-2 border-l-2 border-purple-100 mb-2">
-                                <input type="text" placeholder="Ket. Qty" className="w-full text-xs border p-1 rounded" value={activeItem.content.badge_igr.txt_keterangan_qty_igr || ""} onChange={(e) => updateNestedContent('badge_igr', 'txt_keterangan_qty_igr', e.target.value)} />
-                                <input type="text" placeholder="Satuan" className="w-full text-xs border p-1 rounded" value={activeItem.content.badge_igr.txt_satuan_igr || ""} onChange={(e) => updateNestedContent('badge_igr', 'txt_satuan_igr', e.target.value)} />
-                                <input type="text" placeholder="Bonus" className="w-full text-xs border p-1 rounded font-bold" value={activeItem.content.badge_igr.txt_price_bonus_igr || ""} onChange={(e) => updateNestedContent('badge_igr', 'txt_price_bonus_igr', e.target.value)} />
+                                <input type="text" placeholder="Ket. Qty" className="w-full text-xs border p-1 rounded" value={((activeItem.content as unknown as Record<string, Record<string, string>>).badge_igr).txt_keterangan_qty_igr || ""} onChange={(e) => updateNestedContent('badge_igr', 'txt_keterangan_qty_igr', e.target.value)} />
+                                <input type="text" placeholder="Satuan" className="w-full text-xs border p-1 rounded" value={((activeItem.content as unknown as Record<string, Record<string, string>>).badge_igr).txt_satuan_igr || ""} onChange={(e) => updateNestedContent('badge_igr', 'txt_satuan_igr', e.target.value)} />
+                                <input type="text" placeholder="Bonus" className="w-full text-xs border p-1 rounded font-bold" value={((activeItem.content as unknown as Record<string, Record<string, string>>).badge_igr).txt_price_bonus_igr || ""} onChange={(e) => updateNestedContent('badge_igr', 'txt_price_bonus_igr', e.target.value)} />
                          </div>
                     )}
 
                     <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                         <span className="text-xs font-bold text-orange-600">Poin SPI</span>
-                        <button onClick={() => toggleBadge('badge_spi')} className={`text-slate-400 hover:text-orange-600 ${activeItem.content?.badge_spi?.active ? 'text-orange-600' : ''}`}>
-                            {activeItem.content?.badge_spi?.active ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
+                        <button onClick={() => toggleBadge('badge_spi')} className={`text-slate-400 hover:text-orange-600 ${((activeItem.content as unknown as Record<string, { active?: boolean }>).badge_spi)?.active ? 'text-orange-600' : ''}`}>
+                            {((activeItem.content as unknown as Record<string, { active?: boolean }>).badge_spi)?.active ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
                         </button>
                     </div>
-                    {activeItem.content?.badge_spi?.active && (
+                    {((activeItem.content as unknown as Record<string, { active?: boolean }>).badge_spi)?.active && (
                          <div className="grid grid-cols-1 gap-2 pl-2 border-l-2 border-orange-100">
-                                <input type="text" placeholder="Ket. Qty" className="w-full text-xs border p-1 rounded" value={activeItem.content.badge_spi.txt_keterangan_qty_spi || ""} onChange={(e) => updateNestedContent('badge_spi', 'txt_keterangan_qty_spi', e.target.value)} />
-                                <input type="text" placeholder="Satuan" className="w-full text-xs border p-1 rounded" value={activeItem.content.badge_spi.txt_satuan_spi || ""} onChange={(e) => updateNestedContent('badge_spi', 'txt_satuan_spi', e.target.value)} />
-                                <input type="text" placeholder="Bonus" className="w-full text-xs border p-1 rounded font-bold" value={activeItem.content.badge_spi.txt_price_bonus_spi || ""} onChange={(e) => updateNestedContent('badge_spi', 'txt_price_bonus_spi', e.target.value)} />
+                                <input type="text" placeholder="Ket. Qty" className="w-full text-xs border p-1 rounded" value={((activeItem.content as unknown as Record<string, Record<string, string>>).badge_spi).txt_keterangan_qty_spi || ""} onChange={(e) => updateNestedContent('badge_spi', 'txt_keterangan_qty_spi', e.target.value)} />
+                                <input type="text" placeholder="Satuan" className="w-full text-xs border p-1 rounded" value={((activeItem.content as unknown as Record<string, Record<string, string>>).badge_spi).txt_satuan_spi || ""} onChange={(e) => updateNestedContent('badge_spi', 'txt_satuan_spi', e.target.value)} />
+                                <input type="text" placeholder="Bonus" className="w-full text-xs border p-1 rounded font-bold" value={((activeItem.content as unknown as Record<string, Record<string, string>>).badge_spi).txt_price_bonus_spi || ""} onChange={(e) => updateNestedContent('badge_spi', 'txt_price_bonus_spi', e.target.value)} />
                          </div>
                     )}
                 </div>
@@ -1369,6 +1451,55 @@ const EditorPage = () => {
         onClose={handleCloseProductModal}
         productToEdit={productToEdit}
       />
+
+      {showCalcModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-3/4 max-w-4xl overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="bg-slate-800 px-6 py-4 flex justify-between items-center text-white shrink-0">
+              <div>
+                <h2 className="text-lg font-bold">Hasil Association Rule Mining (Apriori)</h2>
+                <p className="text-xs text-slate-300 mt-1">Dihitung berdasarkan {aprioriData.totalTransactions} transaksi historis</p>
+              </div>
+              <button onClick={() => setShowCalcModal(false)} className="text-slate-300 hover:text-red-400 text-2xl font-bold">&times;</button>
+            </div>
+            <div className="p-0 overflow-y-auto flex-1">
+              <table className="min-w-full text-left border-collapse">
+                <thead className="sticky top-0 bg-slate-100 z-10 shadow-sm">
+                  <tr className="text-slate-700 text-xs border-b border-slate-200 uppercase tracking-wider">
+                    <th className="py-3 px-4 font-bold">Produk Utama (Antecedent)</th>
+                    <th className="py-3 px-4 font-bold text-blue-600">Rekomendasi (Consequent)</th>
+                    <th className="py-3 px-4 font-bold text-center">Support</th>
+                    <th className="py-3 px-4 font-bold text-center">Confidence</th>
+                    <th className="py-3 px-4 font-bold text-center">Lift Ratio</th>
+                    <th className="py-3 px-4 font-bold text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="text-sm text-slate-700">
+                  {aprioriData.rules.map((rule: Rule) => (
+                    <tr key={rule.rule_id} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="py-3 px-4 font-medium">{rule.antecedent}</td>
+                      <td className="py-3 px-4 font-bold text-blue-600">+ {rule.consequent}</td>
+                      <td className="py-3 px-4 text-center">{rule.support_percent}</td>
+                      <td className="py-3 px-4 text-center">{rule.confidence_percent}</td>
+                      <td className="py-3 px-4 text-center font-mono font-bold text-slate-900">{rule.lift_ratio}</td>
+                      <td className="py-3 px-4 text-center">
+                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${parseFloat(rule.lift_ratio) > 1 ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>
+                          {rule.keterangan}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end shrink-0">
+              <button onClick={() => setShowCalcModal(false)} className="px-6 py-2 bg-slate-700 hover:bg-slate-800 text-white text-sm font-bold rounded transition-colors shadow-sm">
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

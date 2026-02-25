@@ -5,10 +5,10 @@ import {
   deactivateUser,
   activateUser,
   addUser,
-  resetSimulationData,
+  // resetSimulationData dihapus dari sini
   adminResetUserPassword,
 } from "../services/userService";
-import { PlusCircle, RefreshCw, Pencil } from "lucide-react";
+import { PlusCircle, Pencil } from "lucide-react"; // RefreshCw dihapus karena tidak dipakai
 import AlertModal from "../components/AlertModal";
 import AdminResetPasswordModal from "../components/AdminResetPasswordModal";
 
@@ -152,38 +152,7 @@ const ManajemenAkunPage = () => {
     }
   };
 
-  const handleResetDataClick = () => {
-    setAlertState({
-      isOpen: true,
-      title: "Konfirmasi Reset Data",
-      message:
-        "Ini akan menghapus SEMUA data produk, leaflet, template, dan riwayat aktivitas dashboard. Akun pengguna tidak akan dihapus. Lanjutkan?",
-      type: "confirm",
-      onConfirm: handleResetData,
-    });
-  };
-
-  const handleResetData = async () => {
-    try {
-      const response = await resetSimulationData();
-      setAlertState({
-        isOpen: true,
-        title: "Sukses",
-        message: response.message,
-        type: "success",
-      });
-      fetchUsers();
-      // Dispatch event agar komponen Dashboard (jika sedang mount) me-refresh datanya
-      window.dispatchEvent(new CustomEvent("productAdded")); 
-    } catch {
-      setAlertState({
-        isOpen: true,
-        title: "Error",
-        message: "Gagal mereset data.",
-        type: "error",
-      });
-    }
-  };
+  // Fungsi handleResetDataClick dan handleResetData telah dihapus
 
   const handleOpenResetModal = (user: User) => {
     setSelectedUser(user);
@@ -231,13 +200,7 @@ const ManajemenAkunPage = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleResetDataClick}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
-            >
-              <RefreshCw size={16} />
-              <span>Reset Data (Dev)</span>
-            </button>
+            {/* Tombol Reset Data (Dev) telah dihapus dari sini */}
             <button
               onClick={() => setIsModalOpen(true)}
               className="flex items-center gap-2 px-4 py-2 font-semibold text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors shadow"

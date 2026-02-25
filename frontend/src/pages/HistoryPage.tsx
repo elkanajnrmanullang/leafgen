@@ -68,9 +68,7 @@ const HistoryPage = () => {
 
   const handleDelete = async (id: number) => {
     if (confirm("Apakah Anda yakin ingin menghapus riwayat ini?")) {
-      // Optimistic update
       setHistoryData((prev) => prev.filter((item) => item.id !== id));
-      // TODO: Panggil API delete jika tersedia di service
     }
   };
 
