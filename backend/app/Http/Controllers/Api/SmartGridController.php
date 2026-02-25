@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AssociationRule;
-use App\Models\Leaflet;
 use App\Services\AprioriService;
 use Illuminate\Http\Request;
 
@@ -23,7 +22,7 @@ class SmartGridController extends Controller
 
         if (!$status['is_ready']) {
             return response()->json([
-                'success' => false,
+                'success' => true,
                 'is_smart_grid_active' => false,
                 'total_transactions' => $status['total_data'],
                 'message' => $status['message'],

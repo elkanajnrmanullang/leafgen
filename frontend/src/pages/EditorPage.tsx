@@ -33,7 +33,8 @@ import {
   FolderOpen,
   Map as MapIcon,
   Globe,
-  PlusSquare
+  PlusSquare,
+  AlertTriangle
 } from "lucide-react";
 
 import type {
@@ -284,6 +285,7 @@ const EditorPage = () => {
 
   const [isSmartGridActive, setIsSmartGridActive] = useState(false);
   const [showCalcModal, setShowCalcModal] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
   const [aprioriData, setAprioriData] = useState<AprioriData>({ isReady: false, totalTransactions: 0, rules: [] });
   const originalLeafletsRef = useRef<Record<string, PageWithDimensions[]>>({});
 
@@ -312,19 +314,24 @@ const EditorPage = () => {
   useEffect(() => {
       const loadRules = async () => {
           const data = await fetchSmartGridRules();
-          if (data && data.success) {
+          if (data) {
               setAprioriData({
-                  isReady: data.is_smart_grid_active,
-                  totalTransactions: data.total_transactions,
-                  rules: data.rules
+                  isReady: data.is_smart_grid_active === true,
+                  totalTransactions: data.total_transactions || 0,
+                  rules: data.rules || []
               });
           }
       };
       loadRules();
   }, []);
 
-  const toggleSmartGrid = () => {
-      const newValue = !isSmartGridActive;
+  const handleSmartGridToggleClick = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (!aprioriData.isReady) {
+          setShowWarningModal(true);
+          return;
+      }
+      
+      const newValue = e.target.checked;
       setIsSmartGridActive(newValue);
       if (!newValue) setShowCalcModal(false);
 
@@ -1160,27 +1167,25 @@ const EditorPage = () => {
             <Grid size={16} /> Grid
           </button>
           
-          {aprioriData.isReady && (
-            <div className="flex items-center gap-2 bg-white rounded-lg px-2 py-1.5 border border-slate-200 shadow-sm">
-                <label className="flex items-center gap-2 cursor-pointer">
-                    <input 
-                        type="checkbox" 
-                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" 
-                        checked={isSmartGridActive} 
-                        onChange={toggleSmartGrid} 
-                    />
-                    <span className="text-xs font-bold text-slate-700">Grid Cerdas</span>
-                </label>
-                {isSmartGridActive && (
-                    <button 
-                        onClick={() => setShowCalcModal(true)} 
-                        className="px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded text-[10px] font-bold border border-blue-200"
-                    >
-                        Tampilkan Perhitungan
-                    </button>
-                )}
-            </div>
-          )}
+          <div className="flex items-center gap-2 bg-white rounded-lg px-2 py-1.5 border border-slate-200 shadow-sm">
+              <label className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                      type="checkbox" 
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer" 
+                      checked={isSmartGridActive} 
+                      onChange={handleSmartGridToggleClick} 
+                  />
+                  <span className="text-xs font-bold text-slate-700">Grid Cerdas</span>
+              </label>
+              {isSmartGridActive && aprioriData.isReady && (
+                  <button 
+                      onClick={() => setShowCalcModal(true)} 
+                      className="px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded text-[10px] font-bold border border-blue-200 transition-colors"
+                  >
+                      Tampilkan Perhitungan
+                  </button>
+              )}
+          </div>
 
           <div className="relative" ref={downloadMenuRef}>
             <button onClick={() => setIsDownloadMenuOpen(!isDownloadMenuOpen)} disabled={isDownloading} className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg shadow-slate-200 transition-all transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
@@ -1453,14 +1458,14 @@ const EditorPage = () => {
       />
 
       {showCalcModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-3/4 max-w-4xl overflow-hidden flex flex-col max-h-[80vh]">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-11/12 max-w-4xl overflow-hidden flex flex-col max-h-[80vh] animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-slate-800 px-6 py-4 flex justify-between items-center text-white shrink-0">
               <div>
                 <h2 className="text-lg font-bold">Hasil Association Rule Mining (Apriori)</h2>
                 <p className="text-xs text-slate-300 mt-1">Dihitung berdasarkan {aprioriData.totalTransactions} transaksi historis</p>
               </div>
-              <button onClick={() => setShowCalcModal(false)} className="text-slate-300 hover:text-red-400 text-2xl font-bold">&times;</button>
+              <button onClick={() => setShowCalcModal(false)} className="text-slate-300 hover:text-red-400 text-2xl font-bold transition-colors">&times;</button>
             </div>
             <div className="p-0 overflow-y-auto flex-1">
               <table className="min-w-full text-left border-collapse">
@@ -1476,7 +1481,7 @@ const EditorPage = () => {
                 </thead>
                 <tbody className="text-sm text-slate-700">
                   {aprioriData.rules.map((rule: Rule) => (
-                    <tr key={rule.rule_id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <tr key={rule.rule_id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                       <td className="py-3 px-4 font-medium">{rule.antecedent}</td>
                       <td className="py-3 px-4 font-bold text-blue-600">+ {rule.consequent}</td>
                       <td className="py-3 px-4 text-center">{rule.support_percent}</td>
@@ -1489,15 +1494,52 @@ const EditorPage = () => {
                       </td>
                     </tr>
                   ))}
+                  {aprioriData.rules.length === 0 && (
+                      <tr>
+                          <td colSpan={6} className="py-8 text-center text-slate-500 italic">
+                              Belum ada aturan asosiasi yang ditemukan dari data transaksi saat ini.
+                          </td>
+                      </tr>
+                  )}
                 </tbody>
               </table>
             </div>
             <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end shrink-0">
-              <button onClick={() => setShowCalcModal(false)} className="px-6 py-2 bg-slate-700 hover:bg-slate-800 text-white text-sm font-bold rounded transition-colors shadow-sm">
+              <button onClick={() => setShowCalcModal(false)} className="px-6 py-2 bg-slate-700 hover:bg-slate-800 text-white text-sm font-bold rounded-lg transition-colors shadow-sm active:scale-95">
                 Tutup
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {showWarningModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl w-[400px] overflow-hidden flex flex-col animate-in zoom-in-95">
+                <div className="p-6 text-center flex flex-col items-center">
+                    <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                        <AlertTriangle size={32} strokeWidth={2.5} />
+                    </div>
+                    <h2 className="text-xl font-extrabold text-slate-800 mb-2">Fitur Belum Tersedia</h2>
+                    <p className="text-sm text-slate-600 mb-2 leading-relaxed">
+                        Sistem <span className="font-bold text-blue-600">Grid Cerdas</span> membutuhkan minimal <b className="text-slate-800">80</b> desain leaflet yang sudah selesai (transaksi) untuk dapat mempelajari pola penempatan produk dengan akurat menggunakan algoritma AI.
+                    </p>
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 w-full mt-2">
+                        <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Status Saat Ini</p>
+                        <p className="text-lg font-mono font-bold text-slate-800">
+                            {aprioriData.totalTransactions} <span className="text-sm text-slate-500 font-sans font-normal">/ 80 Transaksi</span>
+                        </p>
+                    </div>
+                </div>
+                <div className="bg-slate-50 px-6 py-4 flex justify-center border-t border-slate-200">
+                    <button 
+                        onClick={() => setShowWarningModal(false)}
+                        className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors shadow-md active:scale-95"
+                    >
+                        Saya Mengerti
+                    </button>
+                </div>
+            </div>
         </div>
       )}
     </div>

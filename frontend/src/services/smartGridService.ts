@@ -15,4 +15,4 @@ export const fetchSmartGridRules = async () => {
         console.error(error);
         return { success: false, is_smart_grid_active: false, rules: [] };
     }
-};
+};  

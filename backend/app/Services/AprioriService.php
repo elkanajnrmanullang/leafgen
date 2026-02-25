@@ -14,7 +14,7 @@ class AprioriService
 
     public function checkSystemStatus()
     {
-        $totalTransactions = Leaflet::count();
+        $totalTransactions = Leaflet::where('status', 'exported')->count();
 
         if ($totalTransactions < $this->minimum_transactions) {
             return [
@@ -40,13 +40,19 @@ class AprioriService
         }
 
         $transactions = [];
-        $leafletItems = DB::table('leaflet_items')->get();
+        $leafletItems = DB::table('leaflet_items')
+            ->join('leaflets', 'leaflet_items.leaflet_id', '=', 'leaflets.id')
+            ->where('leaflets.status', 'exported')
+            ->select('leaflet_items.leaflet_id', 'leaflet_items.product_name')
+            ->get();
 
         foreach ($leafletItems as $item) {
             $transactions[$item->leaflet_id][] = $item->product_name;
         }
 
         $totalTransactions = count($transactions);
+        if ($totalTransactions == 0) return false;
+
         $itemCounts = [];
 
         foreach ($transactions as $transaction) {
