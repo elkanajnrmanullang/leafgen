@@ -12,38 +12,11 @@ import { getProducts } from "../services/productService";
 import { fetchSmartGridRules } from "../services/smartGridService";
 import { applyAprioriSorting } from "../utils/aprioriSorter";
 import {
-  ZoomIn,
-  ZoomOut,
-  Layers,
-  MousePointer2,
-  ArrowLeft,
-  Plus,
-  Trash2,
-  Copy,
-  Grid,
-  CheckCircle2,
-  ChevronDown,
-  FileText,
-  Image as ImageIcon,
-  Loader2,
-  Download,
-  ToggleLeft,
-  ToggleRight,
-  RefreshCw,
-  FolderOpen,
-  Map as MapIcon,
-  Globe,
-  PlusSquare,
-  AlertTriangle
+  ZoomIn, ZoomOut, Layers, MousePointer2, ArrowLeft, Plus, Trash2, Copy, Grid, 
+  CheckCircle2, ChevronDown, FileText, Image as ImageIcon, Loader2, Download, 
+  ToggleLeft, ToggleRight, RefreshCw, FolderOpen, Map as MapIcon, Globe, PlusSquare
 } from "lucide-react";
-
-import type {
-  LeafletPage,
-  EditorItem,
-  BackendPage,
-  BackendItem,
-  ItemContent
-} from "../types";
+import type { LeafletPage, EditorItem, BackendPage, BackendItem, ItemContent } from "../types";
 
 interface FigmaNode {
   id: string;
@@ -88,10 +61,25 @@ interface Rule {
   keterangan: string;
 }
 
+interface AprioriStepRule {
+  rule: string;
+  support_A_B: number;
+  confidence: number;
+  lift_ratio: number;
+  is_valid: boolean;
+}
+
+interface AprioriSteps {
+  rules_calculation: AprioriStepRule[];
+  min_support: number;
+  min_confidence: number;
+}
+
 interface AprioriData {
   isReady: boolean;
   totalTransactions: number;
   rules: Rule[];
+  steps?: AprioriSteps | null;
 }
 
 const LAYOUT_COVER = layoutCoverJson as unknown as FigmaNode[];
@@ -115,9 +103,7 @@ const processAssetUrl = (url: string | null | undefined): string => {
 
 const extractSlots = (layoutData: FigmaNode[]): Slot[] => {
     if (!layoutData || !layoutData[0]) return [];
-    
     const parentBox = layoutData[0].absoluteBoundingBox;
-    
     const flattenChildren = (nodes: FigmaNode[]): FigmaNode[] => {
         let result: FigmaNode[] = [];
         nodes.forEach(node => {
@@ -146,13 +132,7 @@ const extractSlots = (layoutData: FigmaNode[]): Slot[] => {
     }));
 };
 
-const RenderStaticLayout = ({ 
-    layoutData, 
-    pageBackground
-}: { 
-    layoutData: FigmaNode[], 
-    pageBackground: string | null
-}) => {
+const RenderStaticLayout = ({ layoutData, pageBackground }: { layoutData: FigmaNode[], pageBackground: string | null }) => {
     if (!layoutData || !layoutData[0]) return null;
 
     const parentBox = layoutData[0].absoluteBoundingBox;
@@ -192,15 +172,9 @@ const RenderStaticLayout = ({
         } else if (node.type === "TEXT") {
                 content = (
                 <div style={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: node.fills?.[0]?.color ? `rgb(${Math.round(node.fills[0].color.r * 255)}, ${Math.round(node.fills[0].color.g * 255)}, ${Math.round(node.fills[0].color.b * 255)})` : '#000',
-                    fontSize: `${(node.fontSize || 40) * 0.8}px`,
-                    fontWeight: 'bold',
-                    textAlign: 'center'
+                    fontSize: `${(node.fontSize || 40) * 0.8}px`, fontWeight: 'bold', textAlign: 'center'
                 }}>
                     {node.characters || ""}
                 </div>
@@ -212,12 +186,7 @@ const RenderStaticLayout = ({
                 const g = Math.round(color.g * 255);
                 const b = Math.round(color.b * 255);
                 content = (
-                    <div style={{ 
-                        width: '100%', 
-                        height: '100%', 
-                        backgroundColor: `rgb(${r},${g},${b})`,
-                        opacity: node.opacity ?? 1
-                    }} />
+                    <div style={{ width: '100%', height: '100%', backgroundColor: `rgb(${r},${g},${b})`, opacity: node.opacity ?? 1 }} />
                 );
             }
         }
@@ -227,17 +196,7 @@ const RenderStaticLayout = ({
         }
 
         return (
-            <div 
-                key={node.id}
-                style={{
-                    position: 'absolute',
-                    left: `${left}px`,
-                    top: `${top}px`,
-                    width: `${width}px`,
-                    height: `${height}px`,
-                    zIndex: 0
-                }}
-            >
+            <div key={node.id} style={{ position: 'absolute', left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px`, zIndex: 0 }}>
                 {content}
             </div>
         );
@@ -285,8 +244,7 @@ const EditorPage = () => {
 
   const [isSmartGridActive, setIsSmartGridActive] = useState(false);
   const [showCalcModal, setShowCalcModal] = useState(false);
-  const [showWarningModal, setShowWarningModal] = useState(false);
-  const [aprioriData, setAprioriData] = useState<AprioriData>({ isReady: false, totalTransactions: 0, rules: [] });
+  const [aprioriData, setAprioriData] = useState<AprioriData>({ isReady: true, totalTransactions: 0, rules: [] });
   const originalLeafletsRef = useRef<Record<string, PageWithDimensions[]>>({});
 
   const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
@@ -311,26 +269,23 @@ const EditorPage = () => {
   const downloadMenuRef = useRef<HTMLDivElement>(null);
   const autoSaveTimerRef = useRef<number | null>(null);
 
+  const reloadSmartGridData = useCallback(async () => {
+      const data = await fetchSmartGridRules(activeRegion);
+      if (data) {
+          setAprioriData({
+              isReady: true,
+              totalTransactions: data.total_transactions || 0,
+              rules: data.rules || [],
+              steps: data.steps || null
+          });
+      }
+  }, [activeRegion]);
+
   useEffect(() => {
-      const loadRules = async () => {
-          const data = await fetchSmartGridRules();
-          if (data) {
-              setAprioriData({
-                  isReady: data.is_smart_grid_active === true,
-                  totalTransactions: data.total_transactions || 0,
-                  rules: data.rules || []
-              });
-          }
-      };
-      loadRules();
-  }, []);
+      reloadSmartGridData();
+  }, [reloadSmartGridData]);
 
   const handleSmartGridToggleClick = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (!aprioriData.isReady) {
-          setShowWarningModal(true);
-          return;
-      }
-      
       const newValue = e.target.checked;
       setIsSmartGridActive(newValue);
       if (!newValue) setShowCalcModal(false);
@@ -338,11 +293,26 @@ const EditorPage = () => {
       if (newValue) {
           originalLeafletsRef.current = JSON.parse(JSON.stringify(leaflets));
           const newLeaflets = { ...leaflets };
+
           Object.keys(newLeaflets).forEach(region => {
-              newLeaflets[region] = newLeaflets[region].map(page => ({
-                  ...page,
-                  items: applyAprioriSorting(page.items, aprioriData.rules)
-              }));
+              newLeaflets[region] = newLeaflets[region].map(page => {
+                  const sortedItems = applyAprioriSorting(page.items, aprioriData.rules);
+                  const layoutRef = page.pageNumber === 1 ? LAYOUT_COVER : LAYOUT_INNER;
+                  const slots = extractSlots(layoutRef);
+
+                  const plottedItems = sortedItems.map((item, index) => {
+                      const targetSlot = slots[index];
+                      if (targetSlot) {
+                          return {
+                              ...item,
+                              layout: { x: targetSlot.x, y: targetSlot.y, w: targetSlot.w, h: targetSlot.h }
+                          };
+                      }
+                      return item;
+                  });
+
+                  return { ...page, items: plottedItems };
+              });
           });
           setLeaflets(newLeaflets);
       } else {
@@ -383,12 +353,16 @@ const EditorPage = () => {
         
         if (response && response.id) setLeafletId(response.id);
         setSaveStatus("saved");
+        
+        if (status === "exported") {
+             await reloadSmartGridData();
+        }
       } catch (error) {
         console.error(error);
         setSaveStatus("unsaved");
       }
     },
-    [designName, storeName, leaflets, leafletId, regionNames, pageBackground]
+    [designName, storeName, leaflets, leafletId, regionNames, pageBackground, reloadSmartGridData]
   );
 
   useEffect(() => {
@@ -1177,7 +1151,7 @@ const EditorPage = () => {
                   />
                   <span className="text-xs font-bold text-slate-700">Grid Cerdas</span>
               </label>
-              {isSmartGridActive && aprioriData.isReady && (
+              {isSmartGridActive && (
                   <button 
                       onClick={() => setShowCalcModal(true)} 
                       className="px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded text-[10px] font-bold border border-blue-200 transition-colors"
@@ -1323,7 +1297,6 @@ const EditorPage = () => {
                                 ) : (
                                     <div className="w-full h-full bg-slate-50 border border-slate-200 flex flex-col items-center justify-center animate-pulse">
                                         <Loader2 className="animate-spin text-slate-300 mb-2" />
-                                        <span className="text-xs text-slate-400">Generating Badge...</span>
                                     </div>
                                 )
                           ) : (
@@ -1355,7 +1328,6 @@ const EditorPage = () => {
                     <button onClick={handleOpenBankGambar} className="w-full flex items-center justify-center px-4 py-2 border border-slate-300 rounded-lg shadow-sm text-xs font-medium text-slate-700 bg-white hover:bg-slate-50">
                         <FolderOpen className="w-4 h-4 mr-2" /> Ganti dari Bank Gambar
                     </button>
-                    <p className="text-[10px] text-slate-400 mt-1 text-center">Gambar akan otomatis terupdate di Bank Gambar</p>
                 </div>
 
                 <div className="pt-4 border-t border-slate-200 space-y-3">
@@ -1389,10 +1361,10 @@ const EditorPage = () => {
                     </div>
                     {((activeItem.content as unknown as Record<string, { active?: boolean }>).badge_promo)?.active && (
                         <div className="grid grid-cols-1 gap-2 pl-2 border-l-2 border-yellow-100 mb-2">
-                            <input type="text" placeholder="Qty (Mis: BELI 2)" className="w-full text-xs border p-1 rounded" value={((activeItem.content as unknown as Record<string, Record<string, string>>).badge_promo).txt_qty_promo || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_qty_promo', e.target.value)} />
-                            <input type="text" placeholder="Harga/Ket (Mis: GRATIS)" className="w-full text-xs border p-1 rounded font-bold" value={((activeItem.content as unknown as Record<string, Record<string, string>>).badge_promo).txt_price_promo || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_price_promo', e.target.value)} />
-                             <input type="text" placeholder="Ket Bawah (Mis: Produk Serupa)" className="w-full text-xs border p-1 rounded" value={((activeItem.content as unknown as Record<string, Record<string, string>>).badge_promo).txt_keterangan_promo || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_keterangan_promo', e.target.value)} />
-                             <input type="text" placeholder="Satuan (Mis: Pcs)" className="w-full text-xs border p-1 rounded" value={((activeItem.content as unknown as Record<string, Record<string, string>>).badge_promo).txt_satuan || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_satuan', e.target.value)} />
+                            <input type="text" placeholder="Qty" className="w-full text-xs border p-1 rounded" value={((activeItem.content as unknown as Record<string, Record<string, string>>).badge_promo).txt_qty_promo || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_qty_promo', e.target.value)} />
+                            <input type="text" placeholder="Harga/Ket" className="w-full text-xs border p-1 rounded font-bold" value={((activeItem.content as unknown as Record<string, Record<string, string>>).badge_promo).txt_price_promo || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_price_promo', e.target.value)} />
+                             <input type="text" placeholder="Ket Bawah" className="w-full text-xs border p-1 rounded" value={((activeItem.content as unknown as Record<string, Record<string, string>>).badge_promo).txt_keterangan_promo || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_keterangan_promo', e.target.value)} />
+                             <input type="text" placeholder="Satuan" className="w-full text-xs border p-1 rounded" value={((activeItem.content as unknown as Record<string, Record<string, string>>).badge_promo).txt_satuan || ""} onChange={(e) => updateNestedContent('badge_promo', 'txt_satuan', e.target.value)} />
                         </div>
                     )}
 
@@ -1459,51 +1431,56 @@ const EditorPage = () => {
 
       {showCalcModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-11/12 max-w-4xl overflow-hidden flex flex-col max-h-[80vh] animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-11/12 max-w-4xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-slate-800 px-6 py-4 flex justify-between items-center text-white shrink-0">
               <div>
-                <h2 className="text-lg font-bold">Hasil Association Rule Mining (Apriori)</h2>
-                <p className="text-xs text-slate-300 mt-1">Dihitung berdasarkan {aprioriData.totalTransactions} transaksi historis</p>
+                <h2 className="text-lg font-bold">Perhitungan Algoritma Apriori</h2>
+                <p className="text-xs text-slate-300 mt-1">
+                    Dihitung berdasarkan {aprioriData.totalTransactions} transaksi historis 
+                    (Min. Support: {(aprioriData.steps?.min_support || 0.01) * 100}%, Min. Confidence: {(aprioriData.steps?.min_confidence || 0.1) * 100}%)
+                </p>
               </div>
               <button onClick={() => setShowCalcModal(false)} className="text-slate-300 hover:text-red-400 text-2xl font-bold transition-colors">&times;</button>
             </div>
-            <div className="p-0 overflow-y-auto flex-1">
-              <table className="min-w-full text-left border-collapse">
-                <thead className="sticky top-0 bg-slate-100 z-10 shadow-sm">
-                  <tr className="text-slate-700 text-xs border-b border-slate-200 uppercase tracking-wider">
-                    <th className="py-3 px-4 font-bold">Produk Utama (Antecedent)</th>
-                    <th className="py-3 px-4 font-bold text-blue-600">Rekomendasi (Consequent)</th>
-                    <th className="py-3 px-4 font-bold text-center">Support</th>
-                    <th className="py-3 px-4 font-bold text-center">Confidence</th>
-                    <th className="py-3 px-4 font-bold text-center">Lift Ratio</th>
-                    <th className="py-3 px-4 font-bold text-center">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm text-slate-700">
-                  {aprioriData.rules.map((rule: Rule) => (
-                    <tr key={rule.rule_id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                      <td className="py-3 px-4 font-medium">{rule.antecedent}</td>
-                      <td className="py-3 px-4 font-bold text-blue-600">+ {rule.consequent}</td>
-                      <td className="py-3 px-4 text-center">{rule.support_percent}</td>
-                      <td className="py-3 px-4 text-center">{rule.confidence_percent}</td>
-                      <td className="py-3 px-4 text-center font-mono font-bold text-slate-900">{rule.lift_ratio}</td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${parseFloat(rule.lift_ratio) > 1 ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>
-                          {rule.keterangan}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {aprioriData.rules.length === 0 && (
-                      <tr>
-                          <td colSpan={6} className="py-8 text-center text-slate-500 italic">
-                              Belum ada aturan asosiasi yang ditemukan dari data transaksi saat ini.
-                          </td>
+
+            <div className="p-0 overflow-y-auto flex-1 bg-white">
+                  <table className="min-w-full text-left border-collapse">
+                    <thead className="sticky top-0 bg-slate-100 z-10 shadow-sm">
+                      <tr className="text-slate-700 text-xs border-b border-slate-200 uppercase tracking-wider">
+                        <th className="py-3 px-4 font-bold">Aturan (Rule)</th>
+                        <th className="py-3 px-4 font-bold text-center">Support (AUB)</th>
+                        <th className="py-3 px-4 font-bold text-center">Confidence</th>
+                        <th className="py-3 px-4 font-bold text-center">Lift Ratio</th>
+                        <th className="py-3 px-4 font-bold text-center">Status</th>
                       </tr>
-                  )}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody className="text-sm text-slate-700">
+                        {aprioriData.steps?.rules_calculation && aprioriData.steps.rules_calculation.length > 0 ? (
+                            aprioriData.steps.rules_calculation.map((r: AprioriStepRule, i: number) => (
+                                <tr key={i} className={`border-b transition-colors ${r.is_valid ? 'border-slate-100 hover:bg-slate-50' : 'bg-red-50/30 border-red-100 text-slate-500'}`}>
+                                    <td className="py-3 px-4 font-bold">{r.rule}</td>
+                                    <td className="py-3 px-4 text-center font-mono">{(r.support_A_B * 100).toFixed(1)}%</td>
+                                    <td className="py-3 px-4 text-center font-mono font-bold text-blue-600">{(r.confidence * 100).toFixed(1)}%</td>
+                                    <td className="py-3 px-4 text-center font-mono font-bold text-purple-600">{r.lift_ratio.toFixed(2)}</td>
+                                    <td className="py-3 px-4 text-center">
+                                        {r.is_valid 
+                                            ? <span className="px-2 py-1 rounded text-[10px] font-bold bg-green-100 text-green-700">Valid</span>
+                                            : <span className="px-2 py-1 rounded text-[10px] font-bold bg-red-100 text-red-700">Tidak Valid</span>
+                                        }
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan={5} className="py-12 text-center">
+                                    <p className="text-slate-500 font-medium">Belum ada aturan yang memenuhi syarat minimum support.</p>
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                  </table>
             </div>
+            
             <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end shrink-0">
               <button onClick={() => setShowCalcModal(false)} className="px-6 py-2 bg-slate-700 hover:bg-slate-800 text-white text-sm font-bold rounded-lg transition-colors shadow-sm active:scale-95">
                 Tutup
@@ -1512,38 +1489,8 @@ const EditorPage = () => {
           </div>
         </div>
       )}
-
-      {showWarningModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-2xl w-[400px] overflow-hidden flex flex-col animate-in zoom-in-95">
-                <div className="p-6 text-center flex flex-col items-center">
-                    <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mb-4 shadow-inner">
-                        <AlertTriangle size={32} strokeWidth={2.5} />
-                    </div>
-                    <h2 className="text-xl font-extrabold text-slate-800 mb-2">Fitur Belum Tersedia</h2>
-                    <p className="text-sm text-slate-600 mb-2 leading-relaxed">
-                        Sistem <span className="font-bold text-blue-600">Grid Cerdas</span> membutuhkan minimal <b className="text-slate-800">80</b> desain leaflet yang sudah selesai (transaksi) untuk dapat mempelajari pola penempatan produk dengan akurat menggunakan algoritma AI.
-                    </p>
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 w-full mt-2">
-                        <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Status Saat Ini</p>
-                        <p className="text-lg font-mono font-bold text-slate-800">
-                            {aprioriData.totalTransactions} <span className="text-sm text-slate-500 font-sans font-normal">/ 80 Transaksi</span>
-                        </p>
-                    </div>
-                </div>
-                <div className="bg-slate-50 px-6 py-4 flex justify-center border-t border-slate-200">
-                    <button 
-                        onClick={() => setShowWarningModal(false)}
-                        className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors shadow-md active:scale-95"
-                    >
-                        Saya Mengerti
-                    </button>
-                </div>
-            </div>
-        </div>
-      )}
     </div>
   );
 };
 
-export default EditorPage;
+export default EditorPage;grif 

@@ -9,7 +9,6 @@ export const applyAprioriSorting = (items: EditorItem[], rules: Rule[]) => {
     if (!rules || rules.length === 0) return items;
 
     const sorted = [...items];
-    const originalLayouts = items.map(item => ({ ...item.layout }));
 
     rules.forEach(rule => {
         const antIdx = sorted.findIndex(p => 
@@ -28,8 +27,5 @@ export const applyAprioriSorting = (items: EditorItem[], rules: Rule[]) => {
         }
     });
 
-    return sorted.map((item, index) => ({
-        ...item,
-        layout: originalLayouts[index] || item.layout
-    }));
+    return sorted;
 };
