@@ -244,7 +244,7 @@ const EditorPage = () => {
 
   const [isSmartGridActive, setIsSmartGridActive] = useState(false);
   const [showCalcModal, setShowCalcModal] = useState(false);
-  const [aprioriData, setAprioriData] = useState<AprioriData>({ isReady: true, totalTransactions: 0, rules: [] });
+  const [aprioriData, setAprioriData] = useState<AprioriData>({ isReady: false, totalTransactions: 0, rules: [] });
   const originalLeafletsRef = useRef<Record<string, PageWithDimensions[]>>({});
 
   const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
@@ -270,22 +270,28 @@ const EditorPage = () => {
   const autoSaveTimerRef = useRef<number | null>(null);
 
   const reloadSmartGridData = useCallback(async () => {
-      const data = await fetchSmartGridRules(activeRegion);
+      const data = await fetchSmartGridRules();
       if (data) {
           setAprioriData({
-              isReady: true,
+              isReady: data.is_smart_grid_active || false,
               totalTransactions: data.total_transactions || 0,
               rules: data.rules || [],
               steps: data.steps || null
           });
+          if (!data.is_smart_grid_active) {
+              setIsSmartGridActive(false);
+              setShowCalcModal(false);
+          }
       }
-  }, [activeRegion]);
+  }, []);
 
   useEffect(() => {
       reloadSmartGridData();
   }, [reloadSmartGridData]);
 
   const handleSmartGridToggleClick = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (aprioriData.totalTransactions < 80) return;
+
       const newValue = e.target.checked;
       setIsSmartGridActive(newValue);
       if (!newValue) setShowCalcModal(false);
@@ -1141,17 +1147,20 @@ const EditorPage = () => {
             <Grid size={16} /> Grid
           </button>
           
-          <div className="flex items-center gap-2 bg-white rounded-lg px-2 py-1.5 border border-slate-200 shadow-sm">
-              <label className="flex items-center gap-2 cursor-pointer">
+          <div className={`flex items-center gap-2 rounded-lg px-2 py-1.5 border shadow-sm transition-colors ${aprioriData.totalTransactions < 80 ? 'bg-slate-50 border-slate-200' : 'bg-white border-slate-200'}`}>
+              <label className={`flex items-center gap-2 ${aprioriData.totalTransactions < 80 ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
                   <input 
                       type="checkbox" 
-                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer" 
+                      className={`w-4 h-4 text-blue-600 rounded focus:ring-blue-500 ${aprioriData.totalTransactions < 80 ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                       checked={isSmartGridActive} 
                       onChange={handleSmartGridToggleClick} 
+                      disabled={aprioriData.totalTransactions < 80}
                   />
-                  <span className="text-xs font-bold text-slate-700">Grid Cerdas</span>
+                  <span className="text-xs font-bold text-slate-700">
+                      Grid Cerdas {aprioriData.totalTransactions < 80 ? `(${aprioriData.totalTransactions}/80)` : ''}
+                  </span>
               </label>
-              {isSmartGridActive && (
+              {isSmartGridActive && aprioriData.totalTransactions >= 80 && (
                   <button 
                       onClick={() => setShowCalcModal(true)} 
                       className="px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded text-[10px] font-bold border border-blue-200 transition-colors"

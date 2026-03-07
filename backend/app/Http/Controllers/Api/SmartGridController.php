@@ -17,13 +17,23 @@ class SmartGridController extends Controller
         $this->aprioriService = $aprioriService;
     }
 
-    public function getRules(Request $request)
+    public function getRules()
     {
         try {
-            $region = $request->query('region');
-            $totalData = $this->aprioriService->getTotalTransactions($region);
+            $totalData = $this->aprioriService->getTotalTransactions();
 
-            $generationResult = $this->aprioriService->generateRules($region);
+            if ($totalData < 80) {
+                return response()->json([
+                    'success' => true,
+                    'is_smart_grid_active' => false,
+                    'total_transactions' => $totalData,
+                    'message' => 'Grid Cerdas membutuhkan minimal 80 data (Cold Start).',
+                    'rules' => [],
+                    'steps' => null
+                ]);
+            }
+
+            $generationResult = $this->aprioriService->generateRules();
             $steps = is_array($generationResult) && isset($generationResult['steps']) ? $generationResult['steps'] : null;
 
             $rules = AssociationRule::orderBy('lift_ratio', 'desc')->get()->map(function($rule) {
@@ -56,10 +66,10 @@ class SmartGridController extends Controller
             }
 
             return response()->json([
-                'success' => true,
-                'is_smart_grid_active' => true,
+                'success' => false,
+                'is_smart_grid_active' => false,
                 'total_transactions' => $totalFallback,
-                'message' => 'Terjadi kesalahan pada server, memuat aturan kosong.',
+                'message' => 'Terjadi kesalahan pada server, gagal memuat aturan.',
                 'rules' => [],
                 'steps' => null,
                 'error_detail' => $e->getMessage()

@@ -8,8 +8,6 @@ describe('US-03: Pengujian Fungsionalitas Bank Gambar', () => {
     cy.get('#username').type('manager');
     cy.get('#password').type('manager123');
     cy.get('button[type="submit"]').click();
-    
-    // Menunggu proses login selesai
     cy.url().should('not.include', '/login');
     cy.visit('http://127.0.0.1:5173/bank-gambar');
   });

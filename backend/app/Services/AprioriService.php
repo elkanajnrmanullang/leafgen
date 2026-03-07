@@ -12,31 +12,22 @@ class AprioriService
     private $min_support = 0.01;
     private $min_confidence = 0.1;
 
-    public function getTotalTransactions($region = null)
+    public function getTotalTransactions()
     {
-        $query = Leaflet::where('status', 'exported');
-        if ($region && $region !== 'DEFAULT' && $region !== 'ALL REGIONS') {
-            $query->where('store', 'like', '%' . $region . '%');
-        }
-        return $query->count();
+        return Leaflet::where('status', 'exported')->count();
     }
 
-    public function generateRules($region = null)
+    public function generateRules()
     {
         try {
             $transactions = [];
             $rulesCalc = [];
 
-            $query = DB::table('leaflet_items')
+            $leafletItems = DB::table('leaflet_items')
                 ->join('leaflets', 'leaflet_items.leaflet_id', '=', 'leaflets.id')
                 ->where('leaflets.status', 'exported')
-                ->select('leaflet_items.leaflet_id', 'leaflet_items.content');
-
-            if ($region && $region !== 'DEFAULT' && $region !== 'ALL REGIONS') {
-                $query->where('leaflets.store', 'like', '%' . $region . '%');
-            }
-
-            $leafletItems = $query->get();
+                ->select('leaflet_items.leaflet_id', 'leaflet_items.content')
+                ->get();
 
             foreach ($leafletItems as $item) {
                 if (empty($item->content)) continue;
@@ -56,9 +47,9 @@ class AprioriService
 
             DB::table('association_rules')->truncate();
 
-            if ($totalTransactions == 0) {
+            if ($totalTransactions < 80) {
                 return [
-                    'status' => true,
+                    'status' => false,
                     'steps' => [
                         'rules_calculation' => [],
                         'min_support' => $this->min_support,
