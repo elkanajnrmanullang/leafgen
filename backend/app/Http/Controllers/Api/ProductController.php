@@ -24,16 +24,12 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         try {
-            $existingProduct = Product::where('plu_code', $request->plu_code)->first();
-
-            if ($existingProduct) {
-                return $this->updateExistingFromStore($request, $existingProduct);
-            }
-
             $validatedData = $request->validate([
                 'name' => 'required|string|max:255',
-                'plu_code' => 'required|string|max:50|unique:products',
+                'plu_code' => 'required|string|max:50|unique:products,plu_code',
                 'image_file' => 'required|image|mimes:jpg,png,jpeg|max:2048',
+            ], [
+                'plu_code.unique' => 'Kode PLU sudah digunakan.'
             ]);
 
             $filename = time() . '_' . preg_replace('/\s+/', '_', $request->file('image_file')->getClientOriginalName());
@@ -66,41 +62,6 @@ class ProductController extends Controller
         }
     }
 
-    private function updateExistingFromStore(Request $request, Product $product)
-    {
-        $request->validate([
-            'image_file' => 'nullable|image|mimes:jpg,png,jpeg|max:2048',
-        ]);
-
-        if ($request->filled('name')) {
-            $product->name = $request->name;
-        }
-
-        if ($request->hasFile('image_file')) {
-            if ($product->image_path && Storage::disk('public')->exists($product->image_path)) {
-                Storage::disk('public')->delete($product->image_path);
-            }
-
-            $filename = time() . '_' . preg_replace('/\s+/', '_', $request->file('image_file')->getClientOriginalName());
-            $path = $request->file('image_file')->storeAs('products', $filename, 'public');
-            $product->image_path = $path;
-        }
-
-        $product->save();
-        $product->full_image_url = url('storage/' . $product->image_path);
-
-        $user = Auth::user();
-        $userName = $user ? $user->name : 'Sistem';
-
-        ActivityLog::create([
-            'user_id' => $user ? $user->id : null,
-            'type' => 'product',
-            'description' => "{$userName} memperbarui produk di Bank Gambar: {$product->name}"
-        ]);
-
-        return response()->json($product, 200);
-    }
-
     public function update(Request $request, Product $product)
     {
         try {
@@ -108,6 +69,8 @@ class ProductController extends Controller
                 'name' => 'required|string|max:255',
                 'plu_code' => 'required|string|max:50|unique:products,plu_code,' . $product->id,
                 'image_file' => 'nullable|image|mimes:jpg,png,jpeg|max:2048',
+            ], [
+                'plu_code.unique' => 'Kode PLU sudah digunakan.'
             ]);
 
             $product->name = $validatedData['name'];

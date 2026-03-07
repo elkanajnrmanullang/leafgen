@@ -108,8 +108,17 @@ const ProductUploadModal = ({
       console.error(err);
       if (isAxiosError(err)) {
         if (err.response?.status === 422) {
-            setValidationErrors(err.response.data.errors || {});
-            setError("Mohon periksa input Anda.");
+            const errors = err.response.data.errors || {};
+            // Tangkap eror PLU khusus untuk ditampilkan sebagai pesan utama
+            if (errors.plu_code && errors.plu_code.length > 0) {
+                setError(errors.plu_code[0]);
+                const remainingErrors = { ...errors };
+                delete remainingErrors.plu_code;
+                setValidationErrors(remainingErrors);
+            } else {
+                setValidationErrors(errors);
+                setError("Mohon periksa input Anda.");
+            }
         } else if (err.response?.status === 404) {
              setError("Produk tidak ditemukan di database.");
         } else {
@@ -219,7 +228,7 @@ const ProductUploadModal = ({
                 required
                 value={plu}
                 onChange={(e) => setPlu(e.target.value)}
-                className={`w-full px-4 py-2 border rounded-lg outline-none transition-all font-mono ${validationErrors.plu_code ? 'border-red-500 focus:ring-red-200' : 'border-slate-300 focus:ring-blue-500 focus:border-blue-500'}`}
+                className={`w-full px-4 py-2 border rounded-lg outline-none transition-all font-mono ${error === 'Kode PLU sudah digunakan.' ? 'border-red-500 focus:ring-red-200' : 'border-slate-300 focus:ring-blue-500 focus:border-blue-500'}`}
                 placeholder="Contoh: 100456"
               />
             </div>
