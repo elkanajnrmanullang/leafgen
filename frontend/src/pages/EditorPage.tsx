@@ -12,7 +12,7 @@ import { getProducts } from "../services/productService";
 import { fetchSmartGridRules } from "../services/smartGridService";
 import { applyAprioriSorting } from "../utils/aprioriSorter";
 import {
-  ZoomIn, ZoomOut, Layers, MousePointer2, ArrowLeft, Plus, Trash2, Copy, Grid, 
+  ZoomIn, ZoomOut, Layers, MousePointer2, ArrowLeft, Plus, Trash2, Grid, Copy, 
   CheckCircle2, ChevronDown, FileText, Image as ImageIcon, Loader2, Download, 
   ToggleLeft, ToggleRight, RefreshCw, FolderOpen, Map as MapIcon, Globe, PlusSquare
 } from "lucide-react";
@@ -259,6 +259,7 @@ const EditorPage = () => {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragActivePageId, setDragActivePageId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [dragOriginalLayout, setDragOriginalLayout] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
   
   const [generatedBadges, setGeneratedBadges] = useState<Record<string, string>>({});
   const [generatingBadges, setGeneratingBadges] = useState<Record<string, boolean>>({});
@@ -926,6 +927,7 @@ const EditorPage = () => {
     const mouseY = (e.clientY - canvasRect.top) / zoom;
     setDraggingId(item.id);
     setDragOffset({ x: mouseX - item.layout.x, y: mouseY - item.layout.y });
+    setDragOriginalLayout({ x: item.layout.x, y: item.layout.y, w: item.layout.w, h: item.layout.h });
     setDragActivePageId(pageId);
   };
 
@@ -957,7 +959,7 @@ const EditorPage = () => {
   };
 
   const handleMouseUp = () => {
-    if (draggingId && dragActivePageId) {
+    if (draggingId && dragActivePageId && dragOriginalLayout) {
         const page = pages.find(p => p.id === dragActivePageId);
         const item = page?.items.find(i => i.id === draggingId);
         if (page && item && item.type === 'product_card') {
@@ -965,6 +967,7 @@ const EditorPage = () => {
             const centerItemY = item.layout.y + item.layout.h / 2;
             const nearestSlot = getNearestSlot(centerItemX, centerItemY, page.pageNumber);
             if (nearestSlot) {
+                 const occupant = page.items.find(i => i.id !== draggingId && Math.abs(i.layout.x - nearestSlot.x) < 5 && Math.abs(i.layout.y - nearestSlot.y) < 5);
                  setPages((prev) => prev.map((p) => {
                     if (p.id !== dragActivePageId) return p;
                     return {
@@ -973,15 +976,45 @@ const EditorPage = () => {
                             if (i.id === draggingId) {
                                 return { ...i, layout: { x: nearestSlot.x, y: nearestSlot.y, w: nearestSlot.w, h: nearestSlot.h } }
                             }
+                            if (occupant && i.id === occupant.id) {
+                                return { ...i, layout: { x: dragOriginalLayout.x, y: dragOriginalLayout.y, w: dragOriginalLayout.w, h: dragOriginalLayout.h } }
+                            }
                             return i;
                         })
                     } as PageWithDimensions;
                  }));
+            } else {
+                setPages((prev) => prev.map((p) => {
+                    if (p.id !== dragActivePageId) return p;
+                    return {
+                        ...p,
+                        items: p.items.map(i => {
+                            if (i.id === draggingId) {
+                                return { ...i, layout: { ...dragOriginalLayout } }
+                            }
+                            return i;
+                        })
+                    } as PageWithDimensions;
+                }));
             }
+        } else {
+            setPages((prev) => prev.map((p) => {
+                if (p.id !== dragActivePageId) return p;
+                return {
+                    ...p,
+                    items: p.items.map(i => {
+                        if (i.id === draggingId) {
+                            return { ...i, layout: { ...dragOriginalLayout } }
+                        }
+                        return i;
+                    })
+                } as PageWithDimensions;
+            }));
         }
     }
     setDraggingId(null);
     setDragActivePageId(null);
+    setDragOriginalLayout(null);
   };
 
   const handleDeleteItem = () => {
@@ -1333,9 +1366,9 @@ const EditorPage = () => {
                 <div className="space-y-1"><label htmlFor="item_price" className="text-[10px] font-bold text-slate-400 uppercase">Harga Tampil</label><input id="item_price" type="text" className="w-full text-xs border border-slate-300 rounded p-2 bg-white" value={activeItem.content?.price_display ?? ""} onChange={(e) => updateItemContent('price_display', e.target.value)} /></div>
                 
                 <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Ganti Gambar Produk</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Gambar Produk</label>
                     <button onClick={handleOpenBankGambar} className="w-full flex items-center justify-center px-4 py-2 border border-slate-300 rounded-lg shadow-sm text-xs font-medium text-slate-700 bg-white hover:bg-slate-50">
-                        <FolderOpen className="w-4 h-4 mr-2" /> Ganti dari Bank Gambar
+                        <FolderOpen className="w-4 h-4 mr-2" />Update Gambar Produk
                     </button>
                 </div>
 
