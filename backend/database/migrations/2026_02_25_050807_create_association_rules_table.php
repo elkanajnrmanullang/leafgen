@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('association_rules', function (Blueprint $table) {
-            $table->id();
+            $table->id('association_rule_id');
             $table->string('antecedent');
             $table->string('consequent');
             $table->decimal('support', 5, 4);

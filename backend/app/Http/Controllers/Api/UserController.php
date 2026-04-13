@@ -26,15 +26,20 @@ class UserController extends Controller
 
         $validatedData = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'username' => 'required|string|max:255|unique:users',
+            'email' => 'required|string|email|max:255|unique:users,user_email',
+            'username' => 'required|string|max:255|unique:users,username',
             'role' => 'required|in:manager,staff',
         ]);
 
         $password = Str::random(10);
-        $validatedData['password'] = Hash::make($password);
 
-        $user = User::create($validatedData);
+        $user = User::create([
+            'user_name' => $validatedData['name'],
+            'user_email' => $validatedData['email'],
+            'username' => $validatedData['username'],
+            'role' => $validatedData['role'],
+            'password' => Hash::make($password),
+        ]);
 
         return response()->json([
             'user' => $user,
@@ -78,7 +83,6 @@ class UserController extends Controller
         \App\Models\Leaflet::truncate();
         \App\Models\Product::truncate();
         \App\Models\BackgroundTemplate::truncate();
-
         \App\Models\ActivityLog::truncate();
 
         User::whereNotIn('username', ['manager', 'staff'])->delete();
@@ -96,7 +100,6 @@ class UserController extends Controller
 
         $user = $request->user();
         $user->password = Hash::make($validated['password']);
-        $user->password_changed_at = now();
         $user->save();
 
         return response()->json(['message' => 'Password berhasil diperbarui.']);
@@ -113,7 +116,6 @@ class UserController extends Controller
         ]);
 
         $user->password = Hash::make($request->password);
-        $user->password_changed_at = now();
         $user->save();
 
         return response()->json(['message' => 'Password berhasil direset oleh admin.']);

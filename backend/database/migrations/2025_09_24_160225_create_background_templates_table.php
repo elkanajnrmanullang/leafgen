@@ -8,19 +8,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('background_templates', function (Blueprint $table) {
-            $table->id();
-            $table->string('title');
-            $table->string('image_path');
-            $table->string('type')->default('cover');
-            $table->boolean('is_default')->default(false);
-            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');
+        Schema::create('bg_templates', function (Blueprint $table) {
+            $table->id('bg_template_id');
+            $table->string('bg_title');
+            $table->string('bg_img_path');
+            $table->foreignId('user_id')->nullable()->constrained('users', 'user_id')->onDelete('cascade');
             $table->timestamps();
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('background_templates');
+        Schema::dropIfExists('bg_templates');
     }
 };

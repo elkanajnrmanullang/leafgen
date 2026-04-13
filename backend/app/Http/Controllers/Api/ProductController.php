@@ -16,7 +16,7 @@ class ProductController extends Controller
     public function index()
     {
         return Product::latest()->get()->map(function ($product) {
-            $product->full_image_url = url('storage/' . $product->image_path);
+            $product->full_image_url = url('storage/' . $product->product_img_path);
             return $product;
         });
     }
@@ -36,18 +36,18 @@ class ProductController extends Controller
             $path = $request->file('image_file')->storeAs('products', $filename, 'public');
 
             $product = Product::create([
-                'name' => $validatedData['name'],
+                'product_name' => $validatedData['name'],
                 'plu_code' => $validatedData['plu_code'],
-                'image_path' => $path,
+                'product_img_path' => $path,
             ]);
 
             $user = Auth::user();
-            $userName = $user ? $user->name : 'Sistem';
+            $userName = $user ? $user->user_name : 'Sistem';
 
             ActivityLog::create([
-                'user_id' => $user ? $user->id : null,
-                'type' => 'product',
-                'description' => "{$userName} mengupload produk baru ke Bank Gambar: {$validatedData['name']} ({$validatedData['plu_code']})"
+                'user_id' => $user ? $user->user_id : null,
+                'type_activity' => 'product',
+                'description_activity' => "{$userName} mengupload produk baru ke Bank Gambar: {$validatedData['name']} ({$validatedData['plu_code']})"
             ]);
 
             $product->full_image_url = url('storage/' . $path);
@@ -67,35 +67,35 @@ class ProductController extends Controller
         try {
             $validatedData = $request->validate([
                 'name' => 'required|string|max:255',
-                'plu_code' => 'required|string|max:50|unique:products,plu_code,' . $product->id,
+                'plu_code' => 'required|string|max:50|unique:products,plu_code,' . $product->product_id . ',product_id',
                 'image_file' => 'nullable|image|mimes:jpg,png,jpeg|max:2048',
             ], [
                 'plu_code.unique' => 'Kode PLU sudah digunakan.'
             ]);
 
-            $product->name = $validatedData['name'];
+            $product->product_name = $validatedData['name'];
             $product->plu_code = $validatedData['plu_code'];
 
             if ($request->hasFile('image_file')) {
-                if ($product->image_path && Storage::disk('public')->exists($product->image_path)) {
-                    Storage::disk('public')->delete($product->image_path);
+                if ($product->product_img_path && Storage::disk('public')->exists($product->product_img_path)) {
+                    Storage::disk('public')->delete($product->product_img_path);
                 }
 
                 $filename = time() . '_' . preg_replace('/\s+/', '_', $request->file('image_file')->getClientOriginalName());
                 $path = $request->file('image_file')->storeAs('products', $filename, 'public');
-                $product->image_path = $path;
+                $product->product_img_path = $path;
             }
 
             $product->save();
-            $product->full_image_url = url('storage/' . $product->image_path);
+            $product->full_image_url = url('storage/' . $product->product_img_path);
 
             $user = Auth::user();
-            $userName = $user ? $user->name : 'Sistem';
+            $userName = $user ? $user->user_name : 'Sistem';
 
             ActivityLog::create([
-                'user_id' => $user ? $user->id : null,
-                'type' => 'product',
-                'description' => "{$userName} mengedit data produk: {$product->name}"
+                'user_id' => $user ? $user->user_id : null,
+                'type_activity' => 'product',
+                'description_activity' => "{$userName} mengedit data produk: {$product->product_name}"
             ]);
 
             return response()->json($product);
@@ -107,20 +107,20 @@ class ProductController extends Controller
 
     public function destroy(Product $product)
     {
-        if ($product->image_path && Storage::disk('public')->exists($product->image_path)) {
-            Storage::disk('public')->delete($product->image_path);
+        if ($product->product_img_path && Storage::disk('public')->exists($product->product_img_path)) {
+            Storage::disk('public')->delete($product->product_img_path);
         }
 
-        $name = $product->name;
+        $name = $product->product_name;
         $product->delete();
 
         $user = Auth::user();
-        $userName = $user ? $user->name : 'Sistem';
+        $userName = $user ? $user->user_name : 'Sistem';
 
         ActivityLog::create([
-            'user_id' => $user ? $user->id : null,
-            'type' => 'product',
-            'description' => "{$userName} menghapus produk: {$name}"
+            'user_id' => $user ? $user->user_id : null,
+            'type_activity' => 'product',
+            'description_activity' => "{$userName} menghapus produk: {$name}"
         ]);
 
         return response()->json(['message' => 'Produk berhasil dihapus.']);

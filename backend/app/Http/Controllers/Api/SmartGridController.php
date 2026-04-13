@@ -27,7 +27,7 @@ class SmartGridController extends Controller
                     'success' => true,
                     'is_smart_grid_active' => false,
                     'total_transactions' => $totalData,
-                    'message' => 'Grid Cerdas membutuhkan minimal 80 data (Cold Start).',
+                    'message' => 'Grid Cerdas membutuhkan minimal 80 data (Cold Start). Saat ini: ' . $totalData,
                     'rules' => [],
                     'steps' => null
                 ]);
@@ -36,9 +36,21 @@ class SmartGridController extends Controller
             $generationResult = $this->aprioriService->generateRules();
             $steps = is_array($generationResult) && isset($generationResult['steps']) ? $generationResult['steps'] : null;
 
+            if (isset($generationResult['status']) && $generationResult['status'] === false) {
+                return response()->json([
+                    'success' => true,
+                    'is_smart_grid_active' => false,
+                    'total_transactions' => $totalData,
+                    'message' => 'Data belum cukup valid untuk generate rules.',
+                    'rules' => [],
+                    'steps' => $steps,
+                    'error' => $generationResult['error'] ?? null
+                ]);
+            }
+
             $rules = AssociationRule::orderBy('lift_ratio', 'desc')->get()->map(function($rule) {
                 return [
-                    'rule_id' => $rule->id,
+                    'rule_id' => $rule->association_rule_id,
                     'antecedent' => $rule->antecedent,
                     'consequent' => $rule->consequent,
                     'support_percent' => number_format($rule->support * 100, 1) . '%',
@@ -48,27 +60,26 @@ class SmartGridController extends Controller
                 ];
             });
 
+            // Beri tahu pengguna jika rules benar-benar kosong karena struktur data
+            $message = 'Aturan Apriori berhasil dimuat.';
+            if ($rules->isEmpty()) {
+                $message = 'Grid aktif. Namun, sistem tidak menemukan adanya minimal 2 produk atau lebih yang digabungkan dalam satu leaflet.';
+            }
+
             return response()->json([
                 'success' => true,
                 'is_smart_grid_active' => true,
                 'total_transactions' => $totalData,
-                'message' => 'Aturan Apriori berhasil dimuat.',
+                'message' => $message,
                 'rules' => $rules,
                 'steps' => $steps
             ]);
         } catch (\Exception $e) {
             Log::error('SmartGrid API Error: ' . $e->getMessage());
-
-            $totalFallback = 0;
-            try {
-                $totalFallback = \App\Models\Leaflet::where('status', 'exported')->count();
-            } catch (\Exception $e2) {
-            }
-
             return response()->json([
                 'success' => false,
                 'is_smart_grid_active' => false,
-                'total_transactions' => $totalFallback,
+                'total_transactions' => 0,
                 'message' => 'Terjadi kesalahan pada server, gagal memuat aturan.',
                 'rules' => [],
                 'steps' => null,

@@ -4,12 +4,10 @@ import { Plus, Trash2, Layout, Loader2, X, Pencil, ArrowRight } from "lucide-rea
 import { LeafletService } from "../services/leafletService";
 
 interface Template {
-  id: number;
-  title: string;
-  image_path: string;
+  bg_template_id: number;
+  bg_title: string;
+  bg_img_path: string;
   image_url?: string;
-  type: string;
-  is_default: boolean;
 }
 
 const PilihTemplatePage = () => {
@@ -52,7 +50,7 @@ const PilihTemplatePage = () => {
   const handleSelectTemplate = async (templateId: number) => {
     setIsProcessing(true);
     try {
-        const selectedTemplate = templates.find(t => t.id === templateId);
+        const selectedTemplate = templates.find(t => t.bg_template_id === templateId);
         
         const templateUrl = selectedTemplate ? selectedTemplate.image_url : null;
 
@@ -96,7 +94,7 @@ const PilihTemplatePage = () => {
   const openEditModal = (template: Template, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingTemplate(template);
-    setNewTitle(template.title);
+    setNewTitle(template.bg_title);
     setNewFile(null);
     setIsModalOpen(true);
   };
@@ -109,14 +107,13 @@ const PilihTemplatePage = () => {
     setIsSubmitting(true);
     const formData = new FormData();
     formData.append("title", newTitle);
-    formData.append("type", "master");
     if (newFile) {
       formData.append("image", newFile);
     }
 
     try {
       if (editingTemplate) {
-        await LeafletService.updateTemplate(editingTemplate.id, formData);
+        await LeafletService.updateTemplate(editingTemplate.bg_template_id, formData);
       } else {
         await LeafletService.uploadTemplate(formData);
       }
@@ -134,7 +131,7 @@ const PilihTemplatePage = () => {
     if (!confirm("Apakah Anda yakin ingin menghapus template ini?")) return;
     try {
       await LeafletService.deleteTemplate(id);
-      setTemplates((prev) => prev.filter((t) => t.id !== id));
+      setTemplates((prev) => prev.filter((t) => t.bg_template_id !== id));
     } catch {
       alert("Gagal menghapus template.");
     }
@@ -184,15 +181,15 @@ const PilihTemplatePage = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
           {templates.map((template) => (
             <div
-              key={template.id}
-              onClick={() => handleSelectTemplate(template.id)}
+              key={template.bg_template_id}
+              onClick={() => handleSelectTemplate(template.bg_template_id)}
               className="group relative bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-xl hover:border-indigo-300 transition-all duration-200 flex flex-col cursor-pointer"
             >
               <div className="aspect-[3/4] bg-slate-100 relative overflow-hidden">
                 {template.image_url ? (
                   <img
                     src={template.image_url}
-                    alt={template.title}
+                    alt={template.bg_title}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -215,7 +212,7 @@ const PilihTemplatePage = () => {
                     <Pencil size={14} />
                   </button>
                   <button
-                    onClick={(e) => handleDelete(template.id, e)}
+                    onClick={(e) => handleDelete(template.bg_template_id, e)}
                     className="bg-white/90 hover:bg-white text-red-600 p-1.5 rounded-full shadow-sm"
                     title="Hapus"
                   >
@@ -226,7 +223,7 @@ const PilihTemplatePage = () => {
 
               <div className="p-3 border-t border-slate-100">
                 <h3 className="font-semibold text-slate-800 text-sm truncate">
-                  {template.title}
+                  {template.bg_title}
                 </h3>
               </div>
             </div>

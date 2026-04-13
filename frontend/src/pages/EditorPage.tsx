@@ -31,11 +31,12 @@ interface FigmaNode {
   opacity?: number;
 }
 
+// PERBAIKAN TS2719: Menyesuaikan interface Product
 interface Product {
-  id: number;
+  product_id?: number;
   plu_code: string;
-  name: string;
-  image_path: string;
+  product_name: string;
+  product_img_path?: string;
 }
 
 interface PageWithDimensions extends LeafletPage {
@@ -1102,7 +1103,12 @@ const EditorPage = () => {
      const content = item?.content as ItemContent | undefined;
      const realProductId = content?.product_id;
      if (item) {
-         setProductToEdit({ id: (realProductId || 0) as number, plu_code: item.plu || content?.plu_code || "", name: content?.name || "", image_path: "" } as Product);
+         setProductToEdit({ 
+             product_id: (realProductId || 0) as number, 
+             plu_code: item.plu || content?.plu_code || "", 
+             product_name: content?.name || "", 
+             product_img_path: "" 
+         } as Product);
          setIsProductModalOpen(true);
      }
   };

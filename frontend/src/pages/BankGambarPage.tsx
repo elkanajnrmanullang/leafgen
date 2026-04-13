@@ -11,10 +11,11 @@ import {
 import AlertModal from "../components/AlertModal";
 
 interface Product {
-  id: number;
+  product_id: number;
   plu_code: string;
-  name: string;
-  image_path: string;
+  product_name: string;
+  product_img_path: string;
+  full_image_url?: string;
 }
 
 interface AppContext {
@@ -105,7 +106,7 @@ const BankGambarPage = () => {
 
   const filteredProducts = products.filter(
     (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.plu_code.includes(searchTerm)
   );
 
@@ -149,13 +150,13 @@ const BankGambarPage = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
               {filteredProducts.map((product) => (
                 <div
-                  key={product.id}
+                  key={product.product_id}
                   className="group bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl hover:border-indigo-200 transition-all duration-300 relative"
                 >
                   <div className="aspect-square p-4 flex items-center justify-center bg-slate-50 group-hover:bg-white transition-colors relative">
                     <img
-                      src={`http://127.0.0.1:8000/storage/${product.image_path}`}
-                      alt={product.name}
+                      src={product.full_image_url || `http://127.0.0.1:8000/storage/${product.product_img_path}`}
+                      alt={product.product_name}
                       className="w-full h-full object-contain mix-blend-multiply transition-transform group-hover:scale-110 duration-300"
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
@@ -180,7 +181,7 @@ const BankGambarPage = () => {
                         <Edit size={18} />
                       </button>
                       <button
-                        onClick={() => handleDeleteClick(product.id)}
+                        onClick={() => handleDeleteClick(product.product_id)}
                         className="p-2 bg-white text-red-600 rounded-full hover:bg-red-50 hover:scale-110 transition-all shadow-lg"
                         title="Hapus Gambar"
                       >
@@ -192,9 +193,9 @@ const BankGambarPage = () => {
                   <div className="p-3 border-t border-slate-100">
                     <h3
                       className="font-bold text-slate-700 text-sm truncate"
-                      title={product.name}
+                      title={product.product_name}
                     >
-                      {product.name}
+                      {product.product_name}
                     </h3>
                     <div className="flex items-center justify-between mt-1">
                       <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">

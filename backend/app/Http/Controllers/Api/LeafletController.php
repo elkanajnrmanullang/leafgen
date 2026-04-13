@@ -15,8 +15,6 @@ use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver;
 
 class LeafletController extends Controller
 {
@@ -32,8 +30,8 @@ class LeafletController extends Controller
     public function getDashboardStats()
     {
         try {
-            $totalLeaflets = Leaflet::whereIn('status', [
-                'Selesai', 'selesai', 'SELESAI',
+            $totalLeaflets = Leaflet::whereIn('leaflet_status', [
+                'completed', 'Selesai', 'selesai', 'SELESAI',
                 'exported', 'Exported',
                 'Done', 'done'
             ])->count();
@@ -44,11 +42,11 @@ class LeafletController extends Controller
                 ->get()
                 ->map(function ($log) {
                     return [
-                        'id' => $log->id,
-                        'text' => $log->description,
+                        'id' => $log->activity_id,
+                        'text' => $log->description_activity,
                         'date' => $log->created_at->diffForHumans(),
-                        'type' => $log->type,
-                        'user' => $log->user ? $log->user->name : 'Sistem'
+                        'type' => $log->type_activity,
+                        'user' => $log->user ? $log->user->user_name : 'Sistem'
                     ];
                 });
 
@@ -60,6 +58,7 @@ class LeafletController extends Controller
                 ]
             ]);
         } catch (\Exception $e) {
+            Log::error('Dashboard Stats Error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -69,17 +68,14 @@ class LeafletController extends Controller
         try {
             $templates = BackgroundTemplate::orderBy('created_at', 'desc')->get();
 
-            $templates->transform(function ($template) {
-                $template->image_url = url('storage/' . $template->image_path);
-                return $template;
-            });
-
+            // Atribut image_url sudah otomatis ditambahkan oleh $appends di Model
             return response()->json([
                 'success' => true,
                 'data' => $templates
             ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            Log::error('Get Templates Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Gagal memuat template: ' . $e->getMessage()], 500);
         }
     }
 
@@ -92,36 +88,25 @@ class LeafletController extends Controller
 
         try {
             $file = $request->file('image');
-            $filename = 'template_' . time() . '.png';
-            $path = 'templates/' . $filename;
+            $filename = 'template_' . time() . '.' . $file->getClientOriginalExtension();
+            
+            // Simpan langsung (Jauh lebih ringan dan tidak memicu 500 Error Intervention)
+            $path = $file->storeAs('templates', $filename, 'public');
 
-            if (!Storage::disk('public')->exists('templates')) {
-                Storage::disk('public')->makeDirectory('templates');
-            }
-
-            $manager = new ImageManager(new Driver());
-            $image = $manager->read($file);
-            $image->cover(2480, 3508);
-            $image->save(storage_path('app/public/' . $path));
-
-            $type = $request->input('type', 'master');
-            $user = Auth::user() ?? User::first();
-            $userId = $user ? $user->id : 1;
+            $user = Auth::user();
+            $userId = $user ? $user->user_id : 1; // Fallback ke 1 jika null (seeder)
+            $userName = $user ? $user->user_name : 'Sistem';
 
             $template = BackgroundTemplate::create([
-                'title' => $request->title,
-                'type' => $type,
-                'image_path' => $path,
-                'user_id' => $userId,
-                'is_default' => false
+                'bg_title' => $request->title,
+                'bg_img_path' => $path,
+                'user_id' => $userId
             ]);
-
-            $template->image_url = url('storage/' . $path);
 
             ActivityLog::create([
                 'user_id' => $userId,
-                'type' => 'template',
-                'description' => "{$user->name} mengupload template desain baru: {$request->title}"
+                'type_activity' => 'template',
+                'description_activity' => "{$userName} mengupload template desain baru: {$request->title}"
             ]);
 
             return response()->json([
@@ -131,47 +116,45 @@ class LeafletController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            Log::error('Store Template Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Gagal menyimpan template: ' . $e->getMessage()], 500);
         }
     }
 
     public function updateTemplate(Request $request, $id)
     {
-        $template = BackgroundTemplate::findOrFail($id);
-
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg|max:20480',
-        ]);
-
         try {
-            $data = ['title' => $request->title];
+            $template = BackgroundTemplate::findOrFail($id);
+
+            $request->validate([
+                'title' => 'required|string|max:255',
+                'image' => 'nullable|image|mimes:jpeg,png,jpg|max:20480',
+            ]);
+
+            $data = ['bg_title' => $request->title];
 
             if ($request->hasFile('image')) {
-                if (Storage::disk('public')->exists($template->image_path)) {
-                    Storage::disk('public')->delete($template->image_path);
+                if ($template->bg_img_path && Storage::disk('public')->exists($template->bg_img_path)) {
+                    Storage::disk('public')->delete($template->bg_img_path);
                 }
 
                 $file = $request->file('image');
-                $filename = 'template_' . time() . '.png';
-                $path = 'templates/' . $filename;
+                $filename = 'template_' . time() . '.' . $file->getClientOriginalExtension();
+                $path = $file->storeAs('templates', $filename, 'public');
 
-                $manager = new ImageManager(new Driver());
-                $image = $manager->read($file);
-                $image->cover(2480, 3508);
-                $image->save(storage_path('app/public/' . $path));
-
-                $data['image_path'] = $path;
+                $data['bg_img_path'] = $path;
             }
 
             $template->update($data);
-            $template->image_url = url('storage/' . $template->image_path);
 
             $user = Auth::user();
+            $userId = $user ? $user->user_id : null;
+            $userName = $user ? $user->user_name : 'Sistem';
+
             ActivityLog::create([
-                'user_id' => $user ? $user->id : null,
-                'type' => 'template',
-                'description' => $user ? "{$user->name} memperbarui template: {$request->title}" : "Sistem memperbarui template"
+                'user_id' => $userId,
+                'type_activity' => 'template',
+                'description_activity' => "{$userName} memperbarui template: {$request->title}"
             ]);
 
             return response()->json([
@@ -181,7 +164,8 @@ class LeafletController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            Log::error('Update Template Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Gagal mengupdate template: ' . $e->getMessage()], 500);
         }
     }
 
@@ -190,23 +174,27 @@ class LeafletController extends Controller
         try {
             $template = BackgroundTemplate::findOrFail($id);
 
-            if ($template->image_path && Storage::disk('public')->exists($template->image_path)) {
-                Storage::disk('public')->delete($template->image_path);
+            if ($template->bg_img_path && Storage::disk('public')->exists($template->bg_img_path)) {
+                Storage::disk('public')->delete($template->bg_img_path);
             }
 
-            $title = $template->title;
+            $title = $template->bg_title;
             $template->delete();
 
             $user = Auth::user();
+            $userId = $user ? $user->user_id : null;
+            $userName = $user ? $user->user_name : 'Sistem';
+
             ActivityLog::create([
-                'user_id' => $user ? $user->id : null,
-                'type' => 'template',
-                'description' => $user ? "{$user->name} menghapus template: {$title}" : "Sistem menghapus template"
+                'user_id' => $userId,
+                'type_activity' => 'template',
+                'description_activity' => "{$userName} menghapus template: {$title}"
             ]);
 
             return response()->json(['success' => true, 'message' => 'Template dihapus']);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Gagal menghapus template'], 500);
+            Log::error('Delete Template Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Gagal menghapus template: ' . $e->getMessage()], 500);
         }
     }
 
@@ -324,7 +312,7 @@ class LeafletController extends Controller
             Log::error('Generate Error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+                'message' => 'Terjadi kesalahan generate: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -383,11 +371,11 @@ class LeafletController extends Controller
                 }
 
                 return [
-                    'id' => $item->id,
-                    'title' => $item->name,
-                    'store' => $item->store_name ?? 'Unknown',
+                    'id' => $item->leaflet_id,
+                    'title' => $item->leaflet_name,
+                    'store' => $item->region ?? 'Unknown',
                     'date' => $item->updated_at->format('d M Y H:i'),
-                    'status' => $item->status ?? 'draft',
+                    'status' => $item->leaflet_status ?? 'draft',
                     'pageCount' => $pageCount,
                     'thumbnailUrl' => null
                 ];
@@ -395,6 +383,7 @@ class LeafletController extends Controller
 
             return response()->json(['success' => true, 'data' => $formatted]);
         } catch (\Exception $e) {
+            Log::error('Index Leaflet Error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -414,11 +403,11 @@ class LeafletController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'leaflet_name' => $leaflet->name,
-                    'store' => $leaflet->store_name,
+                    'leaflet_name' => $leaflet->leaflet_name,
+                    'store' => $leaflet->region,
                     'pages' => $decodedContent,
-                    'id' => $leaflet->id,
-                    'status' => $leaflet->status
+                    'id' => $leaflet->leaflet_id,
+                    'status' => $leaflet->leaflet_status
                 ]
             ]);
         } catch (\Exception $e) {
@@ -442,7 +431,7 @@ class LeafletController extends Controller
             if (!$user) {
                 $user = User::first();
             }
-            $userId = $user->id;
+            $userId = $user->user_id;
 
             $leaflet = null;
             if ($request->has('id') && $request->id) {
@@ -472,38 +461,38 @@ class LeafletController extends Controller
 
             if ($leaflet) {
                 $leaflet->update([
-                    'name' => $request->title,
-                    'store_name' => $request->store,
+                    'leaflet_name' => $request->title,
+                    'region' => $request->store,
                     'content' => $contentData,
-                    'status' => $request->status
+                    'leaflet_status' => $request->status
                 ]);
-                $actionDescription = "{$user->name} memperbarui/mengedit leaflet: {$request->title}";
+                $actionDescription = "{$user->user_name} memperbarui/mengedit leaflet: {$request->title}";
             } else {
                 $leaflet = Leaflet::create([
-                    'name' => $request->title,
-                    'store_name' => $request->store,
+                    'leaflet_name' => $request->title,
+                    'region' => $request->store,
                     'content' => $contentData,
-                    'status' => $request->status,
+                    'leaflet_status' => $request->status,
                     'user_id' => $userId
                 ]);
-                $actionDescription = "{$user->name} membuat leaflet baru: {$request->title}";
+                $actionDescription = "{$user->user_name} membuat leaflet baru: {$request->title}";
             }
 
-            if ($request->status === 'exported') {
-                $actionDescription = "{$user->name} mendownload/menyelesaikan leaflet: {$request->title}";
+            if ($request->status === 'exported' || $request->status === 'completed') {
+                $actionDescription = "{$user->user_name} mendownload/menyelesaikan leaflet: {$request->title}";
             }
 
             ActivityLog::create([
                 'user_id' => $userId,
-                'type' => 'leaflet',
-                'description' => $actionDescription
+                'type_activity' => 'leaflet',
+                'description_activity' => $actionDescription
             ]);
 
             return response()->json(['success' => true, 'data' => $leaflet]);
 
         } catch (\Exception $e) {
             Log::error('Leaflet Save Error: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Gagal menyimpan: ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Gagal menyimpan leaflet: ' . $e->getMessage()], 500);
         }
     }
 }

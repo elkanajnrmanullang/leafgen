@@ -12,11 +12,8 @@ class MediaController extends Controller
 {
     public function show($path)
     {
-        // Ambil nama file saja, abaikan folder path yang dikirim dari frontend
-        // Contoh: 'assets/templates/gambar.png' menjadi 'gambar.png'
         $filename = basename($path);
 
-        // Daftar semua folder kemungkinan tempat file berada
         $possiblePaths = [
             // 1. Cek folder upload public storage standar
             storage_path('app/public/' . $filename),
@@ -53,7 +50,6 @@ class MediaController extends Controller
 
         if (!$foundPath) {
             Log::error("MediaController: File not found. Searched for: {$filename}");
-            // Return 404 tapi dengan format JSON biar jelas kalau diakses via API
             return response()->json(['error' => 'File not found on server', 'searched_for' => $filename], 404);
         }
 

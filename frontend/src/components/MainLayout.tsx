@@ -18,10 +18,10 @@ import { useAuth } from "../context/AuthContext";
 import ProductUploadModal from "./ProductUploadModal";
 
 interface Product {
-  id: number;
+  product_id: number;
   plu_code: string;
-  name: string;
-  image_path: string;
+  product_name: string;
+  product_img_path: string;
 }
 
 type AlertType = "success" | "error" | "confirm" | "info";
@@ -38,7 +38,7 @@ const MainLayout = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [pageTitle, setPageTitle] = useState("Dashboard");
   const location = useLocation();
-  const { logoutAction } = useAuth();
+  const { logoutAction, userName } = useAuth();
   const userRole = localStorage.getItem("userRole");
   const userEmail = localStorage.getItem("userEmail") || "user@example.com";
 
@@ -66,7 +66,7 @@ const MainLayout = () => {
       { to: "/buat-leaflet", label: "Buat Leaflet", icon: FilePlus2 },
       { to: "/bank-gambar", label: "Bank Gambar", icon: Archive },
       {
-        to: "/manajemen-template", // Updated link to point to the management page
+        to: "/manajemen-template",
         label: "Template Desain",
         icon: LayoutTemplate,
       },
@@ -82,12 +82,10 @@ const MainLayout = () => {
   );
 
   useEffect(() => {
-    // Normalisasi path untuk menghindari trailing slash issue
     const currentPath = location.pathname.endsWith("/")
       ? location.pathname.slice(0, -1)
       : location.pathname;
 
-    // Handle root path
     const normalizedPath = currentPath === "" ? "/dashboard" : currentPath;
 
     const currentLink = navLinks.find(
@@ -127,7 +125,6 @@ const MainLayout = () => {
             {navLinks.map((link) => {
               if (link.role && link.role !== userRole) return null;
 
-              // Logic Active State yang lebih aman
               const isActive =
                 location.pathname === link.to ||
                 location.pathname.startsWith(`${link.to}/`);
@@ -188,7 +185,7 @@ const MainLayout = () => {
             </div>
             <div className="text-right">
               <p className="font-semibold text-slate-800 capitalize text-sm md:text-base">
-                {userRole}
+                {userName || "User"}
               </p>
               <p className="text-xs md:text-sm text-slate-500">{userEmail}</p>
             </div>

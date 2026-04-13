@@ -12,9 +12,11 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    protected $primaryKey = 'user_id';
+
     protected $fillable = [
-        'name',
-        'email',
+        'user_name',
+        'user_email',
         'username',
         'password',
         'role',
@@ -23,7 +25,6 @@ class User extends Authenticatable
 
     protected $hidden = [
         'password',
-        'remember_token',
     ];
 
     protected $casts = [
@@ -33,11 +34,16 @@ class User extends Authenticatable
 
     public function leaflets(): HasMany
     {
-        return $this->hasMany(Leaflet::class);
+        return $this->hasMany(Leaflet::class, 'user_id', 'user_id');
     }
 
     public function backgroundTemplates(): HasMany
     {
-        return $this->hasMany(BackgroundTemplate::class);
+        return $this->hasMany(BackgroundTemplate::class, 'user_id', 'user_id');
+    }
+
+    public function activityLogs(): HasMany
+    {
+        return $this->hasMany(ActivityLog::class, 'user_id', 'user_id');
     }
 }

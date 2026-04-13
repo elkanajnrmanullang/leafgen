@@ -42,8 +42,8 @@ const ManajemenTemplatePage = () => {
     try {
       const data = await LeafletService.getTemplates();
       setTemplates(data);
-    } catch (error) {
-      console.error(error);
+    } catch {
+      console.error("Gagal memuat template");
     } finally {
       setIsLoading(false);
     }
@@ -117,7 +117,7 @@ const ManajemenTemplatePage = () => {
       }
       handleCloseModal();
       fetchTemplates();
-    } catch (error) {
+    } catch { // Menghapus (error)
       setAlertState({
         isOpen: true,
         title: "Gagal",
@@ -145,7 +145,7 @@ const ManajemenTemplatePage = () => {
             message: "Template dihapus",
             type: "success",
           });
-        } catch (error) {
+        } catch { // Menghapus (error)
           setAlertState({
             isOpen: true,
             title: "Gagal",

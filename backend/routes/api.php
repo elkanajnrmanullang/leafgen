@@ -13,6 +13,8 @@ use App\Http\Controllers\Api\AssetController;
 use App\Http\Controllers\Api\SmartGridController;
 
 Route::post('/login', [AuthController::class, 'login']);
+
+// Rute untuk Lupa Password
 Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail']);
 Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword']);
 

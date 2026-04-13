@@ -88,6 +88,7 @@ export interface BackendItem {
   id: string;
   type: string;
   plu: string;
+  product_name?: string; // Menyesuaikan dengan DB
   component_name?: string;
   content: ItemContent;
   needs_manual_image: boolean;

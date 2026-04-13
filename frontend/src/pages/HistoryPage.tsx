@@ -20,7 +20,7 @@ interface HistoryItem {
   store: string;
   date: string;
   thumbnailUrl: string | null;
-  status: "draft" | "exported" | "Selesai" | "Draft";
+  status: "draft" | "exported" | "Selesai" | "Draft" | "completed";
   pageCount: number;
 }
 
@@ -48,12 +48,11 @@ const HistoryPage = () => {
   const handleEdit = async (item: HistoryItem) => {
     setIsLoading(true);
     try {
-      // Mengambil detail lengkap leaflet (termasuk struktur JSON halaman)
       const data = await LeafletService.getLeafletById(item.id);
       
       navigate("/editor", {
         state: {
-          leafletData: data.pages, // 'pages' dari backend berisi struktur JSON (single/multi region)
+          leafletData: data.pages, 
           leafletName: data.leaflet_name,
           storeName: data.store,
           leafletId: data.id,
@@ -152,12 +151,12 @@ const HistoryPage = () => {
                 <div className="absolute top-3 right-3 z-10">
                   <span
                     className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border shadow-sm flex items-center gap-1.5 ${
-                      item.status === "exported" || item.status === "Selesai"
+                      item.status === "exported" || item.status === "Selesai" || item.status === "completed"
                         ? "bg-emerald-100 text-emerald-700 border-emerald-200"
                         : "bg-amber-100 text-amber-700 border-amber-200"
                     }`}
                   >
-                    {item.status === "exported" || item.status === "Selesai" ? (
+                    {item.status === "exported" || item.status === "Selesai" || item.status === "completed" ? (
                         <><CheckCircle2 size={12}/> SELESAI</>
                     ) : (
                         <><FileClock size={12}/> DRAFT</>

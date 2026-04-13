@@ -14,7 +14,7 @@ class AprioriService
 
     public function getTotalTransactions()
     {
-        return Leaflet::where('status', 'exported')->count();
+        return Leaflet::whereIn('leaflet_status', ['completed', 'exported'])->count();
     }
 
     public function generateRules()
@@ -24,28 +24,19 @@ class AprioriService
             $rulesCalc = [];
 
             $leafletItems = DB::table('leaflet_items')
-                ->join('leaflets', 'leaflet_items.leaflet_id', '=', 'leaflets.id')
-                ->where('leaflets.status', 'exported')
-                ->select('leaflet_items.leaflet_id', 'leaflet_items.content')
+                ->join('leaflets', 'leaflet_items.leaflet_id', '=', 'leaflets.leaflet_id')
+                ->whereIn('leaflets.leaflet_status', ['completed', 'exported'])
+                ->select('leaflet_items.leaflet_id', 'leaflet_items.product_name')
                 ->get();
 
             foreach ($leafletItems as $item) {
-                if (empty($item->content)) continue;
-
-                $content = json_decode($item->content, true);
-
-                if (json_last_error() !== JSON_ERROR_NONE) continue;
-
-                $productName = $content['name'] ?? $content['txt_name'] ?? null;
-
-                if ($productName) {
+                if (!empty($item->product_name)) {
+                    $productName = trim(strtoupper($item->product_name));
                     $transactions[$item->leaflet_id][] = $productName;
                 }
             }
 
             $totalTransactions = count($transactions);
-
-            DB::table('association_rules')->truncate();
 
             if ($totalTransactions < 80) {
                 return [
@@ -53,13 +44,13 @@ class AprioriService
                     'steps' => [
                         'rules_calculation' => [],
                         'min_support' => $this->min_support,
-                        'min_confidence' => $this->min_confidence
+                        'min_confidence' => $this->min_confidence,
+                        'valid_count' => $totalTransactions
                     ]
                 ];
             }
 
             $itemCounts = [];
-
             foreach ($transactions as $transaction) {
                 $unique_items = array_values(array_unique($transaction));
                 foreach ($unique_items as $item) {
@@ -85,6 +76,9 @@ class AprioriService
                 }
             }
 
+            DB::table('association_rules')->truncate();
+            $insertData = [];
+
             foreach ($pairCounts as $pairKey => $pairCount) {
                 $supportAB = $pairCount / $totalTransactions;
 
@@ -98,45 +92,55 @@ class AprioriService
                     $supportB = $itemCounts[$itemB] / $totalTransactions;
                     $liftAB = $supportB > 0 ? ($confidenceAB / $supportB) : 0;
 
+                    $isValidAB = ($confidenceAB >= $this->min_confidence && $liftAB >= 1);
                     $rulesCalc[] = [
                         'rule' => $itemA . ' => ' . $itemB,
                         'support_A_B' => $supportAB,
                         'confidence' => $confidenceAB,
                         'lift_ratio' => $liftAB,
-                        'is_valid' => ($confidenceAB >= $this->min_confidence && $liftAB >= 1)
+                        'is_valid' => $isValidAB
                     ];
 
-                    if ($confidenceAB >= $this->min_confidence && $liftAB >= 1) {
-                        AssociationRule::create([
+                    if ($isValidAB) {
+                        $insertData[] = [
                             'antecedent' => $itemA,
                             'consequent' => $itemB,
                             'support' => $supportAB,
                             'confidence' => $confidenceAB,
-                            'lift_ratio' => $liftAB
-                        ]);
+                            'lift_ratio' => $liftAB,
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ];
                     }
 
                     $confidenceBA = $pairCount / $itemCounts[$itemB];
                     $liftBA = $supportA > 0 ? ($confidenceBA / $supportA) : 0;
 
+                    $isValidBA = ($confidenceBA >= $this->min_confidence && $liftBA >= 1);
                     $rulesCalc[] = [
                         'rule' => $itemB . ' => ' . $itemA,
                         'support_A_B' => $supportAB,
                         'confidence' => $confidenceBA,
                         'lift_ratio' => $liftBA,
-                        'is_valid' => ($confidenceBA >= $this->min_confidence && $liftBA >= 1)
+                        'is_valid' => $isValidBA
                     ];
 
-                    if ($confidenceBA >= $this->min_confidence && $liftBA >= 1) {
-                        AssociationRule::create([
+                    if ($isValidBA) {
+                        $insertData[] = [
                             'antecedent' => $itemB,
                             'consequent' => $itemA,
                             'support' => $supportAB,
                             'confidence' => $confidenceBA,
-                            'lift_ratio' => $liftBA
-                        ]);
+                            'lift_ratio' => $liftBA,
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ];
                     }
                 }
+            }
+
+            if (count($insertData) > 0) {
+                DB::table('association_rules')->insert($insertData);
             }
 
             return [
@@ -144,12 +148,20 @@ class AprioriService
                 'steps' => [
                     'rules_calculation' => $rulesCalc,
                     'min_support' => $this->min_support,
-                    'min_confidence' => $this->min_confidence
+                    'min_confidence' => $this->min_confidence,
+                    'diagnostics' => [
+                        'total_valid_transactions' => $totalTransactions,
+                        'total_pairs_formed' => count($pairCounts),
+                        'total_rules_generated' => count($insertData)
+                    ]
                 ]
             ];
         } catch (\Exception $e) {
             Log::error('Error in generateRules: ' . $e->getMessage());
-            return false;
+            return [
+                'status' => false,
+                'error' => $e->getMessage()
+            ];
         }
     }
 }

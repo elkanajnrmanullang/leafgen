@@ -3,9 +3,9 @@ import axios from "axios";
 const API_URL = "http://127.0.0.1:8000/api";
 
 export interface User {
-  id: number;
-  name: string;
-  email: string;
+  user_id: number;
+  user_name: string;
+  user_email: string;
   username: string;
   status: "active" | "inactive" | string;
   role: "manager" | "staff";

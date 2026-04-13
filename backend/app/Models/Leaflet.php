@@ -10,11 +10,13 @@ class Leaflet extends Model
 {
     use HasFactory;
 
+    protected $primaryKey = 'leaflet_id';
+
     protected $fillable = [
-        'name',
-        'store_name',
+        'leaflet_name',
+        'region',
         'content',
-        'status',
+        'leaflet_status',
         'user_id',
     ];
 
@@ -24,6 +26,6 @@ class Leaflet extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 }

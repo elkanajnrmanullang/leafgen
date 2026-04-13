@@ -4,10 +4,10 @@ import { addProduct, updateProduct } from "../services/productService";
 import { isAxiosError } from "axios";
 
 interface Product {
-  id?: number;
+  product_id?: number;
   plu_code: string;
-  name: string;
-  image_path: string;
+  product_name: string;
+  product_img_path?: string;
 }
 
 interface ProductUploadModalProps {
@@ -38,9 +38,9 @@ const ProductUploadModal = ({
       
       if (productToEdit) {
         setPlu(productToEdit.plu_code || "");
-        setName(productToEdit.name || "");
+        setName(productToEdit.product_name || "");
         
-        const imgPath = productToEdit.image_path;
+        const imgPath = productToEdit.product_img_path;
         if (imgPath && !imgPath.includes("placeholder")) {
             const fullUrl = imgPath.startsWith('http') 
                 ? imgPath 
@@ -85,15 +85,15 @@ const ProductUploadModal = ({
     try {
       let response;
       
-      if (productToEdit && productToEdit.id && productToEdit.id !== 0) {
+      if (productToEdit && productToEdit.product_id && productToEdit.product_id !== 0) {
         formData.append("_method", "PUT");
-        response = await updateProduct(productToEdit.id, formData);
+        response = await updateProduct(productToEdit.product_id, formData);
       } else {
         response = await addProduct(formData);
       }
 
       const responseData = response.data || response;
-      const imageUrl = responseData.full_image_url || responseData.image_path;
+      const imageUrl = responseData.full_image_url || responseData.product_img_path;
 
       const event = new CustomEvent("productUpdated", { 
           detail: { 
@@ -109,7 +109,6 @@ const ProductUploadModal = ({
       if (isAxiosError(err)) {
         if (err.response?.status === 422) {
             const errors = err.response.data.errors || {};
-            // Tangkap eror PLU khusus untuk ditampilkan sebagai pesan utama
             if (errors.plu_code && errors.plu_code.length > 0) {
                 setError(errors.plu_code[0]);
                 const remainingErrors = { ...errors };

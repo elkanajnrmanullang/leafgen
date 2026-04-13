@@ -15,8 +15,8 @@ interface UserData {
   access_token: string;
   user: {
     role: string;
-    name: string;
-    email: string;
+    name: string; // Sesuai mapping auth controller terbaru
+    email: string; // Sesuai mapping auth controller terbaru
   };
 }
 

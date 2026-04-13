@@ -1,16 +1,23 @@
 import { useState, useEffect } from "react";
-import type { User } from "../services/userService";
 import {
   getUsers,
   deactivateUser,
   activateUser,
   addUser,
-  // resetSimulationData dihapus dari sini
   adminResetUserPassword,
 } from "../services/userService";
-import { PlusCircle, Pencil } from "lucide-react"; // RefreshCw dihapus karena tidak dipakai
+import { PlusCircle, Pencil } from "lucide-react";
 import AlertModal from "../components/AlertModal";
 import AdminResetPasswordModal from "../components/AdminResetPasswordModal";
+
+interface User {
+  user_id: number;
+  user_name: string;
+  user_email: string;
+  username: string;
+  role: string;
+  status: string;
+}
 
 type AlertType = "success" | "error" | "confirm" | "info";
 
@@ -46,7 +53,7 @@ const ManajemenAkunPage = () => {
     setIsLoading(true);
     try {
       const data = await getUsers();
-      setUsers(data);
+      setUsers(data as any); 
     } catch {
       setAlertState({
         isOpen: true,
@@ -68,7 +75,7 @@ const ManajemenAkunPage = () => {
     setAlertState({
       isOpen: true,
       title: "Konfirmasi Tindakan",
-      message: `Anda yakin ingin ${action} akun ${user.name}?`,
+      message: `Anda yakin ingin ${action} akun ${user.user_name}?`,
       type: "confirm",
       onConfirm: () => toggleUserStatus(user),
     });
@@ -79,7 +86,7 @@ const ManajemenAkunPage = () => {
     const action = isActivating ? activateUser : deactivateUser;
     const successMessage = isActivating ? "diaktifkan" : "dinonaktifkan";
     try {
-      await action(user.id);
+      await action(user.user_id);
       fetchUsers();
       setAlertState({
         isOpen: true,
@@ -107,7 +114,7 @@ const ManajemenAkunPage = () => {
   const handleAddUser = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      const response = await addUser(newUser);
+      const response = (await addUser(newUser)) as any; 
       setIsModalOpen(false);
       fetchUsers();
       setNewUser({ name: "", email: "", username: "", role: "staff" });
@@ -115,11 +122,11 @@ const ManajemenAkunPage = () => {
       setAlertState({
         isOpen: true,
         title: "Akun Berhasil Dibuat",
-        message: `Akun untuk ${response.user.name} siap digunakan.`,
+        message: `Akun untuk ${response.user.user_name} siap digunakan.`,
         children: (
           <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-lg text-left shadow-inner">
             <p className="text-sm text-slate-600 mb-3">
-              Silakan salin informasi login berikut dan berikan kepada pengguna secara manual (WhatsApp/Email):
+              Silakan salin informasi login berikut dan berikan kepada pengguna secara manual:
             </p>
             <div className="space-y-2 font-mono text-sm">
                 <div className="flex justify-between border-b border-slate-200 pb-1">
@@ -128,7 +135,7 @@ const ManajemenAkunPage = () => {
                 </div>
                 <div className="flex justify-between border-b border-slate-200 pb-1">
                     <span className="text-slate-500">Email:</span>
-                    <span className="font-bold text-slate-800">{response.user.email}</span>
+                    <span className="font-bold text-slate-800">{response.user.user_email}</span>
                 </div>
                 <div className="flex justify-between items-center bg-yellow-50 p-2 rounded border border-yellow-200">
                     <span className="text-slate-500">Password:</span>
@@ -152,8 +159,6 @@ const ManajemenAkunPage = () => {
     }
   };
 
-  // Fungsi handleResetDataClick dan handleResetData telah dihapus
-
   const handleOpenResetModal = (user: User) => {
     setSelectedUser(user);
     setIsResetModalOpen(true);
@@ -168,12 +173,12 @@ const ManajemenAkunPage = () => {
     if (!selectedUser) return;
 
     try {
-      await adminResetUserPassword(selectedUser.id, password);
+      await adminResetUserPassword(selectedUser.user_id, password);
       handleCloseResetModal();
       setAlertState({
         isOpen: true,
         title: "Sukses",
-        message: `Password untuk ${selectedUser.name} berhasil direset.`,
+        message: `Password untuk ${selectedUser.user_name} berhasil direset.`,
         type: "success",
       });
     } catch {
@@ -200,7 +205,6 @@ const ManajemenAkunPage = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {/* Tombol Reset Data (Dev) telah dihapus dari sini */}
             <button
               onClick={() => setIsModalOpen(true)}
               className="flex items-center gap-2 px-4 py-2 font-semibold text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors shadow"
@@ -242,14 +246,14 @@ const ManajemenAkunPage = () => {
                 ) : users.length > 0 ? (
                   users.map((user) => (
                     <tr
-                      key={user.id}
+                      key={user.user_id}
                       className="border-b border-slate-100 last:border-b-0"
                     >
                       <td className="p-4 text-sm font-medium text-slate-800">
-                        {user.name}
+                        {user.user_name}
                       </td>
                       <td className="p-4 text-sm text-slate-500">
-                        {user.email}
+                        {user.user_email}
                       </td>
                       <td className="p-4 text-sm text-slate-500 font-mono">
                         {user.username}
@@ -384,7 +388,7 @@ const ManajemenAkunPage = () => {
         isOpen={isResetModalOpen}
         onClose={handleCloseResetModal}
         onSubmit={handlePasswordReset}
-        userName={selectedUser?.name || ""}
+        userName={selectedUser?.user_name || ""}
       />
     </>
   );

@@ -9,6 +9,8 @@ class AssociationRule extends Model
 {
     use HasFactory;
 
+    protected $primaryKey = 'association_rule_id';
+
     protected $fillable = [
         'antecedent',
         'consequent',

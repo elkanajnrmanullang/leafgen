@@ -48,7 +48,7 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path: "/reset-password/:token",
+        path: "/reset-password",
         element: (
           <PublicRoute>
             <ResetPasswordPage />
@@ -84,9 +84,7 @@ const router = createBrowserRouter([
           { path: "bank-gambar", element: <BankGambarPage /> },
           { path: "manajemen-akun", element: <ManajemenAkunPage /> },
           { path: "buat-leaflet", element: <BuatLeafletPage /> },
-          // Halaman khusus untuk memilih template saat wizard
           { path: "pilih-template", element: <PilihTemplatePage /> },
-          // Halaman manajemen template yang bisa diakses dari sidebar
           { path: "manajemen-template", element: <ManajemenTemplatePage /> },
           { path: "history", element: <HistoryPage /> },
         ],
