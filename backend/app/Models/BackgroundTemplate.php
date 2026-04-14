@@ -9,10 +9,8 @@ class BackgroundTemplate extends Model
 {
     use HasFactory;
 
-    // Menyesuaikan dengan nama tabel baru
     protected $table = 'bg_templates';
     
-    // Menyesuaikan dengan primary key baru
     protected $primaryKey = 'bg_template_id';
 
     protected $fillable = [
@@ -21,7 +19,6 @@ class BackgroundTemplate extends Model
         'user_id'
     ];
 
-    // Otomatis menambahkan 'image_url' setiap kali data dipanggil via API
     protected $appends = ['image_url'];
 
     public function getImageUrlAttribute()
@@ -34,7 +31,6 @@ class BackgroundTemplate extends Model
             return $this->bg_img_path;
         }
 
-        // Langsung arahkan ke URL public storage Laravel secara aman
         return url('storage/' . $this->bg_img_path);
     }
 

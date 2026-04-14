@@ -15,26 +15,20 @@ class MediaController extends Controller
         $filename = basename($path);
 
         $possiblePaths = [
-            // 1. Cek folder upload public storage standar
             storage_path('app/public/' . $filename),
 
-            // 2. Cek folder templates spesifik di storage
             storage_path('app/public/assets/templates/' . $filename),
             storage_path('app/public/templates/' . $filename),
 
-            // 3. Cek folder master_templates (dari BadgeGeneratorService)
             storage_path('app/master_templates/' . $filename),
             storage_path('app/master_templates/assets/' . $filename),
 
-            // 4. Cek folder assets bawaan Laravel (public/assets)
             public_path('assets/' . $filename),
             public_path('assets/templates/' . $filename),
             public_path('assets/components/' . $filename),
 
-            // 5. Cek folder temp badges
             storage_path('app/public/temp/badges/' . $filename),
 
-            // 6. Cek path asli jika user mengirim path lengkap
             storage_path('app/public/' . $path),
             public_path($path),
         ];
@@ -59,12 +53,10 @@ class MediaController extends Controller
         $response = Response::make($file, 200);
         $response->header("Content-Type", $type);
 
-        // Header CORS Lengkap untuk html2canvas
         $response->header("Access-Control-Allow-Origin", "*");
         $response->header("Access-Control-Allow-Methods", "GET, OPTIONS");
         $response->header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
 
-        // Cache browser selama 1 jam
         $response->header("Cache-Control", "public, max-age=3600");
 
         return $response;

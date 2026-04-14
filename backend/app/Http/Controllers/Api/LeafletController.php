@@ -37,6 +37,7 @@ class LeafletController extends Controller
             ])->count();
 
             $recentActivities = ActivityLog::with('user')
+                ->whereNotIn('type_activity', ['security', 'account', 'user']) 
                 ->latest()
                 ->take(20)
                 ->get()
@@ -68,10 +69,21 @@ class LeafletController extends Controller
         try {
             $templates = BackgroundTemplate::orderBy('created_at', 'desc')->get();
 
-            // Atribut image_url sudah otomatis ditambahkan oleh $appends di Model
+            $formattedTemplates = $templates->map(function ($template) {
+                return [
+                    'id' => $template->bg_template_id,
+                    'bg_template_id' => $template->bg_template_id,
+                    'title' => $template->bg_title,
+                    'bg_title' => $template->bg_title,
+                    'image_path' => $template->bg_img_path,
+                    'image_url' => $template->image_url,
+                    'type' => 'master'
+                ];
+            });
+
             return response()->json([
                 'success' => true,
-                'data' => $templates
+                'data' => $formattedTemplates
             ]);
         } catch (\Exception $e) {
             Log::error('Get Templates Error: ' . $e->getMessage());
@@ -90,12 +102,16 @@ class LeafletController extends Controller
             $file = $request->file('image');
             $filename = 'template_' . time() . '.' . $file->getClientOriginalExtension();
             
-            // Simpan langsung (Jauh lebih ringan dan tidak memicu 500 Error Intervention)
             $path = $file->storeAs('templates', $filename, 'public');
 
-            $user = Auth::user();
-            $userId = $user ? $user->user_id : 1; // Fallback ke 1 jika null (seeder)
-            $userName = $user ? $user->user_name : 'Sistem';
+            $user = Auth::user() ?? User::orderBy('user_id')->first();
+            
+            if (!$user) {
+                throw new \Exception("Tidak ada data pengguna di dalam sistem untuk relasi.");
+            }
+
+            $userId = $user->user_id;
+            $userName = $user->user_name;
 
             $template = BackgroundTemplate::create([
                 'bg_title' => $request->title,
@@ -111,7 +127,13 @@ class LeafletController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $template,
+                'data' => [
+                    'id' => $template->bg_template_id,
+                    'bg_template_id' => $template->bg_template_id,
+                    'title' => $template->bg_title,
+                    'bg_title' => $template->bg_title,
+                    'image_url' => $template->image_url,
+                ],
                 'message' => 'Template berhasil diupload'
             ]);
 
@@ -147,7 +169,7 @@ class LeafletController extends Controller
 
             $template->update($data);
 
-            $user = Auth::user();
+            $user = Auth::user() ?? User::orderBy('user_id')->first();
             $userId = $user ? $user->user_id : null;
             $userName = $user ? $user->user_name : 'Sistem';
 
@@ -159,7 +181,13 @@ class LeafletController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $template,
+                'data' => [
+                    'id' => $template->bg_template_id,
+                    'bg_template_id' => $template->bg_template_id,
+                    'title' => $template->bg_title,
+                    'bg_title' => $template->bg_title,
+                    'image_url' => $template->image_url,
+                ],
                 'message' => 'Template berhasil diperbarui'
             ]);
 
@@ -181,7 +209,7 @@ class LeafletController extends Controller
             $title = $template->bg_title;
             $template->delete();
 
-            $user = Auth::user();
+            $user = Auth::user() ?? User::orderBy('user_id')->first();
             $userId = $user ? $user->user_id : null;
             $userName = $user ? $user->user_name : 'Sistem';
 
@@ -200,6 +228,19 @@ class LeafletController extends Controller
 
     public function checkRegions(Request $request)
     {
+        return response()->json([
+            'success' => true,
+            'data' => ['ALL', 'JAWA', 'SUM', 'KAL', 'SUL', 'MALUKU']
+        ]);
+    }
+
+    // FUNGSI INI DITAMBAHKAN KEMBALI
+    public function uploadAndGetRegions(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv|max:10240',
+        ]);
+
         return response()->json([
             'success' => true,
             'data' => ['ALL', 'JAWA', 'SUM', 'KAL', 'SUL', 'MALUKU']
@@ -325,14 +366,6 @@ class LeafletController extends Controller
         ]);
     }
 
-    public function uploadAndGetRegions(Request $request)
-    {
-        return response()->json([
-            'success' => true,
-            'data' => ['ALL', 'JAWA', 'SUM', 'KAL', 'SUL', 'MALUKU']
-        ]);
-    }
-
     public function index()
     {
         try {
@@ -427,10 +460,7 @@ class LeafletController extends Controller
         ]);
 
         try {
-            $user = Auth::user();
-            if (!$user) {
-                $user = User::first();
-            }
+            $user = Auth::user() ?? User::orderBy('user_id')->first();
             $userId = $user->user_id;
 
             $leaflet = null;

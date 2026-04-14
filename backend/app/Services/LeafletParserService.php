@@ -53,12 +53,10 @@ class LeafletParserService
 
             if (empty($storeString)) continue;
 
-            // Cek Exclude Region Utama (Misal: EXCLD JAWA)
             if (preg_match('/(EXCLD|KEC|EXC)\s+.*' . preg_quote($targetRegion, '/') . '/', $storeString)) {
                 continue;
             }
 
-            // Cek Exclude Kota Spesifik dalam Region (Misal: EXCLD AMB saat target region MALUKU)
             if (isset($regionCities[$targetRegion])) {
                 foreach ($regionCities[$targetRegion] as $city) {
                     if (preg_match('/(EXCLD|KEC|EXC)\s+.*' . preg_quote($city, '/') . '/', $storeString)) {
@@ -67,9 +65,7 @@ class LeafletParserService
                 }
             }
 
-            // Logic NAS / ALL / SEMUA
             if (str_contains($storeString, 'NAS') || str_contains($storeString, 'ALL') || str_contains($storeString, 'SEMUA')) {
-                // Handle "LUAR JAWA" exclusion inside NAS
                 if (str_contains($storeString, 'LUAR JAWA') && $targetRegion === 'JAWA') {
                     continue;
                 }
@@ -77,7 +73,6 @@ class LeafletParserService
                 continue;
             }
 
-            // Logic LUAR JAWA
             if (str_contains($storeString, 'LUAR JAWA')) {
                 if ($targetRegion !== 'JAWA') {
                     $validItems[] = $row;
@@ -85,13 +80,11 @@ class LeafletParserService
                 continue;
             }
 
-            // Logic Match Region Code (JAWA, KAL, dll)
             if (str_contains($storeString, $targetRegion)) {
                 $validItems[] = $row;
                 continue;
             }
 
-            // Logic Match City Code (SBY, MEDAN, dll)
             if (isset($regionCities[$targetRegion])) {
                 foreach ($regionCities[$targetRegion] as $city) {
                     if (str_contains($storeString, $city)) {
@@ -154,7 +147,7 @@ class LeafletParserService
             return preg_replace('/[^0-9]/', '', (string)($item['plu'] ?? ''));
         }, $items);
 
-        $dbProducts = Product::whereIn('plu_code', $pluList)->pluck('image_path', 'plu_code');
+        $dbProducts = Product::whereIn('plu_code', $pluList)->pluck('product_img_path', 'plu_code');
 
         $cardBg = ($pageNumber === 1) ? 'img_card_bg_master.png' : 'card_inner_master_bg.png';
 
@@ -201,30 +194,25 @@ class LeafletParserService
                 'plu' => $cleanPlu,
                 'component_name' => 'card_cover_master',
                 'data' => [
-                    // Core Data
                     'txt_name' => $item['nama_barang'] ?? 'Nama Barang',
                     'txt_price' => $txtPrice,
                     'txt_satuan_price' => $satuan ? "/$satuan" : '',
                     'img_product' => $finalImage,
 
-                    // Visual Components Assets
                     'img_card_bg' => 'assets/' . $cardBg,
                     'img_container_price' => 'assets/components/img_container_price.png',
                     'img_container_coret' => $coretData['show'] ? 'assets/components/img_container_coret.png' : null,
                     'img_coret_line' => $coretData['show'] ? 'assets/components/img_coret_line.png' : null,
                     'img_container_keterangan' => !empty($descText) ? 'assets/components/img_container_keterangan.png' : null,
 
-                    // Core Text Data for Frontend Editing
                     'txt_coret' => $txtCoret,
                     'txt_keterangan' => $descText,
                     'show_coret' => $coretData['show'],
                     'show_keterangan' => !empty($descText),
 
-                    // BBMU
                     'is_bbmu' => !empty($bbmuBadgeUrl),
                     'img_badge_bbmu' => !empty($bbmuBadgeUrl) ? 'assets/components/' . $bbmuBadgeUrl : null,
 
-                    // Promo Badge Data
                     'badge_promo' => $promoBadgeUrl ? [
                         'active' => true,
                         'txt_qty_promo' => $promoBadgeUrl['txt_qty_promo'],
@@ -235,13 +223,11 @@ class LeafletParserService
                     'img_bg_label_promo' => $promoBadgeUrl ? 'assets/components/img_bg_label_promo.png' : null,
                     'img_container_ketPromo' => $promoBadgeUrl ? 'assets/components/img_container_ketPromo.png' : null,
 
-                    // Fields for legacy/direct mapping
                     'txt_qty_promo' => $promoBadgeUrl['txt_qty_promo'] ?? null,
                     'txt_price_promo' => $promoBadgeUrl['txt_price_promo'] ?? null,
                     'txt_keterangan_promo' => $promoBadgeUrl['txt_keterangan_promo'] ?? null,
                     'txt_satuan' => $promoBadgeUrl['txt_satuan'] ?? null,
 
-                    // IGR Badge Data
                     'badge_igr' => $igrBadgeUrl ? [
                          'active' => true,
                          'txt_keterangan_qty_igr' => $igrBadgeUrl['txt_keterangan_qty_igr'],
@@ -254,7 +240,6 @@ class LeafletParserService
                     'txt_price_bonus_igr' => $igrBadgeUrl['txt_price_bonus_igr'] ?? null,
                     'txt_keterangan_qty_igr' => $igrBadgeUrl['txt_keterangan_qty_igr'] ?? null,
 
-                    // SPI Badge Data
                     'badge_spi' => $spiBadgeUrl ? [
                         'active' => true,
                         'txt_price_bonus_spi' => $spiBadgeUrl['txt_price_bonus_spi'],
