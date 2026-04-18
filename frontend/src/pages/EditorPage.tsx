@@ -31,7 +31,6 @@ interface FigmaNode {
   opacity?: number;
 }
 
-// PERBAIKAN TS2719: Menyesuaikan interface Product
 interface Product {
   product_id?: number;
   plu_code: string;
@@ -62,6 +61,12 @@ interface Rule {
   keterangan: string;
 }
 
+interface AprioriStepItem {
+  itemset: string;
+  count: number;
+  support: number;
+}
+
 interface AprioriStepRule {
   rule: string;
   support_A_B: number;
@@ -71,7 +76,11 @@ interface AprioriStepRule {
 }
 
 interface AprioriSteps {
-  rules_calculation: AprioriStepRule[];
+  C1: AprioriStepItem[];
+  L1: AprioriStepItem[];
+  C2: AprioriStepItem[];
+  L2: AprioriStepItem[];
+  AssociationRules: AprioriStepRule[];
   min_support: number;
   min_confidence: number;
 }
@@ -240,11 +249,15 @@ const EditorPage = () => {
   const [designName, setDesignName] = useState("Draft Otomatis");
   const [storeName, setStoreName] = useState("");
   const [isGridEnabled, setIsGridEnabled] = useState(false);
-  const [leafletId, setLeafletId] = useState<string | undefined>(undefined);
+  
+  const leafletIdRef = useRef<string | undefined>(undefined);
+  const savePromiseRef = useRef<Promise<void> | null>(null);
+  
   const [pageBackground, setPageBackground] = useState<string | null>(null);
 
   const [isSmartGridActive, setIsSmartGridActive] = useState(false);
   const [showCalcModal, setShowCalcModal] = useState(false);
+  const [activeCalcTab, setActiveCalcTab] = useState<string>("rules");
   const [aprioriData, setAprioriData] = useState<AprioriData>({ isReady: false, totalTransactions: 0, rules: [] });
   const originalLeafletsRef = useRef<Record<string, PageWithDimensions[]>>({});
 
@@ -292,7 +305,7 @@ const EditorPage = () => {
   }, [reloadSmartGridData]);
 
   const handleSmartGridToggleClick = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (aprioriData.totalTransactions < 80) return;
+      if (aprioriData.totalTransactions < 2) return;
 
       const newValue = e.target.checked;
       setIsSmartGridActive(newValue);
@@ -331,46 +344,71 @@ const EditorPage = () => {
   };
 
   const saveData = useCallback(
-    async (status: "draft" | "exported") => {
+    async (status: "draft" | "completed") => {
       if (Object.keys(leaflets).length === 0) return;
-      setSaveStatus("saving");
-      
-      try {
-        let payload;
-        if (regionNames.length === 1 && regionNames[0] === 'DEFAULT') {
-             payload = {
-                id: leafletId,
-                title: designName,
-                store: storeName,
-                pages: leaflets['DEFAULT'],
-                status: status,
-                template_url: pageBackground 
-             };
-        } else {
-             payload = {
-                 id: leafletId,
-                 title: designName,
-                 store: storeName,
-                 regions_data: leaflets,
-                 status: status,
-                 template_url: pageBackground
-             };
-        }
 
-        const response = await LeafletService.saveLeaflet(payload);
-        
-        if (response && response.id) setLeafletId(response.id);
-        setSaveStatus("saved");
-        
-        if (status === "exported") {
-             await reloadSmartGridData();
-        }
-      } catch (error) {
-        console.error(error);
-        setSaveStatus("unsaved");
+      if (savePromiseRef.current) {
+          try {
+              await savePromiseRef.current;
+          } catch (error) {
+              console.error("Previous save operation failed:", error);
+          }
+      }
+
+      const executeSave = async (): Promise<void> => {
+          setSaveStatus("saving");
+          try {
+            let payload;
+            const currentId = leafletIdRef.current;
+
+            if (regionNames.length === 1 && regionNames[0] === 'DEFAULT') {
+                 payload = {
+                    id: currentId,
+                    title: designName,
+                    store: storeName,
+                    pages: leaflets['DEFAULT'],
+                    status: status,
+                    template_url: pageBackground 
+                 };
+            } else {
+                 payload = {
+                     id: currentId,
+                     title: designName,
+                     store: storeName,
+                     regions_data: leaflets,
+                     status: status,
+                     template_url: pageBackground
+                 };
+            }
+
+            const response = await LeafletService.saveLeaflet(payload);
+            
+            if (response && response.id) {
+                leafletIdRef.current = response.id;
+            }
+            setSaveStatus("saved");
+            
+            if (status === "completed") {
+                 await reloadSmartGridData();
+            }
+          } catch (error) {
+            console.error(error);
+            setSaveStatus("unsaved");
+          }
+      };
+
+      const promise = executeSave();
+      savePromiseRef.current = promise;
+
+      try {
+          await promise;
+      } finally {
+          if (savePromiseRef.current === promise) {
+              savePromiseRef.current = null;
+          }
       }
     },
-    [designName, storeName, leaflets, leafletId, regionNames, pageBackground, reloadSmartGridData]
+    [designName, storeName, leaflets, regionNames, pageBackground, reloadSmartGridData]
   );
 
   useEffect(() => {
@@ -561,7 +599,9 @@ const EditorPage = () => {
                     const firstRegionData = backendData[firstRegion] as Record<string, unknown>;
                     setDesignName((firstRegionData?.leaflet_name as string) || initialName || "Leaflet All Regions");
                     setStoreName("ALL REGIONS");
-                    if (firstRegionData?.id) setLeafletId(firstRegionData.id as string);
+                    if (firstRegionData?.id) {
+                        leafletIdRef.current = firstRegionData.id as string;
+                    }
                 }
             } else {
                 const pagesData = (backendData.pages as BackendPage[]) || (Array.isArray(backendData) ? backendData : []) || (backendData.items as BackendPage[]) || [];
@@ -569,7 +609,9 @@ const EditorPage = () => {
                 regions.push('DEFAULT');
                 setDesignName(initialName || (backendData.leaflet_name as string) || "New Leaflet");
                 setStoreName(storeFromNav || (backendData.store as string) || "Region");
-                if (backendData.id) setLeafletId(backendData.id as string);
+                if (backendData.id) {
+                    leafletIdRef.current = backendData.id as string;
+                }
             }
 
             setLeaflets(initLeaflets);
@@ -653,12 +695,12 @@ const EditorPage = () => {
   }, [pages, generatedBadges, generatingBadges, generateBadgeForItem]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || isDownloading) return;
     setSaveStatus("unsaved");
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = window.setTimeout(() => saveData("draft"), 2000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
-  }, [leaflets, designName, loading, saveData]);
+  }, [leaflets, designName, loading, isDownloading, saveData]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -718,6 +760,7 @@ const EditorPage = () => {
     setIsDownloadMenuOpen(false);
     setIsDownloading(true);
     setDownloadProgress("Menyiapkan layout...");
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     
     const originalZoom = zoom;
     const originalActiveRegion = activeRegion;
@@ -786,7 +829,8 @@ const EditorPage = () => {
             }
         }
 
-        await saveData("exported");
+        await saveData("completed");
+        navigate("/history");
     } catch (error) {
         console.error(error);
         alert("Gagal mengunduh dokumen.");
@@ -1186,20 +1230,20 @@ const EditorPage = () => {
             <Grid size={16} /> Grid
           </button>
           
-          <div className={`flex items-center gap-2 rounded-lg px-2 py-1.5 border shadow-sm transition-colors ${aprioriData.totalTransactions < 80 ? 'bg-slate-50 border-slate-200' : 'bg-white border-slate-200'}`}>
-              <label className={`flex items-center gap-2 ${aprioriData.totalTransactions < 80 ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+          <div className={`flex items-center gap-2 rounded-lg px-2 py-1.5 border shadow-sm transition-colors ${aprioriData.totalTransactions < 2 ? 'bg-slate-50 border-slate-200' : 'bg-white border-slate-200'}`}>
+              <label className={`flex items-center gap-2 ${aprioriData.totalTransactions < 2 ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
                   <input 
                       type="checkbox" 
-                      className={`w-4 h-4 text-blue-600 rounded focus:ring-blue-500 ${aprioriData.totalTransactions < 80 ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                      className={`w-4 h-4 text-blue-600 rounded focus:ring-blue-500 ${aprioriData.totalTransactions < 2 ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                       checked={isSmartGridActive} 
                       onChange={handleSmartGridToggleClick} 
-                      disabled={aprioriData.totalTransactions < 80}
+                      disabled={aprioriData.totalTransactions < 2}
                   />
                   <span className="text-xs font-bold text-slate-700">
-                      Grid Cerdas {aprioriData.totalTransactions < 80 ? `(${aprioriData.totalTransactions}/80)` : ''}
+                      Grid Cerdas {aprioriData.totalTransactions < 2 ? `(${aprioriData.totalTransactions}/2)` : ''}
                   </span>
               </label>
-              {isSmartGridActive && aprioriData.totalTransactions >= 80 && (
+              {isSmartGridActive && aprioriData.totalTransactions >= 2 && (
                   <button 
                       onClick={() => setShowCalcModal(true)} 
                       className="px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded text-[10px] font-bold border border-blue-200 transition-colors"
@@ -1478,8 +1522,8 @@ const EditorPage = () => {
       />
 
       {showCalcModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-11/12 max-w-4xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-slate-800 px-6 py-4 flex justify-between items-center text-white shrink-0">
               <div>
                 <h2 className="text-lg font-bold">Perhitungan Algoritma Apriori</h2>
@@ -1491,42 +1535,175 @@ const EditorPage = () => {
               <button onClick={() => setShowCalcModal(false)} className="text-slate-300 hover:text-red-400 text-2xl font-bold transition-colors">&times;</button>
             </div>
 
-            <div className="p-0 overflow-y-auto flex-1 bg-white">
-                  <table className="min-w-full text-left border-collapse">
-                    <thead className="sticky top-0 bg-slate-100 z-10 shadow-sm">
-                      <tr className="text-slate-700 text-xs border-b border-slate-200 uppercase tracking-wider">
-                        <th className="py-3 px-4 font-bold">Aturan (Rule)</th>
-                        <th className="py-3 px-4 font-bold text-center">Support (AUB)</th>
-                        <th className="py-3 px-4 font-bold text-center">Confidence</th>
-                        <th className="py-3 px-4 font-bold text-center">Lift Ratio</th>
-                        <th className="py-3 px-4 font-bold text-center">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-sm text-slate-700">
-                        {aprioriData.steps?.rules_calculation && aprioriData.steps.rules_calculation.length > 0 ? (
-                            aprioriData.steps.rules_calculation.map((r: AprioriStepRule, i: number) => (
-                                <tr key={i} className={`border-b transition-colors ${r.is_valid ? 'border-slate-100 hover:bg-slate-50' : 'bg-red-50/30 border-red-100 text-slate-500'}`}>
-                                    <td className="py-3 px-4 font-bold">{r.rule}</td>
-                                    <td className="py-3 px-4 text-center font-mono">{(r.support_A_B * 100).toFixed(1)}%</td>
-                                    <td className="py-3 px-4 text-center font-mono font-bold text-blue-600">{(r.confidence * 100).toFixed(1)}%</td>
-                                    <td className="py-3 px-4 text-center font-mono font-bold text-purple-600">{r.lift_ratio.toFixed(2)}</td>
-                                    <td className="py-3 px-4 text-center">
-                                        {r.is_valid 
-                                            ? <span className="px-2 py-1 rounded text-[10px] font-bold bg-green-100 text-green-700">Valid</span>
-                                            : <span className="px-2 py-1 rounded text-[10px] font-bold bg-red-100 text-red-700">Tidak Valid</span>
-                                        }
-                                    </td>
+            <div className="flex border-b border-slate-200 bg-slate-50 shrink-0">
+                <button onClick={() => setActiveCalcTab('C1L1')} className={`flex-1 py-3 text-sm font-bold transition-colors ${activeCalcTab === 'C1L1' ? 'text-blue-600 border-b-2 border-blue-600 bg-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}>Iterasi 1 (C1 & L1)</button>
+                <button onClick={() => setActiveCalcTab('C2L2')} className={`flex-1 py-3 text-sm font-bold transition-colors ${activeCalcTab === 'C2L2' ? 'text-blue-600 border-b-2 border-blue-600 bg-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}>Iterasi 2 (C2 & L2)</button>
+                <button onClick={() => setActiveCalcTab('rules')} className={`flex-1 py-3 text-sm font-bold transition-colors ${activeCalcTab === 'rules' ? 'text-blue-600 border-b-2 border-blue-600 bg-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}>Aturan Asosiasi</button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1 bg-white">
+                {activeCalcTab === 'C1L1' && (
+                    <div className="space-y-8">
+                        <div>
+                            <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2"><span className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs">Tabel C1</span> Kandidat 1-Itemset</h3>
+                            <div className="border border-slate-200 rounded-lg overflow-hidden">
+                                <table className="min-w-full text-left border-collapse">
+                                    <thead className="bg-slate-50">
+                                        <tr className="text-slate-600 text-xs uppercase">
+                                            <th className="py-2 px-4 border-b">Itemset</th>
+                                            <th className="py-2 px-4 border-b text-center">Jumlah (Count)</th>
+                                            <th className="py-2 px-4 border-b text-center">Support</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-sm">
+                                        {aprioriData.steps?.C1 && aprioriData.steps.C1.length > 0 ? (
+                                            aprioriData.steps.C1.map((item: AprioriStepItem, i: number) => (
+                                                <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
+                                                    <td className="py-2 px-4">{item.itemset}</td>
+                                                    <td className="py-2 px-4 text-center font-mono">{item.count}</td>
+                                                    <td className="py-2 px-4 text-center font-mono">{(item.support * 100).toFixed(2)}%</td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr><td colSpan={3} className="py-4 text-center text-slate-500">Tidak ada data</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2"><span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">Tabel L1</span> Frequent 1-Itemset (Lolos Min. Support)</h3>
+                            <div className="border border-slate-200 rounded-lg overflow-hidden">
+                                <table className="min-w-full text-left border-collapse">
+                                    <thead className="bg-slate-50">
+                                        <tr className="text-slate-600 text-xs uppercase">
+                                            <th className="py-2 px-4 border-b">Itemset</th>
+                                            <th className="py-2 px-4 border-b text-center">Jumlah (Count)</th>
+                                            <th className="py-2 px-4 border-b text-center">Support</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-sm">
+                                        {aprioriData.steps?.L1 && aprioriData.steps.L1.length > 0 ? (
+                                            aprioriData.steps.L1.map((item: AprioriStepItem, i: number) => (
+                                                <tr key={i} className="border-b border-slate-100 hover:bg-blue-50/30">
+                                                    <td className="py-2 px-4 font-medium text-blue-700">{item.itemset}</td>
+                                                    <td className="py-2 px-4 text-center font-mono">{item.count}</td>
+                                                    <td className="py-2 px-4 text-center font-mono text-green-600 font-bold">{(item.support * 100).toFixed(2)}%</td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr><td colSpan={3} className="py-4 text-center text-slate-500">Tidak ada item yang lolos minimum support</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeCalcTab === 'C2L2' && (
+                    <div className="space-y-8">
+                        <div>
+                            <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2"><span className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs">Tabel C2</span> Kandidat 2-Itemset</h3>
+                            <div className="border border-slate-200 rounded-lg overflow-hidden">
+                                <table className="min-w-full text-left border-collapse">
+                                    <thead className="bg-slate-50">
+                                        <tr className="text-slate-600 text-xs uppercase">
+                                            <th className="py-2 px-4 border-b">Pasangan Item (Itemset)</th>
+                                            <th className="py-2 px-4 border-b text-center">Jumlah (Count)</th>
+                                            <th className="py-2 px-4 border-b text-center">Support</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-sm">
+                                        {aprioriData.steps?.C2 && aprioriData.steps.C2.length > 0 ? (
+                                            aprioriData.steps.C2.map((item: AprioriStepItem, i: number) => (
+                                                <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
+                                                    <td className="py-2 px-4">{item.itemset}</td>
+                                                    <td className="py-2 px-4 text-center font-mono">{item.count}</td>
+                                                    <td className="py-2 px-4 text-center font-mono">{(item.support * 100).toFixed(2)}%</td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr><td colSpan={3} className="py-4 text-center text-slate-500">Tidak ada kombinasi 2 item</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2"><span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">Tabel L2</span> Frequent 2-Itemset (Lolos Min. Support)</h3>
+                            <div className="border border-slate-200 rounded-lg overflow-hidden">
+                                <table className="min-w-full text-left border-collapse">
+                                    <thead className="bg-slate-50">
+                                        <tr className="text-slate-600 text-xs uppercase">
+                                            <th className="py-2 px-4 border-b">Pasangan Item (Itemset)</th>
+                                            <th className="py-2 px-4 border-b text-center">Jumlah (Count)</th>
+                                            <th className="py-2 px-4 border-b text-center">Support</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-sm">
+                                        {aprioriData.steps?.L2 && aprioriData.steps.L2.length > 0 ? (
+                                            aprioriData.steps.L2.map((item: AprioriStepItem, i: number) => (
+                                                <tr key={i} className="border-b border-slate-100 hover:bg-blue-50/30">
+                                                    <td className="py-2 px-4 font-medium text-blue-700">{item.itemset}</td>
+                                                    <td className="py-2 px-4 text-center font-mono">{item.count}</td>
+                                                    <td className="py-2 px-4 text-center font-mono text-green-600 font-bold">{(item.support * 100).toFixed(2)}%</td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr><td colSpan={3} className="py-4 text-center text-slate-500">Tidak ada pasangan yang lolos minimum support</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeCalcTab === 'rules' && (
+                    <div>
+                        <h3 className="font-bold text-slate-700 mb-3 flex items-center gap-2">Pembentukan Aturan Asosiasi (Rules)</h3>
+                        <div className="border border-slate-200 rounded-lg overflow-hidden">
+                            <table className="min-w-full text-left border-collapse">
+                                <thead className="bg-slate-100">
+                                <tr className="text-slate-700 text-xs border-b border-slate-200 uppercase tracking-wider">
+                                    <th className="py-3 px-4 font-bold">Aturan (Rule)</th>
+                                    <th className="py-3 px-4 font-bold text-center">Support (A U B)</th>
+                                    <th className="py-3 px-4 font-bold text-center">Confidence</th>
+                                    <th className="py-3 px-4 font-bold text-center">Lift Ratio</th>
+                                    <th className="py-3 px-4 font-bold text-center">Status</th>
                                 </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan={5} className="py-12 text-center">
-                                    <p className="text-slate-500 font-medium">Belum ada aturan yang memenuhi syarat minimum support.</p>
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                  </table>
+                                </thead>
+                                <tbody className="text-sm text-slate-700">
+                                    {aprioriData.steps?.AssociationRules && aprioriData.steps.AssociationRules.length > 0 ? (
+                                        aprioriData.steps.AssociationRules.map((r: AprioriStepRule, i: number) => (
+                                            <tr key={i} className={`border-b transition-colors ${r.is_valid ? 'border-slate-100 hover:bg-slate-50' : 'bg-red-50/30 border-red-100 text-slate-500'}`}>
+                                                <td className="py-3 px-4 font-bold">{r.rule}</td>
+                                                <td className="py-3 px-4 text-center font-mono">{(r.support_A_B * 100).toFixed(2)}%</td>
+                                                <td className="py-3 px-4 text-center font-mono font-bold text-blue-600">{(r.confidence * 100).toFixed(2)}%</td>
+                                                <td className="py-3 px-4 text-center font-mono font-bold text-purple-600">{r.lift_ratio.toFixed(2)}</td>
+                                                <td className="py-3 px-4 text-center">
+                                                    {r.is_valid 
+                                                        ? <span className="px-2 py-1 rounded text-[10px] font-bold bg-green-100 text-green-700">Valid</span>
+                                                        : <span className="px-2 py-1 rounded text-[10px] font-bold bg-red-100 text-red-700">Tidak Valid</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={5} className="py-12 text-center">
+                                                <p className="text-slate-500 font-medium">Belum ada aturan yang dapat dibentuk dari data transaksi.</p>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
             </div>
             
             <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end shrink-0">

@@ -20,7 +20,7 @@ interface HistoryItem {
   store: string;
   date: string;
   thumbnailUrl: string | null;
-  status: "draft" | "exported" | "Selesai" | "Draft" | "completed";
+  status: "draft" | "completed";
   pageCount: number;
 }
 
@@ -37,7 +37,7 @@ const HistoryPage = () => {
         const data = await LeafletService.getHistory();
         setHistoryData(data);
       } catch (error) {
-        console.error("Gagal memuat riwayat:", error);
+        console.error(error);
       } finally {
         setIsLoading(false);
       }
@@ -151,12 +151,12 @@ const HistoryPage = () => {
                 <div className="absolute top-3 right-3 z-10">
                   <span
                     className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border shadow-sm flex items-center gap-1.5 ${
-                      item.status === "exported" || item.status === "Selesai" || item.status === "completed"
+                      String(item.status).toLowerCase() === "completed"
                         ? "bg-emerald-100 text-emerald-700 border-emerald-200"
                         : "bg-amber-100 text-amber-700 border-amber-200"
                     }`}
                   >
-                    {item.status === "exported" || item.status === "Selesai" || item.status === "completed" ? (
+                    {String(item.status).toLowerCase() === "completed" ? (
                         <><CheckCircle2 size={12}/> SELESAI</>
                     ) : (
                         <><FileClock size={12}/> DRAFT</>
@@ -193,7 +193,7 @@ const HistoryPage = () => {
                 <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium uppercase tracking-wider">
                     <Clock size={12} />
-                    {item.status === "draft" || item.status === "Draft" ? "Belum didownload" : "Sudah didownload"}
+                    {String(item.status).toLowerCase() === "draft" ? "Belum didownload" : "Sudah didownload"}
                   </div>
                   <div className="flex gap-1">
                     <button
@@ -233,25 +233,8 @@ const HistoryPage = () => {
   );
 };
 
-const MapPinIcon = ({
-  size,
-  className,
-}: {
-  size: number;
-  className?: string;
-}) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
+const MapPinIcon = ({ size, className }: { size: number; className?: string; }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
     <circle cx="12" cy="10" r="3" />
   </svg>

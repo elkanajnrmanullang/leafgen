@@ -27,7 +27,7 @@ class SmartGridController extends Controller
                     'success' => true,
                     'is_smart_grid_active' => false,
                     'total_transactions' => $totalData,
-                    'message' => 'Grid Cerdas membutuhkan minimal 80 data (Cold Start). Saat ini: ' . $totalData,
+                    'message' => 'Grid Cerdas membutuhkan minimal 80 data sebagai Cold Start. Saat ini: ' . $totalData,
                     'rules' => [],
                     'steps' => null
                 ]);
@@ -60,7 +60,6 @@ class SmartGridController extends Controller
                 ];
             });
 
-            // Beri tahu pengguna jika rules benar-benar kosong karena struktur data
             $message = 'Aturan Apriori berhasil dimuat.';
             if ($rules->isEmpty()) {
                 $message = 'Grid aktif. Namun, sistem tidak menemukan adanya minimal 2 produk atau lebih yang digabungkan dalam satu leaflet.';

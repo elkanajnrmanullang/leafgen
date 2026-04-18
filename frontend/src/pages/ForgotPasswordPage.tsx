@@ -22,7 +22,7 @@ const ForgotPasswordPage = () => {
     } catch (err: unknown) {
       if (isAxiosError(err)) {
         if (err.response?.status === 404) {
-          setError("Email tidak ditemukan di dalam sistem kami.");
+          setError("Terjadi kesalahan, silahkan coba lagi nanti");
         } else {
           setError(err.response?.data?.message || "Terjadi kesalahan pada server. Silakan coba lagi nanti.");
         }

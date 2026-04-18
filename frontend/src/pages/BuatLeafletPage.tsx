@@ -53,7 +53,6 @@ const BuatLeafletPage = () => {
         setDetectedRegions(["ALL", "JAWA", "SUM", "KAL", "SUL", "AMB", "BLI"]);
         setSelectedRegion("ALL");
       } else {
-        // Jika ada regions, tambahkan opsi ALL di paling atas dan hapus duplikasi
         const regionsWithAll = Array.from(new Set(["ALL", ...regions]));
         setDetectedRegions(regionsWithAll);
         setSelectedRegion("ALL"); 

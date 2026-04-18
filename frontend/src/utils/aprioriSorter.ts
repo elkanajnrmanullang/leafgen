@@ -1,31 +1,46 @@
-import type { EditorItem } from '../types';
+import type { EditorItem } from "../types";
 
 interface Rule {
+    rule_id: number;
     antecedent: string;
     consequent: string;
+    support_percent: string;
+    confidence_percent: string;
+    lift_ratio: string;
+    keterangan: string;
 }
 
-export const applyAprioriSorting = (items: EditorItem[], rules: Rule[]) => {
-    if (!rules || rules.length === 0) return items;
+export const applyAprioriSorting = (items: EditorItem[], rules: Rule[]): EditorItem[] => {
+    if (!items || items.length <= 1 || !rules || rules.length === 0) {
+        return items;
+    }
 
-    const sorted = [...items];
+    const sortedRules = [...rules].sort((a, b) => parseFloat(b.lift_ratio) - parseFloat(a.lift_ratio));
 
-    rules.forEach(rule => {
-        const antIdx = sorted.findIndex(p => 
-            p.content?.name?.toLowerCase().includes(rule.antecedent.toLowerCase())
-        );
-        const conIdx = sorted.findIndex(p => 
-            p.content?.name?.toLowerCase().includes(rule.consequent.toLowerCase())
-        );
+    const unplacedItems = [...items];
+    const placedItems: EditorItem[] = [];
 
-        if (antIdx !== -1 && conIdx !== -1 && Math.abs(antIdx - conIdx) !== 1) {
-            const [conseq] = sorted.splice(conIdx, 1);
-            const newAntIdx = sorted.findIndex(p => 
-                p.content?.name?.toLowerCase().includes(rule.antecedent.toLowerCase())
+    while (unplacedItems.length > 0) {
+        const currentItem = unplacedItems.shift();
+        if (!currentItem) break;
+
+        placedItems.push(currentItem);
+
+        const currentName = (currentItem.content?.name || "").trim().toUpperCase();
+
+        const matchingRules = sortedRules.filter(r => r.antecedent === currentName);
+
+        for (const rule of matchingRules) {
+            const consequentIndex = unplacedItems.findIndex(
+                item => (item.content?.name || "").trim().toUpperCase() === rule.consequent
             );
-            sorted.splice(newAntIdx + 1, 0, conseq);
-        }
-    });
 
-    return sorted;
+            if (consequentIndex !== -1) {
+                const consequentItem = unplacedItems.splice(consequentIndex, 1)[0];
+                placedItems.push(consequentItem);
+            }
+        }
+    }
+
+    return placedItems;
 };

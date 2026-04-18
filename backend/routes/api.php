@@ -14,7 +14,6 @@ use App\Http\Controllers\Api\SmartGridController;
 
 Route::post('/login', [AuthController::class, 'login']);
 
-// Rute untuk Lupa Password
 Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail']);
 Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword']);
 
@@ -32,7 +31,7 @@ Route::get('/leaflets/{id}', [LeafletController::class, 'show']);
 Route::post('/leaflets/save', [LeafletController::class, 'store']);
 
 Route::post('/generate-badge', [BadgeController::class, 'generate']);
-Route::get('/smart-grid-rules', [SmartGridController::class, 'getRules']);
+Route::get('/smart-grid/rules', [SmartGridController::class, 'getRules']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {

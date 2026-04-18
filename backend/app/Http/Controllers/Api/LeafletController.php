@@ -30,11 +30,7 @@ class LeafletController extends Controller
     public function getDashboardStats()
     {
         try {
-            $totalLeaflets = Leaflet::whereIn('leaflet_status', [
-                'completed', 'Selesai', 'selesai', 'SELESAI',
-                'exported', 'Exported',
-                'Done', 'done'
-            ])->count();
+            $totalLeaflets = Leaflet::whereIn('leaflet_status', ['completed', 'exported', 'selesai'])->count();
 
             $recentActivities = ActivityLog::with('user')
                 ->whereNotIn('type_activity', ['security', 'account', 'user']) 
@@ -234,7 +230,6 @@ class LeafletController extends Controller
         ]);
     }
 
-    // FUNGSI INI DITAMBAHKAN KEMBALI
     public function uploadAndGetRegions(Request $request)
     {
         $request->validate([
@@ -403,12 +398,14 @@ class LeafletController extends Controller
                     }
                 }
 
+                $status = in_array(strtolower($item->leaflet_status), ['exported', 'completed', 'selesai']) ? 'completed' : 'draft';
+
                 return [
                     'id' => $item->leaflet_id,
                     'title' => $item->leaflet_name,
                     'store' => $item->region ?? 'Unknown',
                     'date' => $item->updated_at->format('d M Y H:i'),
-                    'status' => $item->leaflet_status ?? 'draft',
+                    'status' => $status,
                     'pageCount' => $pageCount,
                     'thumbnailUrl' => null
                 ];
@@ -487,6 +484,7 @@ class LeafletController extends Controller
                 $contentData['template_url'] = $request->input('template_url');
             }
 
+            $finalStatus = in_array(strtolower($request->status), ['exported', 'completed', 'selesai']) ? 'completed' : 'draft';
             $actionDescription = "";
 
             if ($leaflet) {
@@ -494,7 +492,7 @@ class LeafletController extends Controller
                     'leaflet_name' => $request->title,
                     'region' => $request->store,
                     'content' => $contentData,
-                    'leaflet_status' => $request->status
+                    'leaflet_status' => $finalStatus
                 ]);
                 $actionDescription = "{$user->user_name} memperbarui/mengedit leaflet: {$request->title}";
             } else {
@@ -502,13 +500,13 @@ class LeafletController extends Controller
                     'leaflet_name' => $request->title,
                     'region' => $request->store,
                     'content' => $contentData,
-                    'leaflet_status' => $request->status,
+                    'leaflet_status' => $finalStatus,
                     'user_id' => $userId
                 ]);
                 $actionDescription = "{$user->user_name} membuat leaflet baru: {$request->title}";
             }
 
-            if ($request->status === 'exported' || $request->status === 'completed') {
+            if ($finalStatus === 'completed') {
                 $actionDescription = "{$user->user_name} mendownload/menyelesaikan leaflet: {$request->title}";
             }
 
