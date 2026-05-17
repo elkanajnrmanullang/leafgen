@@ -12,8 +12,8 @@ import { getProducts } from "../services/productService";
 import { fetchSmartGridRules } from "../services/smartGridService";
 import { applyAprioriSorting } from "../utils/aprioriSorter";
 import {
-  ZoomIn, ZoomOut, Layers, MousePointer2, ArrowLeft, Plus, Trash2, Grid, Copy, 
-  CheckCircle2, ChevronDown, FileText, Image as ImageIcon, Loader2, Download, 
+  ZoomIn, ZoomOut, Layers, MousePointer2, ArrowLeft, Plus, Trash2, Grid, Copy,
+  CheckCircle2, ChevronDown, FileText, Image as ImageIcon, Loader2, Download,
   ToggleLeft, ToggleRight, RefreshCw, FolderOpen, Map as MapIcon, Globe, PlusSquare
 } from "lucide-react";
 import type { LeafletPage, EditorItem, BackendPage, BackendItem, ItemContent } from "../types";
@@ -41,7 +41,7 @@ interface Product {
 interface PageWithDimensions extends LeafletPage {
   width?: number;
   height?: number;
-  items: (EditorItem & { component_name?: string })[]; 
+  items: (EditorItem & { component_name?: string })[];
 }
 
 interface Slot {
@@ -98,7 +98,7 @@ const LAYOUT_INNER = layoutInnerJson as unknown as FigmaNode[];
 const processAssetUrl = (url: string | null | undefined): string => {
   if (!url) return "";
   if (url.startsWith('http')) return url;
-   
+  
   const BACKEND_URL = "http://127.0.0.1:8000";
   if (url.startsWith('products/') || url.includes('storage/')) {
       const cleanPath = url.replace('public/', '').replace(/^\/+/, '');
@@ -252,6 +252,7 @@ const EditorPage = () => {
   
   const leafletIdRef = useRef<string | undefined>(undefined);
   const savePromiseRef = useRef<Promise<void> | null>(null);
+  const statusRef = useRef<"draft" | "completed">("draft");
   
   const [pageBackground, setPageBackground] = useState<string | null>(null);
 
@@ -344,7 +345,7 @@ const EditorPage = () => {
   };
 
   const saveData = useCallback(
-    async (status: "draft" | "completed") => {
+    async () => {
       if (Object.keys(leaflets).length === 0) return;
 
       if (savePromiseRef.current) {
@@ -360,6 +361,7 @@ const EditorPage = () => {
           try {
             let payload;
             const currentId = leafletIdRef.current;
+            const currentStatus = statusRef.current;
 
             if (regionNames.length === 1 && regionNames[0] === 'DEFAULT') {
                  payload = {
@@ -367,7 +369,7 @@ const EditorPage = () => {
                     title: designName,
                     store: storeName,
                     pages: leaflets['DEFAULT'],
-                    status: status,
+                    status: currentStatus,
                     template_url: pageBackground 
                  };
             } else {
@@ -376,7 +378,7 @@ const EditorPage = () => {
                      title: designName,
                      store: storeName,
                      regions_data: leaflets,
-                     status: status,
+                     status: currentStatus,
                      template_url: pageBackground
                  };
             }
@@ -387,10 +389,6 @@ const EditorPage = () => {
                 leafletIdRef.current = response.id;
             }
             setSaveStatus("saved");
-            
-            if (status === "completed") {
-                 await reloadSmartGridData();
-            }
           } catch (error) {
             console.error(error);
             setSaveStatus("unsaved");
@@ -408,7 +406,7 @@ const EditorPage = () => {
           }
       }
     },
-    [designName, storeName, leaflets, regionNames, pageBackground, reloadSmartGridData]
+    [designName, storeName, leaflets, regionNames, pageBackground]
   );
 
   useEffect(() => {
@@ -602,6 +600,9 @@ const EditorPage = () => {
                     if (firstRegionData?.id) {
                         leafletIdRef.current = firstRegionData.id as string;
                     }
+                    if (firstRegionData?.leaflet_status) {
+                        statusRef.current = firstRegionData.leaflet_status as "draft" | "completed";
+                    }
                 }
             } else {
                 const pagesData = (backendData.pages as BackendPage[]) || (Array.isArray(backendData) ? backendData : []) || (backendData.items as BackendPage[]) || [];
@@ -611,6 +612,9 @@ const EditorPage = () => {
                 setStoreName(storeFromNav || (backendData.store as string) || "Region");
                 if (backendData.id) {
                     leafletIdRef.current = backendData.id as string;
+                }
+                if (backendData.leaflet_status) {
+                    statusRef.current = backendData.leaflet_status as "draft" | "completed";
                 }
             }
 
@@ -698,7 +702,7 @@ const EditorPage = () => {
     if (loading || isDownloading) return;
     setSaveStatus("unsaved");
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    autoSaveTimerRef.current = window.setTimeout(() => saveData("draft"), 2000);
+    autoSaveTimerRef.current = window.setTimeout(() => saveData(), 2000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
   }, [leaflets, designName, loading, isDownloading, saveData]);
 
@@ -828,8 +832,9 @@ const EditorPage = () => {
                 }
             }
         }
-
-        await saveData("completed");
+        
+        statusRef.current = "completed";
+        await saveData();
         navigate("/history");
     } catch (error) {
         console.error(error);
