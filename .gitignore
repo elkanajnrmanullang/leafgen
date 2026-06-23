@@ -11,6 +11,7 @@ dist/
 build/
 cek_layout.html
 docs/
+node_modules/
 
 # --- Node/React (frontend) ---
 frontend/node_modules/
